@@ -1,0 +1,76 @@
+# =========================
+# Java / Maven build output
+# =========================
+target/
+*.class
+*.jar
+*.war
+*.ear
+
+# =========================
+# Logs
+# =========================
+*.log
+logs/
+
+# =========================
+# Environment / secrets
+# =========================
+.env
+.env.*
+!.env.example
+
+application-local.properties
+application-secret.properties
+application-prod.properties
+application-db-local.properties
+
+# =========================
+# IDE - IntelliJ
+# =========================
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# =========================
+# IDE - VS Code
+# =========================
+.vscode/
+
+# =========================
+# OS generated files
+# =========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =========================
+# Temporary / backup files
+# =========================
+*.tmp
+*.temp
+*.bak
+*.swp
+
+# =========================
+# Archive files
+# =========================
+*.zip
+*.rar
+*.7z
+
+# =========================
+# Node / FE if added later
+# =========================
+node_modules/
+dist/
+build/
+
+# =========================
+# Local database dump / backup
+# =========================
+*.dump
+*.backup
+local-database/
+db-dump/
