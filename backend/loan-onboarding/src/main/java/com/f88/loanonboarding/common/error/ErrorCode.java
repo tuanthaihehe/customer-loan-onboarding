@@ -14,7 +14,12 @@ public enum ErrorCode {
     INVALID_LOAN_APPLICATION_STATE("APP_INVALID_STATE", "Invalid loan application state"),
     ASSET_ALREADY_PLEDGED("ASSET_ALREADY_PLEDGED", "Asset is already pledged"),
     DUPLICATED_ASSET("ASSET_DUPLICATED", "Asset already exists"),
-    INVALID_VALUATION_VALUE("VAL_INVALID_VALUE", "Invalid valuation value");
+    INVALID_VALUATION_VALUE("VAL_INVALID_VALUE", "Invalid valuation value"),
+    // OCR
+    OCR_ID_NOT_FOUND("OCR_ID_NOT_FOUND", "Không tìm thấy giấy tờ trong ảnh, vui lòng chụp lại"),
+    OCR_IMAGE_CROP_FAILED("OCR_CROP_FAILED", "Ảnh bị thiếu góc, vui lòng chụp lại toàn bộ giấy tờ"),
+    OCR_INVALID_IMAGE("OCR_INVALID_IMAGE", "File không phải ảnh hợp lệ (JPG, PNG, WEBP)"),
+    OCR_SERVICE_ERROR("OCR_SERVICE_ERROR", "Lỗi kết nối dịch vụ nhận diện giấy tờ");
 
     private final String code;
     private final String defaultMessage;

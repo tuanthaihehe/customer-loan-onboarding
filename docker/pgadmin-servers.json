@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "LOS — loan_onboarding",
+      "Group": "Docker",
+      "Host": "los-postgres",
+      "Port": 5432,
+      "MaintenanceDB": "loan_onboarding",
+      "Username": "postgres",
+      "SSLMode": "prefer",
+      "PassFile": "/pgpass"
+    }
+  }
+}

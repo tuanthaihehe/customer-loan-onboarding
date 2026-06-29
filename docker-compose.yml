@@ -1,0 +1,49 @@
+services:
+  # ─────────────────────────────────────────────
+  # PostgreSQL 17 — database chính của LOS
+  # ─────────────────────────────────────────────
+  postgres:
+    image: postgres:17-alpine
+    container_name: los-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: loan_onboarding
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-123456}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d loan_onboarding"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ─────────────────────────────────────────────
+  # Backend Spring Boot — LOS API
+  # Swagger UI: http://localhost:8080/swagger-ui/index.html
+  # ─────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend/loan-onboarding
+      dockerfile: Dockerfile
+    container_name: los-backend
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: db
+      DB_URL: jdbc:postgresql://los-postgres:5432/loan_onboarding
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-123456}
+      SERVER_PORT: 8080
+      FPTAI_API_KEY: ${FPTAI_API_KEY:-lqC33wLZQ9ILpTjRuV32W3zTWSDSOFtd}
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+    name: los-postgres-data
