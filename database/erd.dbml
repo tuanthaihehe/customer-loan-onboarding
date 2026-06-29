@@ -1,0 +1,104 @@
+Project customer_loan_onboarding {
+  database_type: "PostgreSQL"
+  Note: '''
+  ERD for the current Customer Loan Onboarding database scope.
+
+  Scope:
+  - Customer stores lookup information and a simple customer status.
+  - Asset stores basic vehicle information and a simple asset status.
+  - Loan Application is the main object and the only object with lifecycle management.
+
+  Important implementation note:
+  - loan_application.asset_id is nullable because a draft application can be created before an asset is attached.
+  - A physical partial unique index prevents the same asset from being used by more than one open loan application:
+    UNIQUE(asset_id) WHERE asset_id IS NOT NULL AND closed_at IS NULL AND deleted_at IS NULL.
+    DBML cannot fully represent this partial index condition, so it is documented here and implemented in SQL migration.
+  '''
+}
+
+Table customer {
+  id uuid [pk, note: 'Technical primary key used for FK references.']
+  customer_code varchar(50) [not null, unique, note: 'Business code used for lookup/display. Example: CUS-2026-000001.']
+  full_name varchar(255) [not null]
+  phone_number varchar(20) [not null, unique]
+  identity_number varchar(20) [not null, unique, note: 'CCCD/CMND or equivalent identity number.']
+  date_of_birth date
+  status varchar(30) [not null, default: 'ACTIVE', note: 'Allowed values: ACTIVE, INACTIVE, RESTRICTED.']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+}
+
+Table asset {
+  id uuid [pk, note: 'Technical primary key used for FK references.']
+  asset_code varchar(50) [not null, unique, note: 'Business code used for lookup/display. Example: AST-2026-000001.']
+  customer_id uuid [not null, ref: > customer.id]
+  license_plate varchar(20) [not null, unique]
+  vehicle_brand varchar(100) [not null]
+  vehicle_model varchar(100) [not null]
+  vehicle_version varchar(100)
+  manufacture_year int
+  status varchar(30) [not null, default: 'AVAILABLE', note: 'Allowed values: AVAILABLE, PLEDGED, RELEASED.']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+}
+
+Table loan_application_state {
+  id uuid [pk]
+  code varchar(50) [not null, unique, note: 'State code. Example: APP_DRAFT.']
+  name varchar(100) [not null]
+  description text
+  is_initial boolean [not null, default: false]
+  is_terminal boolean [not null, default: false]
+  sort_order int [not null]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table loan_application_state_transition {
+  id uuid [pk]
+  from_state_id uuid [not null, ref: > loan_application_state.id]
+  to_state_id uuid [not null, ref: > loan_application_state.id]
+  action_code varchar(50) [not null, note: 'Action that triggers the transition. Example: SUBMIT.']
+  action_name varchar(100) [not null]
+  description text
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    (from_state_id, to_state_id, action_code) [unique]
+  }
+}
+
+Table loan_application {
+  id uuid [pk, note: 'Technical primary key used for FK references.']
+  loan_application_code varchar(50) [not null, unique, note: 'Business code used for lookup/display. Example: APP-2026-000001.']
+  customer_id uuid [not null, ref: > customer.id]
+  asset_id uuid [ref: > asset.id, note: 'Nullable while the application is still draft and no asset has been attached yet.']
+  current_state_id uuid [not null, ref: > loan_application_state.id]
+  requested_amount numeric(18,2) [not null]
+  loan_purpose text
+  submitted_at timestamp
+  closed_at timestamp [note: 'Set when the application reaches a terminal state.']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  deleted_at timestamp
+}
+
+Table loan_application_state_history {
+  id uuid [pk]
+  loan_application_id uuid [not null, ref: > loan_application.id]
+  from_state_id uuid [ref: > loan_application_state.id, note: 'Null for the initial CREATE event.']
+  to_state_id uuid [not null, ref: > loan_application_state.id]
+  action_code varchar(50) [not null]
+  changed_at timestamp [not null]
+  changed_by varchar(100)
+  note text
+}
+
+Ref: customer.id < asset.customer_id
+Ref: customer.id < loan_application.customer_id
+Ref: asset.id < loan_application.asset_id
+Ref: loan_application_state.id < loan_application.current_state_id
+Ref: loan_application.id < loan_application_state_history.loan_application_id
