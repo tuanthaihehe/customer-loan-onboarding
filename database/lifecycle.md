@@ -1,169 +1,254 @@
 # Loan Application Lifecycle
 
-## 1. Mục tiêu thiết kế
+## 1. Mục đích
 
-Lifecycle của `loan_application` được thiết kế để trả lời các câu hỏi sau:
+Lifecycle của hồ sơ vay được thiết kế để quản lý trạng thái xử lý của `loan_application` một cách rõ ràng và có thể truy vết.
 
-- Hồ sơ vay hiện tại đang ở state nào?
-- State nào là state bắt đầu?
-- State nào là state kết thúc?
-- Từ state hiện tại, hồ sơ được phép chuyển sang state nào?
-- Hồ sơ đã chuyển state lúc nào, bởi ai, với hành động gì?
+Thiết kế hiện tại sử dụng 3 bảng đi kèm với `loan_application`:
 
-Thiết kế hiện tại dùng 4 bảng:
+- `loan_application_state`
+- `loan_application_state_transition`
+- `loan_application_state_history`
 
-| Bảng | Vai trò |
+Trong đó:
+
+- `loan_application_state` định nghĩa các state hợp lệ.
+- `loan_application_state_transition` định nghĩa state nào được phép chuyển sang state nào.
+- `loan_application_state_history` ghi nhận lịch sử chuyển state thực tế của từng hồ sơ vay.
+
+---
+
+## 2. Vai trò của từng bảng
+
+### 2.1. `loan_application`
+
+Bảng `loan_application` là hồ sơ vay nghiệp vụ.
+
+Các trường liên quan đến lifecycle:
+
+| Field | Ý nghĩa |
 |---|---|
-| `loan_application` | Lưu hồ sơ vay và state hiện tại. |
-| `loan_application_state` | Lưu danh mục state hợp lệ. |
-| `loan_application_state_transition` | Lưu các transition hợp lệ giữa các state. |
-| `loan_application_state_history` | Lưu lịch sử chuyển state của từng hồ sơ. |
+| `current_state_id` | State hiện tại của hồ sơ vay. |
+| `asset_id` | Tài sản được gắn với hồ sơ vay. Nullable khi hồ sơ đang ở giai đoạn nháp. |
+
+Khi cần biết hồ sơ đang ở đâu trong quy trình, backend đọc `loan_application.current_state_id`.
 
 ---
 
-## 2. Nguyên tắc thiết kế
+### 2.2. `loan_application_state`
 
-### 2.1. State hiện tại nằm trong `loan_application`
-
-`loan_application.current_state_id` là nguồn chính để biết hồ sơ hiện đang ở đâu.
+Bảng này là danh mục state của hồ sơ vay.
 
 Ví dụ:
 
-```text
-APP-2026-000001 -> current_state = APP_IN_REVIEW
-```
+| Code | Ý nghĩa |
+|---|---|
+| `APP_DRAFT` | Hồ sơ nháp. |
+| `APP_SUBMITTED` | Hồ sơ đã được nộp. |
+| `APP_NEEDS_SUPPLEMENT` | Hồ sơ cần bổ sung. |
+| `APP_IN_REVIEW` | Hồ sơ đang thẩm định/phê duyệt. |
+| `APP_READY_FOR_CONTRACT` | Hồ sơ sẵn sàng lập hợp đồng. |
+| `APP_CONTRACTED` | Hồ sơ đã có hợp đồng. |
+| `APP_CANCELLED` | Hồ sơ bị hủy. |
 
-### 2.2. Danh mục state không thay đổi theo từng hồ sơ
+Hai cột quan trọng:
 
-`loan_application_state` là bảng reference/master data. Khi tạo hồ sơ mới, hệ thống không insert thêm state mới vào bảng này.
+| Field | Ý nghĩa |
+|---|---|
+| `is_initial` | Đánh dấu state khởi tạo của hồ sơ vay. Hiện tại là `APP_DRAFT`. |
+| `is_terminal` | Đánh dấu state kết thúc lifecycle. Hiện tại gồm `APP_CONTRACTED`, `APP_CANCELLED`. |
 
-Bảng này chỉ thay đổi khi thay đổi thiết kế lifecycle của hệ thống, ví dụ thêm state mới.
+---
 
-### 2.3. Transition là cấu hình đường đi hợp lệ
+### 2.3. `loan_application_state_transition`
 
-`loan_application_state_transition` không ghi nhận sự kiện thực tế. Bảng này chỉ định nghĩa từ state nào có thể đi sang state nào.
+Bảng này định nghĩa các chuyển đổi state hợp lệ.
 
 Ví dụ:
 
-```text
-APP_DRAFT -> APP_SUBMITTED bằng action SUBMIT
-APP_DRAFT -> APP_CANCELLED bằng action CANCEL
-```
+| From | Action | To |
+|---|---|---|
+| `APP_DRAFT` | `SUBMIT` | `APP_SUBMITTED` |
+| `APP_DRAFT` | `CANCEL` | `APP_CANCELLED` |
+| `APP_SUBMITTED` | `START_REVIEW` | `APP_IN_REVIEW` |
+| `APP_SUBMITTED` | `REQUEST_SUPPLEMENT` | `APP_NEEDS_SUPPLEMENT` |
+| `APP_NEEDS_SUPPLEMENT` | `RESUBMIT` | `APP_SUBMITTED` |
+| `APP_IN_REVIEW` | `APPROVE_FOR_CONTRACT` | `APP_READY_FOR_CONTRACT` |
+| `APP_READY_FOR_CONTRACT` | `CREATE_CONTRACT` | `APP_CONTRACTED` |
 
-### 2.4. History là audit lifecycle
-
-`loan_application_state_history` ghi lại sự kiện thực tế đã xảy ra với từng hồ sơ.
+Backend sử dụng bảng này để kiểm tra một hành động chuyển state có hợp lệ hay không.
 
 Ví dụ:
 
-```text
-APP-2026-000001: NULL -> APP_DRAFT, action CREATE, 2026-06-10 10:00:00
-APP-2026-000001: APP_DRAFT -> APP_SUBMITTED, action SUBMIT, 2026-06-10 10:30:00
-```
+- `APP_DRAFT -> APP_SUBMITTED` là hợp lệ.
+- `APP_DRAFT -> APP_CONTRACTED` là không hợp lệ vì không có transition tương ứng.
 
 ---
 
-## 3. Danh sách state
+### 2.4. `loan_application_state_history`
 
-| Code | Tên | Initial | Terminal | Ý nghĩa |
-|---|---|---:|---:|---|
-| `APP_DRAFT` | Hồ sơ nháp | Yes | No | Hồ sơ mới được tạo, chưa nộp vào luồng xử lý. |
-| `APP_SUBMITTED` | Đã nộp hồ sơ | No | No | Hồ sơ đã được gửi vào luồng xử lý. |
-| `APP_NEEDS_SUPPLEMENT` | Cần bổ sung hồ sơ | No | No | Hồ sơ thiếu thông tin hoặc giấy tờ và cần bổ sung. |
-| `APP_IN_REVIEW` | Đang thẩm định/phê duyệt | No | No | Hồ sơ đang được kiểm tra, thẩm định hoặc phê duyệt. |
-| `APP_READY_FOR_CONTRACT` | Sẵn sàng lập hợp đồng | No | No | Hồ sơ đủ điều kiện để chuyển sang bước lập hợp đồng. |
-| `APP_CONTRACTED` | Đã có hợp đồng | No | Yes | Hồ sơ đã được tạo hợp đồng, kết thúc lifecycle trong module hiện tại. |
-| `APP_CANCELLED` | Hồ sơ bị hủy | No | Yes | Hồ sơ bị hủy và không tiếp tục xử lý. |
+Bảng này ghi nhận lịch sử chuyển state thực tế.
 
----
+Ví dụ khi tạo hồ sơ vay nháp:
 
-## 4. Transition hợp lệ
+| from_state_id | to_state_id | action_code |
+|---|---|---|
+| `NULL` | `APP_DRAFT` | `CREATE` |
 
-| From state | Action | To state | Ý nghĩa |
-|---|---|---|---|
-| `APP_DRAFT` | `SUBMIT` | `APP_SUBMITTED` | Nộp hồ sơ nháp vào luồng xử lý. |
-| `APP_DRAFT` | `CANCEL` | `APP_CANCELLED` | Hủy hồ sơ khi còn nháp. |
-| `APP_SUBMITTED` | `START_REVIEW` | `APP_IN_REVIEW` | Bắt đầu thẩm định/phê duyệt. |
-| `APP_SUBMITTED` | `REQUEST_SUPPLEMENT` | `APP_NEEDS_SUPPLEMENT` | Yêu cầu bổ sung sau khi hồ sơ đã nộp. |
-| `APP_SUBMITTED` | `CANCEL` | `APP_CANCELLED` | Hủy hồ sơ sau khi đã nộp. |
-| `APP_NEEDS_SUPPLEMENT` | `RESUBMIT` | `APP_SUBMITTED` | Nộp lại sau khi bổ sung. |
-| `APP_IN_REVIEW` | `REQUEST_SUPPLEMENT` | `APP_NEEDS_SUPPLEMENT` | Yêu cầu bổ sung trong quá trình review. |
-| `APP_IN_REVIEW` | `DRAFT_CONTRACT` | `APP_READY_FOR_CONTRACT` | Chuyển sang bước lập hợp đồng. |
-| `APP_READY_FOR_CONTRACT` | `CREATE_CONTRACT` | `APP_CONTRACTED` | Tạo hợp đồng từ hồ sơ vay. |
-| `APP_READY_FOR_CONTRACT` | `CANCEL` | `APP_CANCELLED` | Hủy hồ sơ trước khi lập hợp đồng. |
+`from_state_id = NULL` vì trước khi tạo, hồ sơ chưa tồn tại trong hệ thống.
+
+Ví dụ khi nộp hồ sơ:
+
+| from_state_id | to_state_id | action_code |
+|---|---|---|
+| `APP_DRAFT` | `APP_SUBMITTED` | `SUBMIT` |
 
 ---
 
-## 5. Tạo hồ sơ vay lần đầu
+## 3. Luồng tạo hồ sơ vay nháp
 
-Khi tạo hồ sơ vay mới, backend thực hiện các bước sau:
+Khi nhân viên tạo hồ sơ vay nháp, hệ thống thực hiện:
 
-1. Tìm state khởi tạo trong `loan_application_state`:
+1. Tìm state khởi tạo trong `loan_application_state`, hiện tại là `APP_DRAFT`.
+2. Insert một record vào `loan_application`.
+3. Gán `current_state_id = APP_DRAFT`.
+4. Để `asset_id = NULL` nếu chưa chọn tài sản.
+5. Insert một record vào `loan_application_state_history` với:
+   - `from_state_id = NULL`
+   - `to_state_id = APP_DRAFT`
+   - `action_code = CREATE`
+
+Các bảng thay đổi:
+
+| Bảng | Thay đổi |
+|---|---|
+| `loan_application` | Insert hồ sơ mới. |
+| `loan_application_state_history` | Insert lịch sử tạo hồ sơ. |
+| `loan_application_state` | Không đổi. |
+| `loan_application_state_transition` | Không đổi. |
+
+---
+
+## 4. Luồng gắn tài sản vào hồ sơ vay
+
+Tài sản được tạo/lưu trong bảng `asset`. Sau đó hồ sơ vay được cập nhật để tham chiếu đến tài sản.
+
+Khi gắn tài sản:
 
 ```sql
-SELECT id
-FROM loan_application_state
-WHERE is_initial = TRUE;
+UPDATE loan_application
+SET asset_id = :asset_id
+WHERE loan_application_code = :loan_application_code;
 ```
 
-2. Insert record vào `loan_application` với:
+Việc gắn tài sản không bắt buộc phải tạo state mới. Đây là thay đổi dữ liệu của hồ sơ vay, không nhất thiết là một bước lifecycle riêng.
 
-```text
-current_state_id = APP_DRAFT
-requested_amount = NULL hoặc giá trị do người dùng nhập
-```
-
-3. Insert một record vào `loan_application_state_history`:
-
-```text
-from_state_id = NULL
-to_state_id = APP_DRAFT
-action_code = CREATE
-changed_at = thời điểm tạo hồ sơ
-changed_by = nhân viên tạo hồ sơ
-```
-
-Lưu ý: khi tạo hồ sơ mới, không insert dữ liệu vào `loan_application_state` và `loan_application_state_transition` vì hai bảng này là dữ liệu cấu hình đã seed sẵn.
+Nếu nghiệp vụ sau này yêu cầu theo dõi việc gắn/gỡ tài sản như event, có thể bổ sung action trong `loan_application_state_history` hoặc thiết kế bảng event riêng. Ở phiên bản hiện tại, `loan_application_state_history` chỉ dùng cho chuyển state chính của hồ sơ vay.
 
 ---
 
-## 6. Chuyển state sau khi hồ sơ đã tồn tại
+## 5. Kiểm tra tài sản có đang được dùng ở hồ sơ chưa kết thúc hay không
 
-Khi người dùng thực hiện một hành động như `SUBMIT`, backend nên xử lý theo quy trình:
+Vì `loan_application.asset_id` nullable và không có unique constraint cứng, backend cần kiểm tra trước khi gắn tài sản vào một hồ sơ khác.
 
-1. Đọc `loan_application.current_state_id` để biết state hiện tại.
-2. Kiểm tra trong `loan_application_state_transition` xem transition có hợp lệ không.
-3. Nếu hợp lệ:
-   - update `loan_application.current_state_id` sang state mới;
-   - insert một dòng vào `loan_application_state_history`.
-4. Nếu không hợp lệ:
-   - từ chối thao tác và trả lỗi nghiệp vụ.
+Query kiểm tra:
 
-Ví dụ với action `SUBMIT`:
-
-```text
-Current state: APP_DRAFT
-Action: SUBMIT
-Allowed transition: APP_DRAFT -> APP_SUBMITTED
+```sql
+SELECT la.*
+FROM loan_application la
+JOIN loan_application_state s ON s.id = la.current_state_id
+WHERE la.asset_id = :asset_id
+  AND s.is_terminal = FALSE;
 ```
 
-Sau khi xử lý:
+Nếu query trả về record, tài sản đang được gắn với một hồ sơ vay chưa kết thúc. Backend không nên cho phép gắn tài sản đó vào hồ sơ vay active khác.
 
-```text
-loan_application.current_state_id = APP_SUBMITTED
-history: APP_DRAFT -> APP_SUBMITTED, action SUBMIT
-```
+Lý do không dùng `UNIQUE(asset_id)`:
+
+- Một tài sản có thể từng được sử dụng trong hồ sơ cũ đã kết thúc.
+- Rule cần phụ thuộc vào lifecycle state của hồ sơ vay.
+- `is_terminal` nằm trong `loan_application_state`, nên kiểm tra ở tầng service rõ ràng hơn trong giai đoạn hiện tại.
 
 ---
 
-## 7. Ghi chú về audit
+## 6. Luồng nộp hồ sơ
 
-Phiên bản này dùng `loan_application_state_history` để audit lifecycle event, bao gồm:
+Điều kiện tối thiểu trước khi nộp hồ sơ có thể gồm:
 
-- thời điểm tạo hồ sơ;
-- thời điểm nộp hồ sơ;
-- thời điểm yêu cầu bổ sung;
-- thời điểm bắt đầu review;
-- thời điểm hủy hoặc tạo hợp đồng.
+- Hồ sơ đang ở `APP_DRAFT`.
+- Hồ sơ thuộc về một khách hàng hợp lệ.
+- Các thông tin cần thiết của hồ sơ đã được nhập.
+- Nếu nghiệp vụ yêu cầu tài sản trước khi nộp, `asset_id` phải khác `NULL`.
 
-Bảng history này không audit mọi thay đổi field trong `loan_application`. Nếu sau này cần biết ai thay đổi `requested_amount` hoặc `loan_purpose`, cần bổ sung cơ chế audit riêng.
+Khi nộp hồ sơ:
+
+1. Backend đọc state hiện tại của hồ sơ.
+2. Backend kiểm tra transition `APP_DRAFT -> APP_SUBMITTED` với `action_code = SUBMIT`.
+3. Backend cập nhật `loan_application.current_state_id = APP_SUBMITTED`.
+4. Backend insert một record vào `loan_application_state_history`.
+
+---
+
+## 7. Luồng yêu cầu bổ sung
+
+Khi hồ sơ cần bổ sung thông tin:
+
+1. Backend kiểm tra transition hiện tại có cho phép `REQUEST_SUPPLEMENT` hay không.
+2. Backend cập nhật `current_state_id = APP_NEEDS_SUPPLEMENT`.
+3. Backend ghi lịch sử vào `loan_application_state_history`.
+
+State `APP_NEEDS_SUPPLEMENT` cho phép hồ sơ quay lại `APP_SUBMITTED` bằng action `RESUBMIT`.
+
+---
+
+## 8. Luồng hoàn tất hoặc hủy hồ sơ
+
+Các state kết thúc hiện tại:
+
+| State | Ý nghĩa |
+|---|---|
+| `APP_CONTRACTED` | Hồ sơ đã được tạo hợp đồng. |
+| `APP_CANCELLED` | Hồ sơ bị hủy. |
+
+Khi hồ sơ vào state có `is_terminal = TRUE`, hồ sơ được xem là đã kết thúc lifecycle trong phạm vi module hiện tại.
+
+---
+
+## 9. Quan hệ giữa lifecycle hồ sơ vay và asset status
+
+`loan_application` quản lý lifecycle của hồ sơ vay.
+
+`asset.status` quản lý trạng thái tài sản ở mức đơn giản:
+
+| Status | Ý nghĩa |
+|---|---|
+| `AVAILABLE` | Tài sản sẵn sàng. |
+| `PLEDGED` | Tài sản đang cầm cố. |
+| `RELEASED` | Tài sản đã giải chấp/giải phóng. |
+| `SETTLED` | Tài sản liên quan khoản vay đã tất toán/thanh toán xong. |
+
+Hai loại trạng thái này không thay thế nhau:
+
+- `loan_application.current_state_id` cho biết hồ sơ vay đang ở bước nào.
+- `asset.status` cho biết tài sản đang ở tình trạng nghiệp vụ nào.
+
+Ví dụ:
+
+- Khi hồ sơ được nộp và tài sản được dùng làm tài sản đảm bảo, backend có thể cập nhật `asset.status = PLEDGED`.
+- Khi hồ sơ bị hủy trước khi cầm cố, asset có thể vẫn là `AVAILABLE`.
+- Khi khoản vay tất toán, asset có thể chuyển sang `SETTLED` hoặc `RELEASED` tùy quy ước nghiệp vụ.
+
+---
+
+## 10. Ghi chú về audit
+
+`loan_application_state_history` chỉ audit sự kiện lifecycle của hồ sơ vay.
+
+Bảng này không audit các thay đổi field như:
+
+- `requested_amount`
+- `loan_term_months`
+- `loan_purpose`
+- `asset_id`
+
+Nếu sau này cần truy vết đầy đủ các thay đổi field, nên bổ sung cơ chế audit riêng.
