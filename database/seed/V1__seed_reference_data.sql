@@ -1,8 +1,7 @@
 -- Customer Loan Onboarding - Reference Data Seed
 -- PostgreSQL dialect
---
--- This seed inserts fixed lifecycle reference data for loan applications.
--- It does not insert demo customers, assets or loan applications.
+-- This seed inserts loan application lifecycle states and allowed transitions.
+-- It does not insert demo business data.
 
 -- =========================================================
 -- 1. Loan application states
@@ -87,9 +86,9 @@ VALUES
     '00000000-0000-0000-0000-000000000208',
     '00000000-0000-0000-0000-000000000104',
     '00000000-0000-0000-0000-000000000105',
-    'APPROVE_FOR_CONTRACT',
-    'Duyệt lập hợp đồng',
-    'Hồ sơ đủ điều kiện để lập hợp đồng.'
+    'DRAFT_CONTRACT',
+    'Chuyển sang lập hợp đồng',
+    'Hồ sơ đủ điều kiện để chuyển sang bước lập hợp đồng.'
 ),
 (
     '00000000-0000-0000-0000-000000000209',
