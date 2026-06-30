@@ -5,9 +5,9 @@ import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.f88.loanonboarding.entity.LoanTermEntity;
+import com.f88.loanonboarding.entity.LoanTerm;
 
-public interface LoanTermRepository extends JpaRepository<LoanTermEntity, UUID> {
+public interface LoanTermRepository extends JpaRepository<LoanTerm, UUID> {
 
-    Optional<LoanTermEntity> findByTermMonthsAndActiveTrue(Integer termMonths);
+    Optional<LoanTerm> findByTermMonthsAndActiveTrue(Integer termMonths);
 }

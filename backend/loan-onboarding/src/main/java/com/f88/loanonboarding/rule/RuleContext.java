@@ -3,6 +3,8 @@ package com.f88.loanonboarding.rule;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+import com.f88.loanonboarding.enums.AssetType;
+
 public record RuleContext(
         String customerCode,
         LocalDate dateOfBirth,
@@ -10,7 +12,7 @@ public record RuleContext(
         BigDecimal requestedAmount,
         Integer requestedTenure,
         String loanPurpose,
-        String assetType,
+        AssetType assetType,
         String licensePlate,
         boolean duplicatedAsset,
         BigDecimal assetFinalValue,
@@ -52,7 +54,7 @@ public record RuleContext(
         );
     }
 
-    public static RuleContext asset(String assetType, String licensePlate, boolean duplicatedAsset) {
+    public static RuleContext asset(AssetType assetType, String licensePlate, boolean duplicatedAsset) {
         return new RuleContext(
                 null,
                 null,

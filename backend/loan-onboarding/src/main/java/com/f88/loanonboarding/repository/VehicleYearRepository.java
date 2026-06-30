@@ -5,16 +5,27 @@ import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
-import com.f88.loanonboarding.entity.VehicleYearEntity;
+import com.f88.loanonboarding.entity.VehicleYear;
 
-public interface VehicleYearRepository extends JpaRepository<VehicleYearEntity, UUID> {
+public interface VehicleYearRepository extends JpaRepository<VehicleYear, UUID> {
 
     @Query("""
-            SELECT DISTINCT y.manufactureYear
-            FROM VehicleYearEntity y
-            WHERE y.active = true
-            ORDER BY y.manufactureYear DESC
+            select distinct vehicleYear.manufactureYear
+            from VehicleYear vehicleYear
+            where vehicleYear.active = true
+            order by vehicleYear.manufactureYear desc
             """)
     List<Integer> findActiveManufactureYears();
+
+    @Query("""
+            select distinct vehicleYear.manufactureYear
+            from VehicleYear vehicleYear
+            join vehicleYear.vehicleVersion vehicleVersion
+            where vehicleVersion.code = :versionCode
+              and vehicleYear.active = true
+            order by vehicleYear.manufactureYear desc
+            """)
+    List<Integer> findActiveManufactureYearsByVersionCode(@Param("versionCode") String versionCode);
 }

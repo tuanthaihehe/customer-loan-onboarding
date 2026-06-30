@@ -6,11 +6,11 @@ import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.f88.loanonboarding.entity.LoanPurposeEntity;
+import com.f88.loanonboarding.entity.LoanPurpose;
 
-public interface LoanPurposeRepository extends JpaRepository<LoanPurposeEntity, UUID> {
+public interface LoanPurposeRepository extends JpaRepository<LoanPurpose, UUID> {
 
-    Optional<LoanPurposeEntity> findByCodeAndActiveTrue(String code);
+    Optional<LoanPurpose> findByCodeAndActiveTrue(String code);
 
-    List<LoanPurposeEntity> findByActiveTrueOrderBySortOrderAscNameAsc();
+    List<LoanPurpose> findByActiveTrueOrderBySortOrderAscNameAsc();
 }

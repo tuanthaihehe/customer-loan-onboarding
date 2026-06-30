@@ -5,17 +5,19 @@ import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.f88.loanonboarding.entity.LoanApplicationEntity;
-import com.f88.loanonboarding.entity.LoanApplicationStateHistoryEntity;
+import com.f88.loanonboarding.entity.LoanApplication;
+import com.f88.loanonboarding.entity.LoanApplicationStateHistory;
 
-public interface LoanApplicationStateHistoryRepository extends JpaRepository<LoanApplicationStateHistoryEntity, UUID> {
+public interface LoanApplicationStateHistoryRepository extends JpaRepository<LoanApplicationStateHistory, UUID> {
 
-    Optional<LoanApplicationStateHistoryEntity> findTopByLoanApplicationAndActionCodeOrderByChangedAtDesc(
-            LoanApplicationEntity loanApplication,
+    Optional<LoanApplicationStateHistory> findFirstByLoanApplicationOrderByChangedAtAsc(LoanApplication loanApplication);
+
+    Optional<LoanApplicationStateHistory> findFirstByLoanApplicationOrderByChangedAtDesc(LoanApplication loanApplication);
+
+    Optional<LoanApplicationStateHistory> findTopByLoanApplicationAndActionCodeOrderByChangedAtDesc(
+            LoanApplication loanApplication,
             String actionCode
     );
 
-    Optional<LoanApplicationStateHistoryEntity> findTopByLoanApplicationOrderByChangedAtDesc(
-            LoanApplicationEntity loanApplication
-    );
+    Optional<LoanApplicationStateHistory> findTopByLoanApplicationOrderByChangedAtDesc(LoanApplication loanApplication);
 }

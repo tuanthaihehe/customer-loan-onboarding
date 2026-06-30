@@ -9,15 +9,21 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import com.f88.loanonboarding.entity.CustomerEntity;
+import com.f88.loanonboarding.entity.Customer;
 
-public interface CustomerRepository extends JpaRepository<CustomerEntity, UUID> {
+public interface CustomerRepository extends JpaRepository<Customer, UUID> {
 
-    Optional<CustomerEntity> findByCustomerCode(String customerCode);
+    Optional<Customer> findByCustomerCode(String customerCode);
+
+    boolean existsByIdentityNumber(String identityNumber);
+
+    boolean existsByPhoneNumber(String phoneNumber);
+
+    Optional<Customer> findTopByCustomerCodeStartingWithOrderByCustomerCodeDesc(String prefix);
 
     @Query("""
             SELECT c
-            FROM CustomerEntity c
+            FROM Customer c
             WHERE c.identityNumber = :identityNumber
                OR c.phoneNumber = :phoneNumber
                OR (LOWER(c.fullName) = LOWER(:fullName) AND c.dateOfBirth = :dateOfBirth)
@@ -28,7 +34,7 @@ public interface CustomerRepository extends JpaRepository<CustomerEntity, UUID> 
                     ELSE 3
                 END
             """)
-    List<CustomerEntity> lookup(
+    List<Customer> lookup(
             @Param("identityNumber") String identityNumber,
             @Param("phoneNumber") String phoneNumber,
             @Param("fullName") String fullName,

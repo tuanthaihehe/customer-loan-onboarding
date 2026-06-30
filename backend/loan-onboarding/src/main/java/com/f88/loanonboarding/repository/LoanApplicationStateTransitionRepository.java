@@ -5,13 +5,19 @@ import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.f88.loanonboarding.entity.LoanApplicationStateEntity;
-import com.f88.loanonboarding.entity.LoanApplicationStateTransitionEntity;
+import com.f88.loanonboarding.entity.LoanApplicationState;
+import com.f88.loanonboarding.entity.LoanApplicationStateTransition;
 
-public interface LoanApplicationStateTransitionRepository extends JpaRepository<LoanApplicationStateTransitionEntity, UUID> {
+public interface LoanApplicationStateTransitionRepository extends JpaRepository<LoanApplicationStateTransition, UUID> {
 
-    Optional<LoanApplicationStateTransitionEntity> findByFromStateAndActionCode(
-            LoanApplicationStateEntity fromState,
+    Optional<LoanApplicationStateTransition> findByFromStateAndActionCode(
+            LoanApplicationState fromState,
+            String actionCode
+    );
+
+    boolean existsByFromStateAndToStateAndActionCode(
+            LoanApplicationState fromState,
+            LoanApplicationState toState,
             String actionCode
     );
 }

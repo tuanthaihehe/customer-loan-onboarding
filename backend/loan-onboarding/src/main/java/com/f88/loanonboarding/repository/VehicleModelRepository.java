@@ -5,9 +5,13 @@ import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.f88.loanonboarding.entity.VehicleModelEntity;
+import com.f88.loanonboarding.entity.VehicleModel;
 
-public interface VehicleModelRepository extends JpaRepository<VehicleModelEntity, UUID> {
-    List<VehicleModelEntity> findByActiveTrueAndVehicleBrandActiveTrueOrderBySortOrderAscNameAsc();
-    List<VehicleModelEntity> findByActiveTrueAndVehicleBrandActiveTrueAndVehicleBrandCodeOrderBySortOrderAscNameAsc(String brandCode);
+public interface VehicleModelRepository extends JpaRepository<VehicleModel, UUID> {
+
+    List<VehicleModel> findByVehicleBrand_CodeAndActiveTrueOrderBySortOrderAsc(String brandCode);
+
+    List<VehicleModel> findByActiveTrueAndVehicleBrandActiveTrueOrderBySortOrderAscNameAsc();
+
+    List<VehicleModel> findByActiveTrueAndVehicleBrandActiveTrueAndVehicleBrandCodeOrderBySortOrderAscNameAsc(String brandCode);
 }

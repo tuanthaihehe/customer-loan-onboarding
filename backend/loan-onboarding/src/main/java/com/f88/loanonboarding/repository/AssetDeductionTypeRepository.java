@@ -1,12 +1,18 @@
 package com.f88.loanonboarding.repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.f88.loanonboarding.entity.AssetDeductionTypeEntity;
+import com.f88.loanonboarding.entity.AssetDeductionType;
 
-public interface AssetDeductionTypeRepository extends JpaRepository<AssetDeductionTypeEntity, UUID> {
-    List<AssetDeductionTypeEntity> findByActiveTrueOrderBySortOrderAscNameAsc();
+public interface AssetDeductionTypeRepository extends JpaRepository<AssetDeductionType, UUID> {
+
+    List<AssetDeductionType> findByActiveTrueOrderBySortOrderAsc();
+
+    List<AssetDeductionType> findByActiveTrueOrderBySortOrderAscNameAsc();
+
+    Optional<AssetDeductionType> findByCode(String code);
 }
