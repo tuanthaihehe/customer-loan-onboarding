@@ -1,4 +1,4 @@
-# Customer & Loan Onboarding - Demo Flow 1
+# Customer & Loan Onboarding
 
 Repository này là baseline backend cho đề tài **Customer & Loan Onboarding**. Mục tiêu hiện tại không phải xây dựng hệ thống production đầy đủ, mà là chuẩn bị một backend **API-first, mock-first** để demo được **luồng 1: tạo hồ sơ vay và gửi đi phê duyệt**.
 

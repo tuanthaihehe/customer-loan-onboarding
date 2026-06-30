@@ -1,0 +1,64 @@
+// Customer Loan Onboarding - ERD
+// Scope: customer + loan application lifecycle only.
+// Asset is intentionally excluded in this version.
+
+Table customer {
+  id uuid [pk]
+  customer_code varchar(50) [not null, unique, note: 'Business code for lookup/display']
+  full_name varchar(255) [not null]
+  phone_number varchar(20) [unique]
+  identity_number varchar(20) [unique]
+  date_of_birth date
+  status varchar(30) [not null, default: 'ACTIVE', note: 'ACTIVE, INACTIVE, RESTRICTED']
+}
+
+Table loan_application_state {
+  id uuid [pk]
+  code varchar(50) [not null, unique]
+  name varchar(100) [not null]
+  description text
+  is_initial boolean [not null, default: false]
+  is_terminal boolean [not null, default: false]
+  sort_order int [not null]
+}
+
+Table loan_application_state_transition {
+  id uuid [pk]
+  from_state_id uuid [not null]
+  to_state_id uuid [not null]
+  action_code varchar(50) [not null]
+  action_name varchar(100) [not null]
+  description text
+
+  indexes {
+    (from_state_id, to_state_id, action_code) [unique]
+  }
+}
+
+Table loan_application {
+  id uuid [pk]
+  loan_application_code varchar(50) [not null, unique, note: 'Business code for lookup/display, format APP-YYYY-NNNNNN']
+  customer_id uuid [not null]
+  current_state_id uuid [not null]
+  requested_amount numeric(18,2) [note: 'Nullable for early draft applications']
+  loan_purpose text
+}
+
+Table loan_application_state_history {
+  id uuid [pk]
+  loan_application_id uuid [not null]
+  from_state_id uuid [note: 'NULL for CREATE event']
+  to_state_id uuid [not null]
+  action_code varchar(50) [not null]
+  changed_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  changed_by varchar(100)
+  note text
+}
+
+Ref: customer.id < loan_application.customer_id
+Ref: loan_application_state.id < loan_application.current_state_id
+Ref: loan_application_state.id < loan_application_state_transition.from_state_id
+Ref: loan_application_state.id < loan_application_state_transition.to_state_id
+Ref: loan_application.id < loan_application_state_history.loan_application_id
+Ref: loan_application_state.id < loan_application_state_history.from_state_id
+Ref: loan_application_state.id < loan_application_state_history.to_state_id

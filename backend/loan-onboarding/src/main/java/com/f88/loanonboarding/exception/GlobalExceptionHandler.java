@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import com.f88.loanonboarding.common.error.ErrorCode;
 import com.f88.loanonboarding.common.response.ApiResponse;
@@ -39,6 +40,15 @@ public class GlobalExceptionHandler {
         );
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException ex) {
+        ApiResponse<Void> response = ApiResponse.error(
+                "Kích thước ảnh vượt quá 5MB, vui lòng chọn ảnh nhỏ hơn",
+                ErrorCode.OCR_INVALID_IMAGE.getCode()
+        );
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(response);
     }
 
     @ExceptionHandler(Exception.class)
