@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Customer & Loan Onboarding - Database Baseline
+=======
+# Customer & Loan Onboarding
+>>>>>>> origin/phuc-db
 
 Repository này là baseline backend cho đề tài **Customer & Loan Onboarding**. Từ phiên bản này backend mặc định chạy bằng database thật theo Flyway migration trong `backend/loan-onboarding/src/main/resources/db/migration`.
 
