@@ -17,7 +17,9 @@ public enum ErrorCode {
     DUPLICATED_ASSET("ASSET_DUPLICATED", "Tài sản đã tồn tại"),
     INVALID_VALUATION_VALUE("VAL_INVALID_VALUE", "Giá trị định giá không hợp lệ"),
     // OCR
-    OCR_ID_NOT_FOUND("OCR_ID_NOT_FOUND", "Không tìm thấy giấy tờ trong ảnh, vui lòng chụp lại"),
+    OCR_ID_NOT_FOUND("OCR_ID_NOT_FOUND", "Không phát hiện CCCD/CMND trong ảnh, vui lòng chụp đúng giấy tờ"),
+    OCR_IMAGE_BLURRY("OCR_IMAGE_BLURRY", "Ảnh bị mờ hoặc nhòe, vui lòng chụp lại rõ nét hơn"),
+    OCR_IMAGE_TOO_FAR("OCR_IMAGE_TOO_FAR", "Ảnh chụp giấy tờ quá xa, vui lòng đưa CCCD/CMND chiếm phần lớn khung hình"),
     OCR_IMAGE_CROP_FAILED("OCR_CROP_FAILED", "Ảnh bị thiếu góc, vui lòng chụp lại toàn bộ giấy tờ"),
     OCR_INVALID_IMAGE("OCR_INVALID_IMAGE", "File không phải ảnh hợp lệ (JPG, PNG, WEBP)"),
     OCR_SERVICE_ERROR("OCR_SERVICE_ERROR", "Lỗi kết nối dịch vụ nhận diện giấy tờ");
