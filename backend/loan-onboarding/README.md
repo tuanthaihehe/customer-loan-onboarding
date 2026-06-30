@@ -7,7 +7,7 @@ Spring Boot backend cho demo **Customer & Loan Onboarding - Flow 1**.
 Backend này dùng để demo:
 
 ```text
-Tạo hồ sơ vay nháp → bổ sung thông tin → định giá/eligibility mock → gửi đi phê duyệt
+Tạo hồ sơ vay nháp → bổ sung thông tin khoản vay → kiểm tra eligibility → gửi đi phê duyệt
 ```
 
 Không phải production backend hoàn chỉnh.
@@ -20,8 +20,8 @@ Không phải production backend hoàn chỉnh.
 | Spring Boot | 3.x |
 | Build | Maven Wrapper |
 | API docs | Springdoc OpenAPI / Swagger |
-| Default profile | `mock` |
-| Database | Chưa dùng thật |
+| Default profile | `db` |
+| Database | PostgreSQL/Flyway/JPA Repository |
 
 ## 3. Run
 
@@ -47,12 +47,11 @@ com.f88.loanonboarding
 ├── dto             # request/response DTO
 ├── enums           # state/result enum
 ├── exception       # exception handler
-├── mock            # demo mock data provider
 ├── rule            # rule skeleton/demo guard
 ├── service         # service interface
-├── service.impl    # mock service implementation
-├── entity          # placeholder, chưa dùng thật
-├── repository      # placeholder, chưa dùng thật
+├── service.impl    # service implementation chuẩn, gọi repository
+├── entity          # JPA entity map với bảng hiện có
+├── repository      # Spring Data JPA repository/query riêng
 └── mapper          # placeholder, chưa dùng thật
 ```
 
@@ -84,9 +83,7 @@ com.f88.loanonboarding
 Mặc định:
 
 ```properties
-spring.profiles.default=mock
+spring.profiles.default=db
 ```
 
-Profile `mock` loại bỏ datasource auto configuration để backend chạy được khi chưa có DB.
-
-Profile `db` chỉ dùng sau khi ERD/schema sẵn sàng.
+Profile `db` kết nối PostgreSQL theo `application-db.properties`.
