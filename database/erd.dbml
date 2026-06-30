@@ -4,12 +4,16 @@
 // - Loan application lifecycle
 // - Vehicle catalog for dropdown selection
 // - Asset record linked to loan application after draft creation
+// - Asset valuation snapshot and valuation deductions
 //
 // Design notes:
 // - id is the technical primary key used for database references.
 // - *_code is the business code used for lookup/display.
 // - loan_application.asset_id is nullable because a draft application can be created before asset selection.
 // - asset does not store customer_id. The customer is resolved through loan_application.customer_id.
+// - vehicle_market_price stores market price by vehicle_variant and effective date.
+// - asset_valuation stores the valuation snapshot used for an asset.
+// - asset_valuation_deduction stores deduction lines applied in one valuation.
 // - The rule "one asset must not be attached to more than one active loan application"
 //   is enforced by backend logic using loan_application.current_state_id and loan_application_state.is_terminal.
 
@@ -169,6 +173,43 @@ Table asset {
   status varchar(30) [not null, default: 'AVAILABLE', note: 'AVAILABLE, PLEDGED, RELEASED, SETTLED']
 }
 
+Table asset_deduction_type {
+  id uuid [pk]
+  code varchar(50) [not null, unique]
+  name varchar(100) [not null]
+  description text
+  is_active boolean [not null, default: true]
+  sort_order int [not null, default: 0]
+}
+
+Table asset_valuation {
+  id uuid [pk]
+  asset_id uuid [not null]
+  market_price_amount numeric(18,2) [not null, note: 'Market price snapshot at valuation time.']
+  total_deduction_amount numeric(18,2) [not null, default: 0, note: 'Total deduction amount applied in this valuation.']
+  final_value_amount numeric(18,2) [not null, note: 'Final accepted value after deductions.']
+  currency_code varchar(3) [not null, default: 'VND']
+  valuation_source varchar(100)
+  valued_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  valued_by varchar(100)
+  note text
+}
+
+Table asset_valuation_deduction {
+  id uuid [pk]
+  asset_valuation_id uuid [not null]
+  deduction_type_id uuid [not null]
+  deduction_method varchar(20) [not null, note: 'PERCENT, AMOUNT']
+  deduction_value numeric(18,2) [not null, note: 'Percentage value or fixed amount depending on deduction_method.']
+  deduction_amount numeric(18,2) [not null, note: 'Actual money amount deducted in this valuation.']
+  description text
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (asset_valuation_id, deduction_type_id) [unique]
+  }
+}
+
 Ref: customer.id < loan_application.customer_id
 Ref: asset.id < loan_application.asset_id
 Ref: loan_application_state.id < loan_application.current_state_id
@@ -188,3 +229,7 @@ Ref: vehicle_year.id < vehicle_variant.vehicle_year_id
 Ref: vehicle_color.id < vehicle_variant.vehicle_color_id
 Ref: vehicle_variant.id < vehicle_market_price.vehicle_variant_id
 Ref: vehicle_variant.id < asset.vehicle_variant_id
+
+Ref: asset.id < asset_valuation.asset_id
+Ref: asset_valuation.id < asset_valuation_deduction.asset_valuation_id
+Ref: asset_deduction_type.id < asset_valuation_deduction.deduction_type_id
