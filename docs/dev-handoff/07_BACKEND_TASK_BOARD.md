@@ -1,4 +1,4 @@
-# Backend Task Board
+﻿# Backend Task Board
 
 ## 1. Done
 
@@ -16,7 +16,7 @@
 | BE-010 | Eligibility check API | Done |
 | BE-011 | Submit for approval API | Done |
 | BE-012 | Reference data API | Done |
-| BE-013 | Tách mock data provider | Done |
+| BE-013 | Tách database seed/migration | Done |
 | BE-014 | Docs cho demo Flow 1 | Done |
 
 ## 2. Should do next
@@ -26,7 +26,7 @@
 | BE-020 | Chạy lại toàn bộ Swagger checklist | Xác nhận demo ổn trước khi push Git |
 | BE-021 | Đồng bộ với FE prototype | Đảm bảo request/response dùng được cho UI |
 | BE-022 | Review field với BA | Giảm lệch DTO so với nghiệp vụ |
-| BE-023 | Ghi chú endpoint nào là mock | DEV mới không hiểu nhầm production |
+| BE-023 | Ghi chú endpoint nào là database | DEV mới không hiểu nhầm production |
 
 ## 3. Not now
 
@@ -37,3 +37,4 @@
 | BE-032 | Rule registry | Quá nặng cho demo |
 | BE-033 | Entity/repository thật | Chờ ERD |
 | BE-034 | Approval/contract/disbursement full | Ngoài scope Flow 1 |
+

@@ -1,4 +1,4 @@
-# Rule Skeleton / Demo Guard
+﻿# Rule Skeleton / Demo Guard
 
 ## 1. Cách hiểu đúng
 
@@ -86,3 +86,4 @@ Khi đó mới bổ sung:
 - controller test chi tiết;
 - rule registry;
 - rule mapping từ Action → Rule.
+

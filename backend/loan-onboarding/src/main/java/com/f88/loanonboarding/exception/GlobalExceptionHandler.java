@@ -1,6 +1,7 @@
 package com.f88.loanonboarding.exception;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -49,6 +50,16 @@ public class GlobalExceptionHandler {
                 ErrorCode.OCR_INVALID_IMAGE.getCode()
         );
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(response);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        ApiResponse<Void> response = ApiResponse.error(
+                "Dữ liệu không thỏa ràng buộc trong database, vui lòng kiểm tra lại thông tin nhập",
+                ErrorCode.VALIDATION_ERROR.getCode()
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
     @ExceptionHandler(Exception.class)

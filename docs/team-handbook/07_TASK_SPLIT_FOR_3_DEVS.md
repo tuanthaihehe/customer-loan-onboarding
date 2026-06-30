@@ -1,4 +1,4 @@
-# Task Split For 3 DEVs
+﻿# Task Split For 3 DEVs
 
 Tài liệu này chia việc theo scope demo Flow 1.
 
@@ -17,10 +17,10 @@ File chính:
 ```text
 controller/CustomerController.java
 controller/LoanApplicationController.java
-service/impl/CustomerServiceMockImpl.java
-service/impl/LoanApplicationServiceMockImpl.java
-mock/DemoCustomerMockDataProvider.java
-mock/DemoLoanApplicationMockDataProvider.java
+service/impl/CustomerServiceDbImpl.java
+service/impl/LoanApplicationServiceDbImpl.java
+database/customer seed data.java
+database/loan_application seed data.java
 ```
 
 ## DEV 2 - Asset & Valuation
@@ -37,10 +37,10 @@ File chính:
 ```text
 controller/AssetController.java
 controller/AssetValuationController.java
-service/impl/AssetServiceMockImpl.java
-service/impl/AssetValuationServiceMockImpl.java
-mock/DemoAssetMockDataProvider.java
-mock/DemoValuationMockDataProvider.java
+service/impl/AssetServiceDbImpl.java
+service/impl/AssetValuationServiceDbImpl.java
+database/asset migration pending.java
+database/valuation migration pending.java
 ```
 
 ## DEV 3 - Eligibility, Reference Data, Docs
@@ -58,13 +58,14 @@ File chính:
 ```text
 controller/EligibilityController.java
 controller/ReferenceDataController.java
-service/impl/EligibilityServiceMockImpl.java
-service/impl/ReferenceDataServiceMockImpl.java
-mock/DemoEligibilityMockDataProvider.java
-mock/DemoReferenceDataMockDataProvider.java
+service/impl/EligibilityServiceDbImpl.java
+service/impl/ReferenceDataServiceDbImpl.java
+database/eligibility migration pending.java
+database/reference seed data.java
 docs/
 ```
 
 ## Quy tắc chung
 
 Không ai tự ý mở rộng sang approval/contract/disbursement full khi chưa có yêu cầu.
+

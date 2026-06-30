@@ -1,4 +1,4 @@
-# Screen to API Mapping
+﻿# Screen to API Mapping
 
 | Screen | API | Ghi chú |
 |---|---|---|
@@ -6,7 +6,7 @@
 | Customer lookup | `POST /api/v1/customers/lookup` | Tra cứu/định danh sơ bộ KH |
 | Create application | `POST /api/v1/loan-applications` | Tạo hồ sơ nháp |
 | Application form | `PATCH /api/v1/loan-applications/{applicationCode}/draft` | Lưu thông tin KH/khoản vay |
-| Application detail | `GET /api/v1/loan-applications/{applicationCode}` | Xem tổng hợp mock |
+| Application detail | `GET /api/v1/loan-applications/{applicationCode}` | Xem tổng hợp database |
 | Asset lookup | `POST /api/v1/assets/lookup` | Kiểm tra tài sản |
 | Asset form | `PATCH /api/v1/loan-applications/{applicationCode}/asset-snapshot` | Gắn tài sản vào hồ sơ |
 | Valuation preview | `POST /api/v1/loan-applications/{applicationCode}/asset-valuations/preview` | Tính thử định giá |
@@ -22,3 +22,4 @@
 | Approval decision | Ngoài Flow 1 |
 | Contract | Ngoài Flow 1 |
 | Disbursement | Ngoài Flow 1 |
+

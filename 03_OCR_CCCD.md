@@ -1,4 +1,4 @@
-# OCR CCCD — Tài liệu kỹ thuật
+﻿# OCR CCCD — Tài liệu kỹ thuật
 
 ## 1. Mục tiêu tính năng
 
@@ -225,5 +225,6 @@ spring.servlet.multipart.max-request-size=12MB
 |---|---|
 | Lưu ảnh CCCD vào storage (S3/local) | Chưa có yêu cầu lưu trữ ảnh |
 | Validate xác thực chéo (tên OCR vs tên KH nhập) | Chờ BA xác nhận rule |
-| OCR mock cho unit test | Rule và flow WF-01 chưa ổn định |
+| OCR database cho unit test | Rule và flow WF-01 chưa ổn định |
 | Tích hợp kết quả OCR vào `CustomerLookupRequest` | FE tự điền form, BE nhận qua lookup |
+

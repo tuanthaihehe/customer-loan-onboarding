@@ -1,4 +1,4 @@
-# Loan Application Lifecycle
+﻿# Loan Application Lifecycle
 
 ## 1. Mục tiêu thiết kế
 
@@ -167,3 +167,4 @@ Phiên bản này dùng `loan_application_state_history` để audit lifecycle e
 - thời điểm hủy hoặc tạo hợp đồng.
 
 Bảng history này không audit mọi thay đổi field trong `loan_application`. Nếu sau này cần biết ai thay đổi `requested_amount` hoặc `loan_purpose`, cần bổ sung cơ chế audit riêng.
+

@@ -1,71 +1,47 @@
-# Demo Flow 1 - Tạo hồ sơ vay và gửi đi phê duyệt
+# Flow Hiện Tại Theo Database
 
-## 1. Mục tiêu Flow 1
+## Mục tiêu
 
-Flow 1 chứng minh backend có thể hỗ trợ nhân viên PGD tạo một hồ sơ vay nháp, bổ sung thông tin cần thiết, kiểm tra điều kiện cơ bản và gửi hồ sơ sang bước phê duyệt.
-
-Kết quả cuối cùng:
+Backend hiện hỗ trợ luồng tối thiểu dựa trên schema thật:
 
 ```text
-LoanApplication.applicationState = APP_SUBMITTED
-ApprovalCase mock được sinh ra với approvalCaseCode
-Event mock = LoanApplicationSubmittedForApproval
+OCR CCCD hoặc nhập thông tin KH
+→ Tra cứu customer trong database
+→ Tạo loan_application nháp
+→ Lưu thông tin khoản vay
+→ Gửi hồ sơ từ APP_DRAFT sang APP_SUBMITTED
 ```
 
-## 2. Luồng nghiệp vụ demo
+## API sequence chạy được
 
-```text
-Khách hàng phát sinh nhu cầu vay
-→ Nhân viên PGD tra cứu khách hàng
-→ Hệ thống trả thông tin khách hàng mock
-→ Nhân viên tạo hồ sơ vay nháp
-→ Nhân viên lưu thông tin khách hàng và nhu cầu vay
-→ Nhân viên tra cứu tài sản
-→ Nhân viên lưu tài sản vào hồ sơ
-→ Hệ thống tính định giá thử
-→ Hệ thống chạy eligibility check
-→ Nhân viên gửi hồ sơ sang bước phê duyệt
-```
+| Step | API | Expected result |
+|---:|---|---|
+| 0 | `GET /api/v1/health` | Backend running |
+| 1 | `POST /api/v1/customers/ocr/extract` | OCR trả thông tin định danh nếu FPT AI nhận diện được |
+| 2 | `POST /api/v1/customers/lookup` | Đọc bảng `customer` |
+| 3 | `POST /api/v1/loan-applications` | Tạo `loan_application` state `APP_DRAFT` |
+| 4 | `PATCH /api/v1/loan-applications/{applicationCode}/draft` | Cập nhật `requested_amount`, `loan_purpose`, `loan_term_months` |
+| 5 | `GET /api/v1/loan-applications/{applicationCode}` | Đọc chi tiết từ DB |
+| 6 | `POST /api/v1/loan-applications/{applicationCode}/steps/preliminary/complete` | Kiểm tra dữ liệu khoản vay tối thiểu |
+| 7 | `POST /api/v1/loan-applications/{applicationCode}/submit-for-approval` | Chuyển state sang `APP_SUBMITTED` và ghi history `SUBMIT` |
 
-## 3. API sequence
+## API giữ contract nhưng chưa có schema
 
-| Step | API | Mục đích | Expected result |
-|---:|---|---|---|
-| 0 | `GET /api/v1/health` | Kiểm tra backend chạy | `Loan Onboarding API is running` |
-| 1 | `POST /api/v1/customers/lookup` | Tra cứu khách hàng | `customerCode = CUS-000001` |
-| 2 | `POST /api/v1/loan-applications` | Tạo hồ sơ nháp | `applicationCode = APP-2026-000001` |
-| 3 | `PATCH /api/v1/loan-applications/{applicationCode}/draft` | Lưu thông tin hồ sơ | State vẫn là `APP_DRAFT` |
-| 4 | `POST /api/v1/assets/lookup` | Tra cứu tài sản | `eligibleForPledge = true` |
-| 5 | `PATCH /api/v1/loan-applications/{applicationCode}/asset-snapshot` | Gắn tài sản vào hồ sơ | Trả asset snapshot |
-| 6 | `POST /api/v1/loan-applications/{applicationCode}/asset-valuations/preview` | Tính định giá thử | Trả `loanableValue` |
-| 7 | `PATCH /api/v1/loan-applications/{applicationCode}/valuation-preview` | Lưu định giá thử | `valuationState = VAL_ACTIVE` |
-| 8 | `POST /api/v1/loan-applications/{applicationCode}/eligibility-checks` | Kiểm tra điều kiện | `eligibilityResult = PASSED` |
-| 9 | `POST /api/v1/loan-applications/{applicationCode}/submit-for-approval` | Gửi phê duyệt | `APP_SUBMITTED` và `approvalCaseCode` |
+Các API sau chưa có bảng trong migration hiện tại, nên trả `ERR_SCHEMA_NOT_READY`:
 
-## 4. Dữ liệu demo cố định
-
-| Field | Value |
+| API | Lý do |
 |---|---|
-| `customerCode` | `CUS-000001` |
-| `applicationCode` | `APP-2026-000001` |
-| `approvalCaseCode` | `APR-2026-000001` |
-| `assetType` | `MOTORBIKE` |
-| `licensePlate` | `29A12345` |
-| `marketValue` | `30000000` |
-| `ltvRatio` | `70` |
-| `eligibilityResult` | `PASSED` |
+| `POST /api/v1/assets/lookup` | Chưa có bảng asset |
+| `PATCH /api/v1/loan-applications/{applicationCode}/asset-snapshot` | `loan_application` chưa có asset reference |
+| `POST /api/v1/loan-applications/{applicationCode}/asset-valuations/preview` | Chưa có bảng định giá |
+| `PATCH /api/v1/loan-applications/{applicationCode}/valuation-preview` | Chưa có bảng định giá |
 
-## 5. Không thuộc Flow 1
+## Dữ liệu seed có sẵn
 
-Flow 1 không xử lý các bước sau:
+| Object | Ví dụ |
+|---|---|
+| Customer | `CUS-2026-000001`, `CUS-2026-000002`, ... |
+| Loan application | `APP-2026-000001` đến `APP-2026-000005` |
+| State | `APP_DRAFT`, `APP_SUBMITTED`, `APP_NEEDS_SUPPLEMENT`, `APP_IN_REVIEW`, `APP_READY_FOR_CONTRACT`, `APP_CONTRACTED`, `APP_CANCELLED` |
 
-- phê duyệt thật sự `approve/reject`;
-- sinh hợp đồng;
-- ký hợp đồng;
-- tạo loan account thật;
-- giải ngân;
-- đồng bộ Core Banking;
-- rule engine production;
-- database persistence.
-
-Các phần này có thể bổ sung sau khi mentor/team mở rộng scope.
+Khi tạo hồ sơ mới, backend sinh mã dạng `APP-2026-XXXXXX` dựa trên mã lớn nhất trong database.

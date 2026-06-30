@@ -9,16 +9,25 @@ import com.f88.loanonboarding.rule.RuleResult;
 
 public class LoanPurposeRule implements BusinessRule {
 
-    private static final Set<String> ALLOWED_PURPOSES = Set.of("BUSINESS", "PERSONAL", "EMERGENCY");
+    private static final Set<String> ALLOWED_PURPOSES = Set.of(
+            "BUSINESS",
+            "PERSONAL_CONSUMPTION",
+            "VEHICLE_REPAIR",
+            "MEDICAL",
+            "EDUCATION",
+            "HOME_REPAIR",
+            "DEBT_REPAYMENT",
+            "OTHER"
+    );
 
     @Override
     public RuleResult evaluate(RuleContext context) {
         if (context.loanPurpose() == null || context.loanPurpose().isBlank()) {
-            return RuleResult.fail(RuleCode.LOAN_PURPOSE_ALLOWED, "Loan purpose is required");
+            return RuleResult.fail(RuleCode.LOAN_PURPOSE_ALLOWED, "Mục đích vay là bắt buộc");
         }
 
         if (!ALLOWED_PURPOSES.contains(context.loanPurpose())) {
-            return RuleResult.fail(RuleCode.LOAN_PURPOSE_ALLOWED, "Loan purpose is not allowed");
+            return RuleResult.fail(RuleCode.LOAN_PURPOSE_ALLOWED, "Mục đích vay không nằm trong danh mục database cho phép");
         }
 
         return RuleResult.pass(RuleCode.LOAN_PURPOSE_ALLOWED);

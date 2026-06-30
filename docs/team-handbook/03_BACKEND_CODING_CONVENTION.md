@@ -1,60 +1,33 @@
 # Backend Coding Convention
 
-## 1. Layering
+## Layering
 
 ```text
-Controller → Service → Mock Data Provider / Rule Skeleton → Response DTO
+Controller → Service Interface → DB Service Implementation → Database
 ```
 
-## 2. Controller
+Controller chỉ nhận request, gọi service và bọc response bằng `ApiResponse<T>`.
 
-Controller chỉ làm:
+## Service
 
-- nhận request;
-- gọi service;
-- bọc response bằng `ApiResponse<T>`;
-- khai báo Swagger annotation.
-
-Controller không làm:
-
-- tính toán nghiệp vụ;
-- tạo mock data dài dòng;
-- gọi repository trực tiếp;
-- xử lý rule phức tạp.
-
-## 3. Service
-
-Service xử lý flow demo và gọi rule/mock provider khi cần.
-
-Tên class mock service:
+Implementation dùng hậu tố:
 
 ```text
-XxxServiceMockImpl
+XxxServiceDbImpl
 ```
 
-## 4. Mock data provider
+Service không hard-code dữ liệu thay database/seed. Nếu schema chưa hỗ trợ một nghiệp vụ, service trả lỗi nghiệp vụ rõ ràng bằng tiếng Việt thay vì tự giả lập dữ liệu.
 
-Mock data đặt trong package:
+## Database
 
-```text
-com.f88.loanonboarding.mock
-```
+- Migration chạy thật nằm trong `backend/loan-onboarding/src/main/resources/db/migration`.
+- Tài liệu BA/DA nằm trong `database/`.
+- Không sửa `.env`, `docker`, hoặc `db/migration` nếu không có yêu cầu rõ.
+- Khi BA/DA thêm migration/seed mới, cập nhật service và tài liệu theo schema mới.
 
-Tên class:
-
-```text
-DemoXxxMockDataProvider
-```
-
-Mục đích: giúp service sạch, dễ đổi dữ liệu demo, dễ đồng bộ với FE.
-
-## 5. DTO
+## DTO
 
 - Request DTO nằm trong `dto.request`.
 - Response DTO nằm trong `dto.response`.
 - Không dùng entity làm request/response.
-- `Map<String,Object>` chỉ chấp nhận tạm ở detail mock nếu cần linh hoạt trước ERD.
-
-## 6. Entity/Repository
-
-Chỉ tạo thật sau khi ERD chính thức được chốt.
+- `Map<String,Object>` chỉ dùng tạm cho detail tổng hợp khi schema còn nhỏ và chưa cần DTO con riêng.

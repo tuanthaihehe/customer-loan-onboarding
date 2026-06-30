@@ -1,43 +1,26 @@
 # Project Overview
 
-## 1. Tên đề tài
+Backend hiện là Spring Boot service chạy database thật theo Flyway migration.
 
-**Customer & Loan Onboarding**
+## Trạng thái hiện tại
 
-## 2. Mục tiêu demo backend
-
-Tạo backend đủ để demo luồng nhân viên PGD tạo một hồ sơ vay và gửi hồ sơ sang bước phê duyệt.
-
-## 3. Đặc điểm kỹ thuật
-
-| Hạng mục | Giá trị |
+| Hạng mục | Trạng thái |
 |---|---|
-| Language | Java 21 |
-| Framework | Spring Boot |
-| API docs | Swagger/OpenAPI |
-| Profile mặc định | `mock` |
-| Database | Chưa dùng thật |
-| Build tool | Maven Wrapper |
+| Profile mặc định | `db` |
+| Database | PostgreSQL + Flyway |
+| Customer lookup | Đọc bảng `customer` |
+| Loan application | Đọc/ghi `loan_application` và state history |
+| OCR CCCD | Gọi FPT AI |
+| Asset/valuation | Chưa có schema, trả `ERR_SCHEMA_NOT_READY` |
 
-## 4. Kiến trúc hiện tại
+## Flow đang hỗ trợ
 
 ```text
-Controller
-→ Service interface
-→ Mock service implementation
-→ Rule skeleton / Mock data provider
-→ DTO response
-→ ApiResponse<T>
+Customer lookup
+→ Create loan application draft
+→ Save loan request
+→ Complete preliminary step
+→ Submit application
 ```
 
-## 5. Không phải production backend
-
-Project chưa xử lý:
-
-- xác thực/phân quyền;
-- transaction DB;
-- persistence;
-- approval decision thật;
-- contract;
-- disbursement;
-- external integration.
+Submit chuyển hồ sơ từ `APP_DRAFT` sang `APP_SUBMITTED` theo transition trong database.

@@ -1,10 +1,10 @@
-# Team Working Agreement
+﻿# Team Working Agreement
 
 ## 1. Cách phối hợp
 
 | Vai trò | Trách nhiệm trong giai đoạn này |
 |---|---|
-| BE | Giữ API Flow 1 chạy được, mock rõ ràng, docs rõ |
+| BE | Giữ API Flow 1 chạy được, database rõ ràng, docs rõ |
 | FE | Gọi API theo Swagger/sample |
 | BA | Chốt field/rule nghiệp vụ dần |
 | ERD/DB | Cung cấp schema chính thức khi sẵn sàng |
@@ -23,3 +23,4 @@ Nếu đổi request/response:
 ## 3. Quy tắc scope
 
 Demo hiện tại kết thúc ở `submit-for-approval`. Mọi phần sau đó chỉ ghi nhận là ngoài phạm vi, không tự làm sâu.
+
