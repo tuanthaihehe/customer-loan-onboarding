@@ -128,14 +128,18 @@ public class LoanApplicationServiceDbImpl implements LoanApplicationService {
         LoanApplicationRow application = findApplication(applicationCode);
         ensureState(application.stateCode(), STATE_DRAFT, "Chỉ hồ sơ nháp mới được lưu thông tin khoản vay");
 
+        UUID loanPurposeId = findLoanPurposeId(request.loanRequest().loanPurpose());
+        UUID loanTermId = findLoanTermId(request.loanRequest().requestedTenure());
+
         jdbcTemplate.update(
                 """
                 UPDATE loan_application
-                SET requested_amount = ?, loan_purpose = ?, loan_term_months = ?
+                SET requested_amount = ?, loan_purpose_id = ?, loan_term_id = ?, loan_term_months = ?
                 WHERE id = ?
                 """,
                 request.loanRequest().requestedAmount(),
-                request.loanRequest().loanPurpose(),
+                loanPurposeId,
+                loanTermId,
                 request.loanRequest().requestedTenure(),
                 application.id()
         );
@@ -281,12 +285,13 @@ public class LoanApplicationServiceDbImpl implements LoanApplicationService {
                            la.current_state_id,
                            las.code AS state_code,
                            la.requested_amount,
-                           la.loan_purpose,
+                           lp.code AS loan_purpose,
                            la.loan_term_months,
                            la.branch
                     FROM loan_application la
                     JOIN customer c ON c.id = la.customer_id
                     JOIN loan_application_state las ON las.id = la.current_state_id
+                    LEFT JOIN loan_purpose lp ON lp.id = la.loan_purpose_id
                     WHERE la.loan_application_code = ?
                     """,
                     this::mapApplication,
@@ -379,6 +384,38 @@ public class LoanApplicationServiceDbImpl implements LoanApplicationService {
     private void ensureState(String actualState, String expectedState, String message) {
         if (!expectedState.equals(actualState)) {
             throw new BusinessException(ErrorCode.INVALID_LOAN_APPLICATION_STATE, message);
+        }
+    }
+
+    private UUID findLoanPurposeId(String loanPurposeCode) {
+        try {
+            return jdbcTemplate.queryForObject(
+                    """
+                    SELECT id
+                    FROM loan_purpose
+                    WHERE code = ? AND is_active = true
+                    """,
+                    UUID.class,
+                    loanPurposeCode
+            );
+        } catch (EmptyResultDataAccessException ex) {
+            throw new BusinessException(ErrorCode.INVALID_LOAN_PURPOSE, "Mục đích vay không tồn tại hoặc đã ngừng áp dụng trong database");
+        }
+    }
+
+    private UUID findLoanTermId(Integer loanTermMonths) {
+        try {
+            return jdbcTemplate.queryForObject(
+                    """
+                    SELECT id
+                    FROM loan_term
+                    WHERE term_months = ? AND is_active = true
+                    """,
+                    UUID.class,
+                    loanTermMonths
+            );
+        } catch (EmptyResultDataAccessException ex) {
+            throw new BusinessException(ErrorCode.INVALID_LOAN_TERM, "Kỳ hạn vay không tồn tại hoặc đã ngừng áp dụng trong database");
         }
     }
 

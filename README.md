@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-# Customer & Loan Onboarding - Database Baseline
-=======
 # Customer & Loan Onboarding
->>>>>>> origin/phuc-db
 
 Repository này là baseline backend cho đề tài **Customer & Loan Onboarding**. Từ phiên bản này backend mặc định chạy bằng database thật theo Flyway migration trong `backend/loan-onboarding/src/main/resources/db/migration`.
 
@@ -40,13 +36,13 @@ Swagger: http://localhost:8080/swagger-ui/index.html
 
 ## Tài liệu cần đọc
 
-| Thứ tự | File | Mục đích |
-|---:|---|---|
-| 1 | `database/README.md` | Database scope hiện tại |
-| 2 | `database/data-dictionary 1.md` | Field/constraint theo schema |
-| 3 | `database/lifecycle 1.md` | Lifecycle hồ sơ vay |
-| 4 | `docs/api/01_API_REQUEST_RESPONSE_SAMPLES.md` | Request/response mẫu theo DB thật |
-| 5 | `03_OCR_CCCD.md` | Tài liệu OCR CCCD |
+| Thứ tự | File                                          | Mục đích                          |
+| -----: | --------------------------------------------- | --------------------------------- |
+|      1 | `database/README.md`                          | Database scope hiện tại           |
+|      2 | `database/data-dictionary 1.md`               | Field/constraint theo schema      |
+|      3 | `database/lifecycle 1.md`                     | Lifecycle hồ sơ vay               |
+|      4 | `docs/api/01_API_REQUEST_RESPONSE_SAMPLES.md` | Request/response mẫu theo DB thật |
+|      5 | `03_OCR_CCCD.md`                              | Tài liệu OCR CCCD                 |
 
 ## Nguyên tắc phát triển tiếp
 

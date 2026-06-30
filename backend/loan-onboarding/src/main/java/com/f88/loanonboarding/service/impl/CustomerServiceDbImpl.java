@@ -68,7 +68,7 @@ public class CustomerServiceDbImpl implements CustomerService {
         }
 
         CustomerRow customer = customers.get(0);
-        boolean restricted = "RESTRICTED".equals(customer.status());
+        boolean restricted = "BLACKLIST".equals(customer.status()) || "RESTRICTED".equals(customer.status());
         ruleEvaluationService.validateOrThrow(
                 RuleContext.customer(customer.customerCode(), customer.dateOfBirth(), restricted),
                 List.of(new CustomerBlacklistRule(), new CustomerAgeRule())
@@ -82,7 +82,7 @@ public class CustomerServiceDbImpl implements CustomerService {
                 true,
                 customer.customerCode(),
                 customer.status(),
-                restricted ? "RESTRICTED" : "ELIGIBLE",
+                restricted ? "BLACKLIST" : "ELIGIBLE",
                 restricted ? "BLOCKED" : "ALLOW_CREATE_APPLICATION",
                 new MatchedCustomerResponse(
                         customer.fullName(),

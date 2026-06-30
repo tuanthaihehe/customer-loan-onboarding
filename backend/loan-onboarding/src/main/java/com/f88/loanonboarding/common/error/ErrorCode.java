@@ -11,6 +11,8 @@ public enum ErrorCode {
     CUSTOMER_RESTRICTED("CUS_RESTRICTED", "Khách hàng đang bị hạn chế"),
     INVALID_REQUESTED_AMOUNT("APP_INVALID_AMOUNT", "Số tiền vay phải lớn hơn 0"),
     MISSING_LOAN_PURPOSE("APP_MISSING_PURPOSE", "Mục đích vay là bắt buộc"),
+    INVALID_LOAN_PURPOSE("APP_INVALID_PURPOSE", "Mục đích vay không tồn tại trong database"),
+    INVALID_LOAN_TERM("APP_INVALID_TERM", "Kỳ hạn vay không tồn tại trong database"),
     LOAN_APPLICATION_NOT_FOUND("APP_404", "Không tìm thấy hồ sơ vay"),
     INVALID_LOAN_APPLICATION_STATE("APP_INVALID_STATE", "Trạng thái hồ sơ vay không hợp lệ"),
     ASSET_ALREADY_PLEDGED("ASSET_ALREADY_PLEDGED", "Tài sản đã được cầm cố"),
