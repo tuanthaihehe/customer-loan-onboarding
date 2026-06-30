@@ -1,0 +1,235 @@
+// Customer Loan Onboarding - ERD
+// Current scope:
+// - Customer lookup and basic customer storage
+// - Loan application lifecycle
+// - Vehicle catalog for dropdown selection
+// - Asset record linked to loan application after draft creation
+// - Asset valuation snapshot and valuation deductions
+//
+// Design notes:
+// - id is the technical primary key used for database references.
+// - *_code is the business code used for lookup/display.
+// - loan_application.asset_id is nullable because a draft application can be created before asset selection.
+// - asset does not store customer_id. The customer is resolved through loan_application.customer_id.
+// - vehicle_market_price stores market price by vehicle_variant and effective date.
+// - asset_valuation stores the valuation snapshot used for an asset.
+// - asset_valuation_deduction stores deduction lines applied in one valuation.
+// - The rule "one asset must not be attached to more than one active loan application"
+//   is enforced by backend logic using loan_application.current_state_id and loan_application_state.is_terminal.
+
+Table customer {
+  id uuid [pk]
+  customer_code varchar(50) [not null, unique, note: 'Business code for lookup/display. Format: CUS-YYYY-NNNNNN']
+  full_name varchar(255) [not null]
+  phone_number varchar(20) [unique]
+  identity_number varchar(20) [unique]
+  date_of_birth date
+  status varchar(30) [not null, default: 'ACTIVE', note: 'ACTIVE, INACTIVE, RESTRICTED']
+}
+
+Table loan_application_state {
+  id uuid [pk]
+  code varchar(50) [not null, unique]
+  name varchar(100) [not null]
+  description text
+  is_initial boolean [not null, default: false]
+  is_terminal boolean [not null, default: false]
+  sort_order int [not null]
+}
+
+Table loan_application_state_transition {
+  id uuid [pk]
+  from_state_id uuid [not null]
+  to_state_id uuid [not null]
+  action_code varchar(50) [not null]
+  action_name varchar(100) [not null]
+  description text
+
+  indexes {
+    (from_state_id, to_state_id, action_code) [unique]
+  }
+}
+
+Table loan_application {
+  id uuid [pk]
+  loan_application_code varchar(50) [not null, unique, note: 'Business code for lookup/display. Format: APP-YYYY-NNNNNN']
+  customer_id uuid [not null]
+  current_state_id uuid [not null]
+  asset_id uuid [note: 'Nullable. Draft application may be created before asset selection.']
+  requested_amount numeric(18,2) [note: 'Nullable for early draft applications. Must be positive when provided.']
+  loan_term_months int [note: 'Nullable for early draft applications. Must be positive when provided.']
+  loan_purpose varchar(50) [note: 'BUSINESS, PERSONAL_CONSUMPTION, VEHICLE_REPAIR, MEDICAL, EDUCATION, HOME_REPAIR, DEBT_REPAYMENT, OTHER']
+}
+
+Table loan_application_state_history {
+  id uuid [pk]
+  loan_application_id uuid [not null]
+  from_state_id uuid [note: 'NULL for CREATE event']
+  to_state_id uuid [not null]
+  action_code varchar(50) [not null]
+  changed_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  changed_by varchar(100)
+  note text
+}
+
+Table vehicle_type {
+  id uuid [pk]
+  code varchar(50) [not null, unique]
+  name varchar(100) [not null]
+  description text
+  is_active boolean [not null, default: true]
+  sort_order int [not null, default: 0]
+}
+
+Table vehicle_brand {
+  id uuid [pk]
+  vehicle_type_id uuid [not null]
+  code varchar(50) [not null]
+  name varchar(100) [not null]
+  is_active boolean [not null, default: true]
+  sort_order int [not null, default: 0]
+
+  indexes {
+    (vehicle_type_id, code) [unique]
+  }
+}
+
+Table vehicle_model {
+  id uuid [pk]
+  vehicle_brand_id uuid [not null]
+  code varchar(50) [not null]
+  name varchar(100) [not null]
+  is_active boolean [not null, default: true]
+  sort_order int [not null, default: 0]
+
+  indexes {
+    (vehicle_brand_id, code) [unique]
+  }
+}
+
+Table vehicle_version {
+  id uuid [pk]
+  vehicle_model_id uuid [not null]
+  code varchar(50) [not null]
+  name varchar(100) [not null]
+  is_active boolean [not null, default: true]
+  sort_order int [not null, default: 0]
+
+  indexes {
+    (vehicle_model_id, code) [unique]
+  }
+}
+
+Table vehicle_year {
+  id uuid [pk]
+  vehicle_version_id uuid [not null]
+  manufacture_year int [not null]
+  is_active boolean [not null, default: true]
+  sort_order int [not null, default: 0]
+
+  indexes {
+    (vehicle_version_id, manufacture_year) [unique]
+  }
+}
+
+Table vehicle_color {
+  id uuid [pk]
+  code varchar(50) [not null, unique]
+  name varchar(100) [not null]
+  is_active boolean [not null, default: true]
+  sort_order int [not null, default: 0]
+}
+
+Table vehicle_variant {
+  id uuid [pk]
+  vehicle_year_id uuid [not null]
+  vehicle_color_id uuid [not null]
+  code varchar(100) [not null, unique]
+  name varchar(255) [not null]
+  is_active boolean [not null, default: true]
+  sort_order int [not null, default: 0]
+
+  indexes {
+    (vehicle_year_id, vehicle_color_id) [unique]
+  }
+}
+
+Table vehicle_market_price {
+  id uuid [pk]
+  vehicle_variant_id uuid [not null]
+  price_amount numeric(18,2) [not null]
+  currency_code varchar(3) [not null, default: 'VND']
+  price_source varchar(100)
+  effective_from date [not null]
+  effective_to date
+  note text
+}
+
+Table asset {
+  id uuid [pk]
+  asset_code varchar(50) [not null, unique, note: 'Business code for lookup/display. Format: AST-YYYY-NNNNNN']
+  vehicle_variant_id uuid [not null]
+  license_plate varchar(20) [unique]
+  status varchar(30) [not null, default: 'AVAILABLE', note: 'AVAILABLE, PLEDGED, RELEASED, SETTLED']
+}
+
+Table asset_deduction_type {
+  id uuid [pk]
+  code varchar(50) [not null, unique]
+  name varchar(100) [not null]
+  description text
+  is_active boolean [not null, default: true]
+  sort_order int [not null, default: 0]
+}
+
+Table asset_valuation {
+  id uuid [pk]
+  asset_id uuid [not null]
+  market_price_amount numeric(18,2) [not null, note: 'Market price snapshot at valuation time.']
+  total_deduction_amount numeric(18,2) [not null, default: 0, note: 'Total deduction amount applied in this valuation.']
+  final_value_amount numeric(18,2) [not null, note: 'Final accepted value after deductions.']
+  currency_code varchar(3) [not null, default: 'VND']
+  valuation_source varchar(100)
+  valued_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  valued_by varchar(100)
+  note text
+}
+
+Table asset_valuation_deduction {
+  id uuid [pk]
+  asset_valuation_id uuid [not null]
+  deduction_type_id uuid [not null]
+  deduction_method varchar(20) [not null, note: 'PERCENT, AMOUNT']
+  deduction_value numeric(18,2) [not null, note: 'Percentage value or fixed amount depending on deduction_method.']
+  deduction_amount numeric(18,2) [not null, note: 'Actual money amount deducted in this valuation.']
+  description text
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+
+  indexes {
+    (asset_valuation_id, deduction_type_id) [unique]
+  }
+}
+
+Ref: customer.id < loan_application.customer_id
+Ref: asset.id < loan_application.asset_id
+Ref: loan_application_state.id < loan_application.current_state_id
+
+Ref: loan_application_state.id < loan_application_state_transition.from_state_id
+Ref: loan_application_state.id < loan_application_state_transition.to_state_id
+
+Ref: loan_application.id < loan_application_state_history.loan_application_id
+Ref: loan_application_state.id < loan_application_state_history.from_state_id
+Ref: loan_application_state.id < loan_application_state_history.to_state_id
+
+Ref: vehicle_type.id < vehicle_brand.vehicle_type_id
+Ref: vehicle_brand.id < vehicle_model.vehicle_brand_id
+Ref: vehicle_model.id < vehicle_version.vehicle_model_id
+Ref: vehicle_version.id < vehicle_year.vehicle_version_id
+Ref: vehicle_year.id < vehicle_variant.vehicle_year_id
+Ref: vehicle_color.id < vehicle_variant.vehicle_color_id
+Ref: vehicle_variant.id < vehicle_market_price.vehicle_variant_id
+Ref: vehicle_variant.id < asset.vehicle_variant_id
+
+Ref: asset.id < asset_valuation.asset_id
+Ref: asset_valuation.id < asset_valuation_deduction.asset_valuation_id
+Ref: asset_deduction_type.id < asset_valuation_deduction.deduction_type_id

@@ -9,7 +9,16 @@ import com.f88.loanonboarding.rule.RuleResult;
 
 public class LoanPurposeRule implements BusinessRule {
 
-    private static final Set<String> ALLOWED_PURPOSES = Set.of("BUSINESS", "PERSONAL", "EMERGENCY");
+    private static final Set<String> ALLOWED_PURPOSES = Set.of(
+            "BUSINESS",
+            "PERSONAL_CONSUMPTION",
+            "VEHICLE_REPAIR",
+            "MEDICAL",
+            "EDUCATION",
+            "HOME_REPAIR",
+            "DEBT_REPAYMENT",
+            "OTHER"
+    );
 
     @Override
     public RuleResult evaluate(RuleContext context) {

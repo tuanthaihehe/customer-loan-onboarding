@@ -10,7 +10,18 @@ import com.f88.loanonboarding.entity.LoanApplication;
 
 public interface LoanApplicationRepository extends JpaRepository<LoanApplication, UUID> {
 
-    @EntityGraph(attributePaths = {"customer", "currentState"})
+    @EntityGraph(attributePaths = {
+            "customer",
+            "currentState",
+            "asset",
+            "asset.vehicleVariant",
+            "asset.vehicleVariant.vehicleColor",
+            "asset.vehicleVariant.vehicleYear",
+            "asset.vehicleVariant.vehicleYear.vehicleVersion",
+            "asset.vehicleVariant.vehicleYear.vehicleVersion.vehicleModel",
+            "asset.vehicleVariant.vehicleYear.vehicleVersion.vehicleModel.vehicleBrand",
+            "asset.vehicleVariant.vehicleYear.vehicleVersion.vehicleModel.vehicleBrand.vehicleType"
+    })
     Optional<LoanApplication> findByLoanApplicationCode(String loanApplicationCode);
 
     boolean existsByLoanApplicationCode(String loanApplicationCode);

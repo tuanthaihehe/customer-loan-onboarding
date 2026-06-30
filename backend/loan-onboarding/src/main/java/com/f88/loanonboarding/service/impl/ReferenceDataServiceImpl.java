@@ -1,22 +1,51 @@
 package com.f88.loanonboarding.service.impl;
 
-import java.time.Year;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.f88.loanonboarding.dto.response.common.ReferenceDataItemResponse;
+import com.f88.loanonboarding.repository.AssetDeductionTypeRepository;
 import com.f88.loanonboarding.repository.LoanApplicationStateRepository;
+import com.f88.loanonboarding.repository.VehicleBrandRepository;
+import com.f88.loanonboarding.repository.VehicleColorRepository;
+import com.f88.loanonboarding.repository.VehicleModelRepository;
+import com.f88.loanonboarding.repository.VehicleTypeRepository;
+import com.f88.loanonboarding.repository.VehicleVariantRepository;
+import com.f88.loanonboarding.repository.VehicleYearRepository;
 import com.f88.loanonboarding.service.ReferenceDataService;
 
 @Service
 public class ReferenceDataServiceImpl implements ReferenceDataService {
 
     private final LoanApplicationStateRepository stateRepository;
+    private final VehicleTypeRepository vehicleTypeRepository;
+    private final VehicleBrandRepository vehicleBrandRepository;
+    private final VehicleModelRepository vehicleModelRepository;
+    private final VehicleVariantRepository vehicleVariantRepository;
+    private final VehicleYearRepository vehicleYearRepository;
+    private final VehicleColorRepository vehicleColorRepository;
+    private final AssetDeductionTypeRepository assetDeductionTypeRepository;
 
-    public ReferenceDataServiceImpl(LoanApplicationStateRepository stateRepository) {
+    public ReferenceDataServiceImpl(
+            LoanApplicationStateRepository stateRepository,
+            VehicleTypeRepository vehicleTypeRepository,
+            VehicleBrandRepository vehicleBrandRepository,
+            VehicleModelRepository vehicleModelRepository,
+            VehicleVariantRepository vehicleVariantRepository,
+            VehicleYearRepository vehicleYearRepository,
+            VehicleColorRepository vehicleColorRepository,
+            AssetDeductionTypeRepository assetDeductionTypeRepository
+    ) {
         this.stateRepository = stateRepository;
+        this.vehicleTypeRepository = vehicleTypeRepository;
+        this.vehicleBrandRepository = vehicleBrandRepository;
+        this.vehicleModelRepository = vehicleModelRepository;
+        this.vehicleVariantRepository = vehicleVariantRepository;
+        this.vehicleYearRepository = vehicleYearRepository;
+        this.vehicleColorRepository = vehicleColorRepository;
+        this.assetDeductionTypeRepository = assetDeductionTypeRepository;
     }
 
     @Override
@@ -49,40 +78,70 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
 
     @Override
     public List<ReferenceDataItemResponse> getAssetTypes() {
-        return List.of();
+        return vehicleTypeRepository.findByActiveTrueOrderBySortOrderAsc()
+                .stream()
+                .map(item -> new ReferenceDataItemResponse(item.getCode(), item.getName(), item.getDescription()))
+                .toList();
     }
 
     @Override
     public List<ReferenceDataItemResponse> getVehicleBrands(String assetType) {
-        return List.of();
+        var brands = assetType == null || assetType.isBlank()
+                ? vehicleBrandRepository.findByActiveTrueOrderBySortOrderAsc()
+                : vehicleBrandRepository.findByVehicleType_CodeAndActiveTrueOrderBySortOrderAsc(assetType);
+        return brands.stream()
+                .map(item -> new ReferenceDataItemResponse(item.getCode(), item.getName(), null))
+                .toList();
     }
 
     @Override
     public List<ReferenceDataItemResponse> getVehicleModels(String brandCode) {
-        return List.of();
+        if (brandCode == null || brandCode.isBlank()) {
+            return List.of();
+        }
+        return vehicleModelRepository.findByVehicleBrand_CodeAndActiveTrueOrderBySortOrderAsc(brandCode)
+                .stream()
+                .map(item -> new ReferenceDataItemResponse(item.getCode(), item.getName(), null))
+                .toList();
     }
 
     @Override
     public List<ReferenceDataItemResponse> getVehicleVariants(String modelCode) {
-        return List.of();
+        if (modelCode == null || modelCode.isBlank()) {
+            return List.of();
+        }
+        return vehicleVariantRepository.findActiveByModelCode(modelCode)
+                .stream()
+                .map(item -> new ReferenceDataItemResponse(item.getCode(), item.getName(), null))
+                .toList();
     }
 
     @Override
     public List<ReferenceDataItemResponse> getManufactureYears() {
-        int currentYear = Year.now().getValue();
-        return java.util.stream.IntStream.rangeClosed(currentYear - 20, currentYear)
-                .mapToObj(year -> new ReferenceDataItemResponse(String.valueOf(year), String.valueOf(year), null))
+        return vehicleYearRepository.findActiveManufactureYears()
+                .stream()
+                .map(year -> new ReferenceDataItemResponse(String.valueOf(year), String.valueOf(year), null))
                 .toList();
     }
 
     @Override
     public List<ReferenceDataItemResponse> getVehicleColors() {
-        return List.of();
+        return vehicleColorRepository.findByActiveTrueOrderBySortOrderAsc()
+                .stream()
+                .map(item -> new ReferenceDataItemResponse(item.getCode(), item.getName(), null))
+                .toList();
     }
 
     @Override
     public List<ReferenceDataItemResponse> getValuationDeductionFactors() {
-        return List.of();
+        return assetDeductionTypeRepository.findByActiveTrueOrderBySortOrderAsc()
+                .stream()
+                .map(item -> new ReferenceDataItemResponse(
+                        item.getCode(),
+                        item.getName(),
+                        item.getDeductionAmount().toPlainString()
+                ))
+                .toList();
     }
 
     @Transactional(readOnly = true)

@@ -35,6 +35,10 @@ public class LoanApplication {
     @JoinColumn(name = "current_state_id", nullable = false)
     private LoanApplicationState currentState;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "asset_id")
+    private Asset asset;
+
     @Column(name = "requested_amount", precision = 18, scale = 2)
     private BigDecimal requestedAmount;
 

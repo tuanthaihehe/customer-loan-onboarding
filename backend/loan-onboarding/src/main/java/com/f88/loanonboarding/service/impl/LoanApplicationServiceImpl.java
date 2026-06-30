@@ -18,6 +18,7 @@ import com.f88.loanonboarding.dto.response.loan.LoanApplicationDetailResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDraftResponse;
 import com.f88.loanonboarding.dto.response.loan.StepCompletionResponse;
 import com.f88.loanonboarding.dto.response.loan.SubmitForApprovalResponse;
+import com.f88.loanonboarding.entity.Asset;
 import com.f88.loanonboarding.entity.Customer;
 import com.f88.loanonboarding.entity.LoanApplication;
 import com.f88.loanonboarding.entity.LoanApplicationState;
@@ -103,7 +104,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                         "loanPurpose", application.getLoanPurpose(),
                         "requestedTenure", application.getLoanTermMonths()
                 ),
-                Map.of(),
+                toAssetSnapshot(application.getAsset()),
                 Map.of(),
                 Map.of("source", "database"),
                 latestChangedAt(application)
@@ -252,6 +253,30 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         return application.getRequestedAmount() != null
                 && application.getLoanPurpose() != null
                 && application.getLoanTermMonths() != null;
+    }
+
+    private Map<String, Object> toAssetSnapshot(Asset asset) {
+        if (asset == null) {
+            return Map.of();
+        }
+        var variant = asset.getVehicleVariant();
+        var vehicleYear = variant.getVehicleYear();
+        var vehicleVersion = vehicleYear.getVehicleVersion();
+        var vehicleModel = vehicleVersion.getVehicleModel();
+        var vehicleBrand = vehicleModel.getVehicleBrand();
+        var vehicleType = vehicleBrand.getVehicleType();
+
+        return mapOf(
+                "assetCode", asset.getAssetCode(),
+                "assetType", vehicleType.getCode(),
+                "licensePlate", asset.getLicensePlate(),
+                "brand", vehicleBrand.getCode(),
+                "model", vehicleModel.getCode(),
+                "vehicleVariant", variant.getCode(),
+                "manufactureYear", vehicleYear.getManufactureYear(),
+                "vehicleColor", variant.getVehicleColor().getCode(),
+                "assetState", asset.getStatus()
+        );
     }
 
     private String nextApplicationCode() {
