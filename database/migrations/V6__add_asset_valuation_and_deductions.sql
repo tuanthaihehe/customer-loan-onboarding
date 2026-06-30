@@ -1,17 +1,6 @@
--- Customer Loan Onboarding - Asset Valuation and Deduction
+-- Customer Loan Onboarding - Asset Valuation and Fixed Deduction
 -- PostgreSQL dialect
 -- Version: V6
---
--- Scope:
--- - Add deduction type master data table.
--- - Add asset valuation snapshot table.
--- - Add valuation deduction detail table.
---
--- Design notes:
--- - vehicle_market_price stores market price by vehicle_variant and effective date.
--- - asset_valuation stores the valuation snapshot used for a specific asset.
--- - asset_valuation_deduction stores deduction details used in one valuation.
--- - This design keeps historical valuation results stable even when market price changes later.
 
 CREATE TABLE asset_deduction_type (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -20,11 +9,16 @@ CREATE TABLE asset_deduction_type (
     name VARCHAR(100) NOT NULL,
     description TEXT,
 
+    deduction_amount NUMERIC(18, 2) NOT NULL,
+
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     sort_order INT NOT NULL DEFAULT 0,
 
     CONSTRAINT uq_asset_deduction_type_code
-        UNIQUE (code)
+        UNIQUE (code),
+
+    CONSTRAINT chk_asset_deduction_type_amount
+        CHECK (deduction_amount >= 0)
 );
 
 CREATE TABLE asset_valuation (
@@ -56,7 +50,10 @@ CREATE TABLE asset_valuation (
         CHECK (final_value_amount <= market_price_amount),
 
     CONSTRAINT chk_asset_valuation_deduction_not_greater_than_market
-        CHECK (total_deduction_amount <= market_price_amount)
+        CHECK (total_deduction_amount <= market_price_amount),
+
+    CONSTRAINT chk_asset_valuation_final_matches_deduction
+        CHECK (final_value_amount = market_price_amount - total_deduction_amount)
 );
 
 CREATE INDEX idx_asset_valuation_asset_id
@@ -71,21 +68,13 @@ CREATE TABLE asset_valuation_deduction (
     asset_valuation_id UUID NOT NULL REFERENCES asset_valuation(id) ON DELETE CASCADE,
     deduction_type_id UUID NOT NULL REFERENCES asset_deduction_type(id),
 
-    deduction_method VARCHAR(20) NOT NULL,
-    deduction_value NUMERIC(18, 2) NOT NULL,
-    deduction_amount NUMERIC(18, 2) NOT NULL,
+    deduction_amount_snapshot NUMERIC(18, 2) NOT NULL,
 
-    description TEXT,
+    note TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT chk_asset_valuation_deduction_method
-        CHECK (deduction_method IN ('PERCENT', 'AMOUNT')),
-
-    CONSTRAINT chk_asset_valuation_deduction_value
-        CHECK (deduction_value > 0),
-
-    CONSTRAINT chk_asset_valuation_deduction_amount
-        CHECK (deduction_amount >= 0),
+    CONSTRAINT chk_asset_valuation_deduction_amount_snapshot
+        CHECK (deduction_amount_snapshot >= 0),
 
     CONSTRAINT uq_asset_valuation_deduction_type
         UNIQUE (asset_valuation_id, deduction_type_id)
