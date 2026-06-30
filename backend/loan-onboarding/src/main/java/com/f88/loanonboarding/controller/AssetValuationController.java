@@ -34,17 +34,22 @@ public class AssetValuationController {
         return ApiResponse.success(assetValuationService.getMarketPrice(vehicleVariant));
     }
 
-    @Operation(summary = "Tính thử giá trị định giá tài sản")
-    @PostMapping("/api/v1/loan-applications/{applicationCode}/asset-valuations/preview")
+    @Operation(
+            summary = "Tính thử giá trị định giá tài sản, không lưu database",
+            description = "Dùng sau khi chọn xong xe. API lấy giá thị trường theo vehicleVariant, áp dụng các yếu tố giảm trừ nếu có, rồi trả về giá trị tài sản sau định giá. API này không cần hồ sơ vay và không ghi asset_valuation."
+    )
+    @PostMapping("/api/v1/asset-valuations/preview")
     public ApiResponse<AssetValuationPreviewResponse> preview(
-            @PathVariable String applicationCode,
             @Valid @RequestBody AssetValuationPreviewRequest request
     ) {
-        return ApiResponse.success("Asset valuation preview calculated", assetValuationService.preview(applicationCode, request));
+        return ApiResponse.success("Asset valuation preview calculated", assetValuationService.preview(request));
     }
 
-    @Operation(summary = "Lưu kết quả định giá thử vào hồ sơ vay")
-    @PatchMapping("/api/v1/loan-applications/{applicationCode}/valuation-preview")
+    @Operation(
+            summary = "Lưu kết quả định giá tài sản vào hồ sơ vay",
+            description = "Dùng ở bước chốt định giá. Hồ sơ vay phải tồn tại và đã được gắn asset trước đó. API tính lại giá trị định giá từ vehicleVariant và deductionItems, sau đó ghi asset_valuation và asset_valuation_deduction."
+    )
+    @PostMapping("/api/v1/loan-applications/{applicationCode}/asset-valuations")
     public ApiResponse<AssetValuationPreviewResponse> savePreview(
             @PathVariable String applicationCode,
             @Valid @RequestBody AssetValuationPreviewRequest request

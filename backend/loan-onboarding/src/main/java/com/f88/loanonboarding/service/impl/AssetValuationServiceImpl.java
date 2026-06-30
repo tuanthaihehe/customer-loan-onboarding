@@ -1,7 +1,6 @@
 package com.f88.loanonboarding.service.impl;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,7 +39,6 @@ public class AssetValuationServiceImpl implements AssetValuationService {
     private final AssetDeductionTypeRepository assetDeductionTypeRepository;
     private final AssetValuationRepository assetValuationRepository;
     private final AssetValuationDeductionRepository assetValuationDeductionRepository;
-    private static final BigDecimal DEFAULT_LTV_RATIO = BigDecimal.valueOf(70);
 
     public AssetValuationServiceImpl(
             LoanApplicationRepository loanApplicationRepository,
@@ -60,10 +58,9 @@ public class AssetValuationServiceImpl implements AssetValuationService {
 
     @Override
     @Transactional(readOnly = true)
-    public AssetValuationPreviewResponse preview(String applicationCode, AssetValuationPreviewRequest request) {
-        ensureApplicationExists(applicationCode);
+    public AssetValuationPreviewResponse preview(AssetValuationPreviewRequest request) {
         ValuationCalculation calculation = calculate(request);
-        return toResponse(applicationCode, calculation, AssetValuationState.VAL_RECORDED);
+        return toResponse(null, calculation, AssetValuationState.VAL_RECORDED);
     }
 
     @Override
@@ -144,17 +141,13 @@ public class AssetValuationServiceImpl implements AssetValuationService {
             );
         }
         BigDecimal finalValue = marketPrice.getPriceAmount().subtract(totalDeductionAmount);
-        BigDecimal loanableValue = finalValue
-                .multiply(DEFAULT_LTV_RATIO)
-                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-
         return new ValuationCalculation(
                 marketPrice.getPriceAmount(),
                 BigDecimal.ZERO,
                 totalDeductionAmount,
                 finalValue,
-                DEFAULT_LTV_RATIO,
-                loanableValue,
+                null,
+                null,
                 deductionTypes
         );
     }

@@ -6,7 +6,7 @@ import com.f88.loanonboarding.dto.response.asset.VehicleMarketPriceResponse;
 
 public interface AssetValuationService {
 
-    AssetValuationPreviewResponse preview(String applicationCode, AssetValuationPreviewRequest request);
+    AssetValuationPreviewResponse preview(AssetValuationPreviewRequest request);
 
     VehicleMarketPriceResponse getMarketPrice(String vehicleVariant);
 
