@@ -1,4 +1,4 @@
-# Team Handbook - Đọc trước
+﻿# Team Handbook - Đọc trước
 
 Handbook này thống nhất cách team làm backend demo Flow 1.
 
@@ -25,5 +25,6 @@ Chưa làm sâu:
 - Cùng dùng một API sequence trong `docs/01_DEMO_FLOW_1.md`.
 - Sửa API thì cập nhật tài liệu.
 - Không tự đổi scope.
-- Không hard-code mock data trong service nếu có thể tách provider.
+- Không hard-code dữ liệu database/seed trong service nếu có thể tách provider.
 - Không viết business rule trong controller.
+

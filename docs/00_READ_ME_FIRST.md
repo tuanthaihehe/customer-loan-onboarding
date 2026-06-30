@@ -1,4 +1,4 @@
-# Đọc trước khi phát triển
+﻿# Đọc trước khi phát triển
 
 Tài liệu này giải thích nhanh repository hiện tại dùng để làm gì, phạm vi nằm ở đâu và nên đọc file nào trước.
 
@@ -12,7 +12,7 @@ Mục tiêu hiện tại:
 Tạo được một hồ sơ vay có đủ thông tin cơ bản và gửi hồ sơ đó sang bước phê duyệt.
 ```
 
-Đây là baseline **API-first + Mock-first**, không phải hệ thống production.
+Đây là baseline **API-first + Database-first**, không phải hệ thống production.
 
 ## 2. Phạm vi demo Flow 1
 
@@ -36,7 +36,7 @@ Flow 1 gồm các bước:
 |---|---|
 | Unit test rule | Chưa cần làm chi tiết vì rule nghiệp vụ chưa chốt |
 | Controller test | Chưa cần làm chi tiết; ưu tiên Swagger manual test checklist |
-| Mock data provider | Cần tách riêng khỏi service |
+| Database seed/migration | Cần tách riêng khỏi service |
 | Rule registry | Chưa cần; giữ rule skeleton đơn giản |
 | Entity/Repository | Chưa làm thật; chờ ERD |
 | Approval/Contract/Disbursement | Chưa làm sâu; ngoài Flow 1 |
@@ -62,7 +62,8 @@ Nên làm tiếp:
 ```text
 1. Chạy lại Swagger theo đúng Flow 1.
 2. Đảm bảo endpoint submit-for-approval hoạt động.
-3. Giữ mock data trong package mock.
+3. Giữ dữ liệu database/seed trong migration/seed database.
 4. Đồng bộ API sample với FE prototype.
 5. Chờ ERD trước khi tạo entity/repository thật.
 ```
+

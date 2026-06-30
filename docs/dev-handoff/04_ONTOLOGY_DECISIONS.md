@@ -1,4 +1,4 @@
-# Ontology Decisions liên quan backend
+﻿# Ontology Decisions liên quan backend
 
 ## 1. Object trung tâm
 
@@ -19,7 +19,7 @@ Các object liên quan trực tiếp trong demo:
 | CollateralAsset | Vai trò tài sản trong khoản vay |
 | AssetValuation | Kết quả định giá |
 | LoanEligibilityCheck | Kết quả kiểm tra điều kiện |
-| ApprovalCase | Case phê duyệt mock sinh ra khi submit |
+| ApprovalCase | Case phê duyệt database sinh ra khi submit |
 
 ## 2. Điểm dừng của Flow 1
 
@@ -37,7 +37,7 @@ Không xử lý quyết định phê duyệt thật trong scope hiện tại.
 Actor thực hiện Action
 → Action bị kiểm soát bởi guard/rule tối giản
 → Action tác động Object
-→ Action sinh Event mock
+→ Action sinh Event database
 ```
 
 Ví dụ:
@@ -47,5 +47,6 @@ Actor: Nhân viên PGD
 Action: Submit Loan Application For Approval
 Object: LoanApplication
 Event: LoanApplicationSubmittedForApproval
-Output: ApprovalCase mock được sinh ra
+Output: ApprovalCase database được sinh ra
 ```
+

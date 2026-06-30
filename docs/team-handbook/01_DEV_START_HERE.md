@@ -1,4 +1,4 @@
-# DEV Start Here
+﻿# DEV Start Here
 
 ## 1. Chạy project
 
@@ -26,8 +26,8 @@ http://localhost:8080/swagger-ui/index.html
 |---|---|
 | `controller` | REST API |
 | `service` | Interface |
-| `service.impl` | Mock service hiện tại |
-| `mock` | Dữ liệu giả demo |
+| `service.impl` | Database service hiện tại |
+| `database` | Dữ liệu giả demo |
 | `dto` | Request/response |
 | `rule` | Rule skeleton |
 | `entity/repository` | Placeholder, chưa dùng thật |
@@ -38,3 +38,4 @@ http://localhost:8080/swagger-ui/index.html
 - Không đổi endpoint đã có nếu FE đang dùng.
 - Không thêm rule engine.
 - Không mở rộng sang disbursement.
+

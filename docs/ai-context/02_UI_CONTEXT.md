@@ -1,4 +1,4 @@
-# UI Context - Mapping màn hình demo với backend
+﻿# UI Context - Mapping màn hình demo với backend
 
 Tài liệu này giúp FE/AI hiểu backend hiện tại phục vụ UI demo nào.
 
@@ -37,7 +37,8 @@ GET /api/v1/reference-data/...
 
 ## 3. Lưu ý cho FE
 
-- Backend đang chạy mock data, chưa lưu DB thật.
+- Backend đang chạy dữ liệu database/seed, chưa lưu DB thật.
 - Một số API trả dữ liệu cố định để phục vụ demo.
 - CORS local đã mở cho `localhost:3000`, `localhost:5173`, `localhost:8081`.
 - FE nên demo theo đúng thứ tự Flow 1 để dữ liệu dễ hiểu.
+

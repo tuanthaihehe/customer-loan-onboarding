@@ -1,4 +1,4 @@
-# Rule Development Guide
+﻿# Rule Development Guide
 
 ## 1. Rule hiện tại là gì?
 
@@ -30,7 +30,7 @@ Rule nên:
 - trả `RuleResult.pass()` hoặc `RuleResult.fail()`;
 - không gọi repository;
 - không phụ thuộc controller DTO;
-- không chứa mock data.
+- không chứa dữ liệu database/seed.
 
 ## 5. Sau này khi rule chốt
 
@@ -40,3 +40,4 @@ Khi BA chốt rule, có thể bổ sung:
 - mapping Action → Rule;
 - rule registry;
 - config table nếu cần.
+

@@ -1,4 +1,4 @@
-# UI Flow
+﻿# UI Flow
 
 Thư mục này dùng để lưu tài liệu/mapping liên quan FE prototype.
 
@@ -25,3 +25,4 @@ http://localhost:3000
 http://localhost:5173
 http://localhost:8081
 ```
+

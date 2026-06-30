@@ -1,4 +1,4 @@
-# Data Dictionary - Customer Loan Onboarding
+﻿# Data Dictionary - Customer Loan Onboarding
 
 ## 1. Mục đích tài liệu
 
@@ -168,3 +168,4 @@ Lưu nhật ký các lần hồ sơ vay chuyển state. Đây là bảng audit l
 | `changed_at` | `timestamp` | Yes | Default `CURRENT_TIMESTAMP` | Thời điểm event xảy ra. |
 | `changed_by` | `varchar(100)` | No | - | Người hoặc hệ thống thực hiện event. |
 | `note` | `text` | No | - | Ghi chú nghiệp vụ. |
+
