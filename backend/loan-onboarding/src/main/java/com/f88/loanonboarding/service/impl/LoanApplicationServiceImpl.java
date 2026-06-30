@@ -23,6 +23,7 @@ import com.f88.loanonboarding.entity.Customer;
 import com.f88.loanonboarding.entity.LoanApplication;
 import com.f88.loanonboarding.entity.LoanApplicationState;
 import com.f88.loanonboarding.entity.LoanApplicationStateHistory;
+import com.f88.loanonboarding.enums.AssetType;
 import com.f88.loanonboarding.exception.BusinessException;
 import com.f88.loanonboarding.repository.CustomerRepository;
 import com.f88.loanonboarding.repository.LoanApplicationRepository;
@@ -268,7 +269,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
 
         return mapOf(
                 "assetCode", asset.getAssetCode(),
-                "assetType", vehicleType.getCode(),
+                "assetType", AssetType.fromCode(vehicleType.getCode()),
                 "licensePlate", asset.getLicensePlate(),
                 "brand", vehicleBrand.getCode(),
                 "model", vehicleModel.getCode(),

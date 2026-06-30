@@ -5,7 +5,10 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.f88.loanonboarding.common.error.ErrorCode;
 import com.f88.loanonboarding.dto.response.common.ReferenceDataItemResponse;
+import com.f88.loanonboarding.enums.AssetType;
+import com.f88.loanonboarding.exception.BusinessException;
 import com.f88.loanonboarding.repository.AssetDeductionTypeRepository;
 import com.f88.loanonboarding.repository.LoanApplicationStateRepository;
 import com.f88.loanonboarding.repository.VehicleBrandRepository;
@@ -13,6 +16,7 @@ import com.f88.loanonboarding.repository.VehicleColorRepository;
 import com.f88.loanonboarding.repository.VehicleModelRepository;
 import com.f88.loanonboarding.repository.VehicleTypeRepository;
 import com.f88.loanonboarding.repository.VehicleVariantRepository;
+import com.f88.loanonboarding.repository.VehicleVersionRepository;
 import com.f88.loanonboarding.repository.VehicleYearRepository;
 import com.f88.loanonboarding.service.ReferenceDataService;
 
@@ -23,6 +27,7 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
     private final VehicleTypeRepository vehicleTypeRepository;
     private final VehicleBrandRepository vehicleBrandRepository;
     private final VehicleModelRepository vehicleModelRepository;
+    private final VehicleVersionRepository vehicleVersionRepository;
     private final VehicleVariantRepository vehicleVariantRepository;
     private final VehicleYearRepository vehicleYearRepository;
     private final VehicleColorRepository vehicleColorRepository;
@@ -33,6 +38,7 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
             VehicleTypeRepository vehicleTypeRepository,
             VehicleBrandRepository vehicleBrandRepository,
             VehicleModelRepository vehicleModelRepository,
+            VehicleVersionRepository vehicleVersionRepository,
             VehicleVariantRepository vehicleVariantRepository,
             VehicleYearRepository vehicleYearRepository,
             VehicleColorRepository vehicleColorRepository,
@@ -42,6 +48,7 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
         this.vehicleTypeRepository = vehicleTypeRepository;
         this.vehicleBrandRepository = vehicleBrandRepository;
         this.vehicleModelRepository = vehicleModelRepository;
+        this.vehicleVersionRepository = vehicleVersionRepository;
         this.vehicleVariantRepository = vehicleVariantRepository;
         this.vehicleYearRepository = vehicleYearRepository;
         this.vehicleColorRepository = vehicleColorRepository;
@@ -85,10 +92,10 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
     }
 
     @Override
-    public List<ReferenceDataItemResponse> getVehicleBrands(String assetType) {
-        var brands = assetType == null || assetType.isBlank()
+    public List<ReferenceDataItemResponse> getVehicleBrands(AssetType assetType) {
+        var brands = assetType == null
                 ? vehicleBrandRepository.findByActiveTrueOrderBySortOrderAsc()
-                : vehicleBrandRepository.findByVehicleType_CodeAndActiveTrueOrderBySortOrderAsc(assetType);
+                : vehicleBrandRepository.findByVehicleType_CodeAndActiveTrueOrderBySortOrderAsc(assetType.code());
         return brands.stream()
                 .map(item -> new ReferenceDataItemResponse(item.getCode(), item.getName(), null))
                 .toList();
@@ -106,6 +113,17 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
     }
 
     @Override
+    public List<ReferenceDataItemResponse> getVehicleVersions(String modelCode) {
+        if (modelCode == null || modelCode.isBlank()) {
+            return List.of();
+        }
+        return vehicleVersionRepository.findByVehicleModel_CodeAndActiveTrueOrderBySortOrderAsc(modelCode)
+                .stream()
+                .map(item -> new ReferenceDataItemResponse(item.getCode(), item.getName(), null))
+                .toList();
+    }
+
+    @Override
     public List<ReferenceDataItemResponse> getVehicleVariants(String modelCode) {
         if (modelCode == null || modelCode.isBlank()) {
             return List.of();
@@ -117,19 +135,39 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
     }
 
     @Override
-    public List<ReferenceDataItemResponse> getManufactureYears() {
-        return vehicleYearRepository.findActiveManufactureYears()
+    public List<ReferenceDataItemResponse> getManufactureYears(String versionCode) {
+        var years = versionCode == null || versionCode.isBlank()
+                ? vehicleYearRepository.findActiveManufactureYears()
+                : vehicleYearRepository.findActiveManufactureYearsByVersionCode(versionCode);
+        return years
                 .stream()
                 .map(year -> new ReferenceDataItemResponse(String.valueOf(year), String.valueOf(year), null))
                 .toList();
     }
 
     @Override
-    public List<ReferenceDataItemResponse> getVehicleColors() {
-        return vehicleColorRepository.findByActiveTrueOrderBySortOrderAsc()
+    public List<ReferenceDataItemResponse> getVehicleColors(String versionCode, Integer manufactureYear) {
+        var colors = versionCode == null || versionCode.isBlank() || manufactureYear == null
+                ? vehicleColorRepository.findByActiveTrueOrderBySortOrderAsc()
+                : vehicleColorRepository.findActiveByVersionCodeAndManufactureYear(versionCode, manufactureYear);
+        return colors
                 .stream()
                 .map(item -> new ReferenceDataItemResponse(item.getCode(), item.getName(), null))
                 .toList();
+    }
+
+    @Override
+    public ReferenceDataItemResponse resolveVehicleVariant(String versionCode, Integer manufactureYear, String colorCode) {
+        if (versionCode == null || versionCode.isBlank() || manufactureYear == null || colorCode == null || colorCode.isBlank()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "versionCode, manufactureYear va colorCode la bat buoc.");
+        }
+        return vehicleVariantRepository
+                .findActiveByVersionCodeAndManufactureYearAndColorCode(versionCode, manufactureYear, colorCode)
+                .map(item -> new ReferenceDataItemResponse(item.getCode(), item.getName(), null))
+                .orElseThrow(() -> new BusinessException(
+                        ErrorCode.RESOURCE_NOT_FOUND,
+                        "Khong tim thay vehicle variant phu hop voi version, nam san xuat va mau xe."
+                ));
     }
 
     @Override

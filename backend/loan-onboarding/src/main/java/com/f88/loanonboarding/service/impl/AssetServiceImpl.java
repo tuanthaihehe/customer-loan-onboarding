@@ -14,6 +14,7 @@ import com.f88.loanonboarding.dto.response.asset.AssetSnapshotResponse;
 import com.f88.loanonboarding.entity.Asset;
 import com.f88.loanonboarding.entity.LoanApplication;
 import com.f88.loanonboarding.entity.VehicleVariant;
+import com.f88.loanonboarding.enums.AssetType;
 import com.f88.loanonboarding.exception.BusinessException;
 import com.f88.loanonboarding.repository.AssetRepository;
 import com.f88.loanonboarding.repository.LoanApplicationRepository;
@@ -68,6 +69,7 @@ public class AssetServiceImpl implements AssetService {
         LoanApplication application = loanApplicationRepository.findByLoanApplicationCode(applicationCode)
                 .orElseThrow(() -> new BusinessException(ErrorCode.LOAN_APPLICATION_NOT_FOUND));
         VehicleVariant variant = resolveVariant(request);
+        validateAssetType(request.assetType(), variant);
         String licensePlate = normalizeLicensePlate(request.licensePlate());
 
         Asset asset = assetRepository.findByLicensePlate(licensePlate)
@@ -98,6 +100,21 @@ public class AssetServiceImpl implements AssetService {
                 ));
     }
 
+    private void validateAssetType(AssetType assetType, VehicleVariant variant) {
+        String variantAssetTypeCode = variant.getVehicleYear()
+                .getVehicleVersion()
+                .getVehicleModel()
+                .getVehicleBrand()
+                .getVehicleType()
+                .getCode();
+        if (!assetType.code().equals(variantAssetTypeCode)) {
+            throw new BusinessException(
+                    ErrorCode.BUSINESS_RULE_VIOLATION,
+                    "Loai tai san khong khop voi bien the xe trong catalog."
+            );
+        }
+    }
+
     private Asset createAsset(String licensePlate, VehicleVariant variant) {
         Asset asset = new Asset();
         asset.setAssetCode(nextAssetCode());
@@ -124,7 +141,7 @@ public class AssetServiceImpl implements AssetService {
 
         return new AssetSnapshotResponse(
                 applicationCode,
-                vehicleType.getCode(),
+                AssetType.fromCode(vehicleType.getCode()),
                 asset.getLicensePlate(),
                 vehicleBrand.getCode(),
                 vehicleModel.getCode(),

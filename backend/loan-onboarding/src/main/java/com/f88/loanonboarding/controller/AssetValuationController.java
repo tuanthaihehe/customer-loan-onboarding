@@ -1,14 +1,17 @@
 package com.f88.loanonboarding.controller;
 
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.f88.loanonboarding.common.response.ApiResponse;
 import com.f88.loanonboarding.dto.request.asset.AssetValuationPreviewRequest;
 import com.f88.loanonboarding.dto.response.asset.AssetValuationPreviewResponse;
+import com.f88.loanonboarding.dto.response.asset.VehicleMarketPriceResponse;
 import com.f88.loanonboarding.service.AssetValuationService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,6 +26,12 @@ public class AssetValuationController {
 
     public AssetValuationController(AssetValuationService assetValuationService) {
         this.assetValuationService = assetValuationService;
+    }
+
+    @Operation(summary = "Lấy giá thị trường hiện hành theo biến thể xe")
+    @GetMapping("/api/v1/asset-valuations/market-price")
+    public ApiResponse<VehicleMarketPriceResponse> getMarketPrice(@RequestParam String vehicleVariant) {
+        return ApiResponse.success(assetValuationService.getMarketPrice(vehicleVariant));
     }
 
     @Operation(summary = "Tính thử giá trị định giá tài sản")

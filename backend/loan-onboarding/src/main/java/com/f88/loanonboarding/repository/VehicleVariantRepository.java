@@ -34,4 +34,29 @@ public interface VehicleVariantRepository extends JpaRepository<VehicleVariant, 
             order by variant.sortOrder asc
             """)
     List<VehicleVariant> findActiveByModelCode(@Param("modelCode") String modelCode);
+
+    @EntityGraph(attributePaths = {
+            "vehicleColor",
+            "vehicleYear",
+            "vehicleYear.vehicleVersion",
+            "vehicleYear.vehicleVersion.vehicleModel",
+            "vehicleYear.vehicleVersion.vehicleModel.vehicleBrand",
+            "vehicleYear.vehicleVersion.vehicleModel.vehicleBrand.vehicleType"
+    })
+    @Query("""
+            select variant
+            from VehicleVariant variant
+            join variant.vehicleColor color
+            join variant.vehicleYear vehicleYear
+            join vehicleYear.vehicleVersion vehicleVersion
+            where vehicleVersion.code = :versionCode
+              and vehicleYear.manufactureYear = :manufactureYear
+              and color.code = :colorCode
+              and variant.active = true
+            """)
+    Optional<VehicleVariant> findActiveByVersionCodeAndManufactureYearAndColorCode(
+            @Param("versionCode") String versionCode,
+            @Param("manufactureYear") Integer manufactureYear,
+            @Param("colorCode") String colorCode
+    );
 }

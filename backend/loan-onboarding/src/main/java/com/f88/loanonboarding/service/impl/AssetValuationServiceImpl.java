@@ -13,6 +13,7 @@ import com.f88.loanonboarding.common.error.ErrorCode;
 import com.f88.loanonboarding.dto.request.asset.AssetValuationPreviewRequest;
 import com.f88.loanonboarding.dto.request.asset.ValuationDeductionItemRequest;
 import com.f88.loanonboarding.dto.response.asset.AssetValuationPreviewResponse;
+import com.f88.loanonboarding.dto.response.asset.VehicleMarketPriceResponse;
 import com.f88.loanonboarding.entity.Asset;
 import com.f88.loanonboarding.entity.AssetDeductionType;
 import com.f88.loanonboarding.entity.AssetValuation;
@@ -66,6 +67,22 @@ public class AssetValuationServiceImpl implements AssetValuationService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public VehicleMarketPriceResponse getMarketPrice(String vehicleVariant) {
+        VehicleVariant variant = resolveVehicleVariant(vehicleVariant);
+        VehicleMarketPrice marketPrice = resolveCurrentMarketPrice(variant);
+        return new VehicleMarketPriceResponse(
+                variant.getCode(),
+                variant.getName(),
+                marketPrice.getPriceAmount(),
+                marketPrice.getCurrencyCode(),
+                marketPrice.getPriceSource(),
+                marketPrice.getEffectiveFrom(),
+                marketPrice.getEffectiveTo()
+        );
+    }
+
+    @Override
     @Transactional
     public AssetValuationPreviewResponse savePreview(String applicationCode, AssetValuationPreviewRequest request) {
         LoanApplication application = loanApplicationRepository.findByLoanApplicationCode(applicationCode)
@@ -113,19 +130,8 @@ public class AssetValuationServiceImpl implements AssetValuationService {
             );
         }
 
-        VehicleVariant variant = vehicleVariantRepository.findByCode(variantCode)
-                .orElseThrow(() -> new BusinessException(
-                        ErrorCode.RESOURCE_NOT_FOUND,
-                        "Khong tim thay vehicle variant: " + variantCode
-                ));
-        VehicleMarketPrice marketPrice = vehicleMarketPriceRepository
-                .findEffectivePrices(variant, LocalDate.now())
-                .stream()
-                .findFirst()
-                .orElseThrow(() -> new BusinessException(
-                        ErrorCode.RESOURCE_NOT_FOUND,
-                        "Khong tim thay gia thi truong hien hanh cho variant: " + variantCode
-                ));
+        VehicleVariant variant = resolveVehicleVariant(variantCode);
+        VehicleMarketPrice marketPrice = resolveCurrentMarketPrice(variant);
 
         List<AssetDeductionType> deductionTypes = resolveDeductionTypes(request.deductionItems());
         BigDecimal totalDeductionAmount = deductionTypes.stream()
@@ -151,6 +157,31 @@ public class AssetValuationServiceImpl implements AssetValuationService {
                 loanableValue,
                 deductionTypes
         );
+    }
+
+    private VehicleVariant resolveVehicleVariant(String variantCode) {
+        if (variantCode == null || variantCode.isBlank()) {
+            throw new BusinessException(
+                    ErrorCode.BUSINESS_RULE_VIOLATION,
+                    "vehicleVariant la bat buoc de tinh gia thi truong."
+            );
+        }
+        return vehicleVariantRepository.findByCode(variantCode)
+                .orElseThrow(() -> new BusinessException(
+                        ErrorCode.RESOURCE_NOT_FOUND,
+                        "Khong tim thay vehicle variant: " + variantCode
+                ));
+    }
+
+    private VehicleMarketPrice resolveCurrentMarketPrice(VehicleVariant variant) {
+        return vehicleMarketPriceRepository
+                .findEffectivePrices(variant, LocalDate.now())
+                .stream()
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(
+                        ErrorCode.RESOURCE_NOT_FOUND,
+                        "Khong tim thay gia thi truong hien hanh cho variant: " + variant.getCode()
+                ));
     }
 
     private List<AssetDeductionType> resolveDeductionTypes(List<ValuationDeductionItemRequest> deductionItems) {
