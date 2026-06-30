@@ -1,17 +1,11 @@
 package com.f88.loanonboarding.service.impl;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
-import org.springframework.dao.EmptyResultDataAccessException;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,8 +17,22 @@ import com.f88.loanonboarding.dto.response.loan.LoanApplicationDetailResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDraftResponse;
 import com.f88.loanonboarding.dto.response.loan.StepCompletionResponse;
 import com.f88.loanonboarding.dto.response.loan.SubmitForApprovalResponse;
+import com.f88.loanonboarding.entity.CustomerEntity;
+import com.f88.loanonboarding.entity.LoanApplicationEntity;
+import com.f88.loanonboarding.entity.LoanApplicationStateEntity;
+import com.f88.loanonboarding.entity.LoanApplicationStateHistoryEntity;
+import com.f88.loanonboarding.entity.LoanApplicationStateTransitionEntity;
+import com.f88.loanonboarding.entity.LoanPurposeEntity;
+import com.f88.loanonboarding.entity.LoanTermEntity;
 import com.f88.loanonboarding.enums.LoanApplicationState;
 import com.f88.loanonboarding.exception.BusinessException;
+import com.f88.loanonboarding.repository.CustomerRepository;
+import com.f88.loanonboarding.repository.LoanApplicationRepository;
+import com.f88.loanonboarding.repository.LoanApplicationStateHistoryRepository;
+import com.f88.loanonboarding.repository.LoanApplicationStateRepository;
+import com.f88.loanonboarding.repository.LoanApplicationStateTransitionRepository;
+import com.f88.loanonboarding.repository.LoanPurposeRepository;
+import com.f88.loanonboarding.repository.LoanTermRepository;
 import com.f88.loanonboarding.rule.RuleContext;
 import com.f88.loanonboarding.rule.RuleEvaluationService;
 import com.f88.loanonboarding.rule.loan.LoanPurposeRule;
@@ -37,73 +45,90 @@ public class LoanApplicationServiceDbImpl implements LoanApplicationService {
 
     private static final String STATE_DRAFT = "APP_DRAFT";
     private static final String STATE_SUBMITTED = "APP_SUBMITTED";
+    private static final String APPLICATION_CODE_PREFIX = "APP-2026-";
 
-    private final JdbcTemplate jdbcTemplate;
+    private final CustomerRepository customerRepository;
+    private final LoanApplicationRepository loanApplicationRepository;
+    private final LoanApplicationStateRepository stateRepository;
+    private final LoanApplicationStateTransitionRepository transitionRepository;
+    private final LoanApplicationStateHistoryRepository historyRepository;
+    private final LoanPurposeRepository loanPurposeRepository;
+    private final LoanTermRepository loanTermRepository;
     private final RuleEvaluationService ruleEvaluationService;
 
-    public LoanApplicationServiceDbImpl(JdbcTemplate jdbcTemplate, RuleEvaluationService ruleEvaluationService) {
-        this.jdbcTemplate = jdbcTemplate;
+    public LoanApplicationServiceDbImpl(
+            CustomerRepository customerRepository,
+            LoanApplicationRepository loanApplicationRepository,
+            LoanApplicationStateRepository stateRepository,
+            LoanApplicationStateTransitionRepository transitionRepository,
+            LoanApplicationStateHistoryRepository historyRepository,
+            LoanPurposeRepository loanPurposeRepository,
+            LoanTermRepository loanTermRepository,
+            RuleEvaluationService ruleEvaluationService
+    ) {
+        this.customerRepository = customerRepository;
+        this.loanApplicationRepository = loanApplicationRepository;
+        this.stateRepository = stateRepository;
+        this.transitionRepository = transitionRepository;
+        this.historyRepository = historyRepository;
+        this.loanPurposeRepository = loanPurposeRepository;
+        this.loanTermRepository = loanTermRepository;
         this.ruleEvaluationService = ruleEvaluationService;
     }
 
     @Override
     @Transactional
     public LoanApplicationDraftResponse createDraft(CreateLoanApplicationRequest request) {
-        UUID customerId = findCustomerId(request.customerCode());
-        UUID draftStateId = findStateId(STATE_DRAFT);
-        String applicationCode = nextApplicationCode();
+        CustomerEntity customer = customerRepository.findByCustomerCode(request.customerCode())
+                .orElseThrow(() -> new BusinessException(ErrorCode.CUSTOMER_NOT_FOUND, "Không tìm thấy khách hàng trong database"));
+        LoanApplicationStateEntity draftState = findState(STATE_DRAFT);
 
-        jdbcTemplate.update(
-                """
-                INSERT INTO loan_application
-                    (loan_application_code, customer_id, current_state_id, branch)
-                VALUES (?, ?, ?, ?)
-                """,
-                applicationCode,
-                customerId,
-                draftStateId,
-                request.branchCode()
-        );
+        LoanApplicationEntity application = new LoanApplicationEntity();
+        application.setLoanApplicationCode(nextApplicationCode());
+        application.setCustomer(customer);
+        application.setCurrentState(draftState);
+        application.setBranch(request.branchCode());
+        application = loanApplicationRepository.saveAndFlush(application);
 
-        LoanApplicationRow application = findApplication(applicationCode);
-        insertHistory(application.id(), null, draftStateId, "CREATE", request.staffCode(), "Tạo hồ sơ vay nháp");
+        insertHistory(application, null, draftState, "CREATE", request.staffCode(), "Tạo hồ sơ vay nháp");
+        LocalDateTime createdAt = findHistoryTime(application, "CREATE").orElse(LocalDateTime.now());
 
-        LocalDateTime createdAt = findHistoryTime(application.id(), "CREATE").orElse(LocalDateTime.now());
         return new LoanApplicationDraftResponse(
-                application.applicationCode(),
+                application.getLoanApplicationCode(),
                 LoanApplicationState.APP_DRAFT,
-                request.customerCode(),
+                customer.getCustomerCode(),
                 createdAt,
                 createdAt
         );
     }
 
     @Override
+    @Transactional(readOnly = true)
     public LoanApplicationDetailResponse getDetail(String applicationCode) {
-        LoanApplicationRow application = findApplication(applicationCode);
-        LocalDateTime updatedAt = findLastHistoryTime(application.id()).orElse(null);
+        LoanApplicationEntity application = findApplication(applicationCode);
+        LocalDateTime updatedAt = findLastHistoryTime(application).orElse(null);
 
         Map<String, Object> applicantSnapshot = new LinkedHashMap<>();
-        applicantSnapshot.put("customerCode", application.customerCode());
-        applicantSnapshot.put("fullName", application.customerName());
-        applicantSnapshot.put("dateOfBirth", application.customerDateOfBirth());
-        applicantSnapshot.put("identityNumber", application.identityNumber());
-        applicantSnapshot.put("phoneNumber", application.phoneNumber());
+        applicantSnapshot.put("customerCode", application.getCustomer().getCustomerCode());
+        applicantSnapshot.put("fullName", application.getCustomer().getFullName());
+        applicantSnapshot.put("dateOfBirth", application.getCustomer().getDateOfBirth());
+        applicantSnapshot.put("identityNumber", application.getCustomer().getIdentityNumber());
+        applicantSnapshot.put("phoneNumber", application.getCustomer().getPhoneNumber());
 
         Map<String, Object> loanRequest = new LinkedHashMap<>();
-        loanRequest.put("requestedAmount", application.requestedAmount());
-        loanRequest.put("loanPurpose", application.loanPurpose());
-        loanRequest.put("requestedTenure", application.loanTermMonths());
-        loanRequest.put("branchCode", application.branch());
+        loanRequest.put("requestedAmount", application.getRequestedAmount());
+        loanRequest.put("loanPurpose", application.getLoanPurpose() == null ? null : application.getLoanPurpose().getCode());
+        loanRequest.put("requestedTenure", application.getLoanTermMonths());
+        loanRequest.put("branchCode", application.getBranch());
 
         Map<String, Object> stepStatus = new LinkedHashMap<>();
-        stepStatus.put("currentState", application.stateCode());
+        stepStatus.put("currentState", application.getCurrentState().getCode());
         stepStatus.put("latestActionAt", updatedAt);
 
         return new LoanApplicationDetailResponse(
-                application.applicationCode(),
-                LoanApplicationState.valueOf(application.stateCode()),
-                application.customerCode(),
+                application.getLoanApplicationCode(),
+                LoanApplicationState.valueOf(application.getCurrentState().getCode()),
+                application.getCustomer().getCustomerCode(),
                 applicantSnapshot,
                 loanRequest,
                 Map.of(),
@@ -125,34 +150,28 @@ public class LoanApplicationServiceDbImpl implements LoanApplicationService {
                 List.of(new RequestedAmountRule(), new LoanTenureRule(), new LoanPurposeRule())
         );
 
-        LoanApplicationRow application = findApplication(applicationCode);
-        ensureState(application.stateCode(), STATE_DRAFT, "Chỉ hồ sơ nháp mới được lưu thông tin khoản vay");
+        LoanApplicationEntity application = findApplication(applicationCode);
+        ensureState(application.getCurrentState().getCode(), STATE_DRAFT, "Chỉ hồ sơ nháp mới được lưu thông tin khoản vay");
 
-        UUID loanPurposeId = findLoanPurposeId(request.loanRequest().loanPurpose());
-        UUID loanTermId = findLoanTermId(request.loanRequest().requestedTenure());
+        LoanPurposeEntity loanPurpose = loanPurposeRepository.findByCodeAndActiveTrue(request.loanRequest().loanPurpose())
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_LOAN_PURPOSE, "Mục đích vay không tồn tại hoặc đã ngừng áp dụng trong database"));
+        LoanTermEntity loanTerm = loanTermRepository.findByTermMonthsAndActiveTrue(request.loanRequest().requestedTenure())
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_LOAN_TERM, "Kỳ hạn vay không tồn tại hoặc đã ngừng áp dụng trong database"));
 
-        jdbcTemplate.update(
-                """
-                UPDATE loan_application
-                SET requested_amount = ?, loan_purpose_id = ?, loan_term_id = ?, loan_term_months = ?
-                WHERE id = ?
-                """,
-                request.loanRequest().requestedAmount(),
-                loanPurposeId,
-                loanTermId,
-                request.loanRequest().requestedTenure(),
-                application.id()
-        );
+        application.setRequestedAmount(request.loanRequest().requestedAmount());
+        application.setLoanPurpose(loanPurpose);
+        application.setLoanTerm(loanTerm);
+        application.setLoanTermMonths(request.loanRequest().requestedTenure());
+        loanApplicationRepository.save(application);
 
-        insertHistory(application.id(), null, application.stateId(), "SAVE_DRAFT", "system", "Lưu thông tin nháp");
-        LoanApplicationRow updated = findApplication(applicationCode);
-        LocalDateTime createdAt = findHistoryTime(updated.id(), "CREATE").orElse(null);
-        LocalDateTime savedAt = findHistoryTime(updated.id(), "SAVE_DRAFT").orElse(LocalDateTime.now());
+        insertHistory(application, null, application.getCurrentState(), "SAVE_DRAFT", "system", "Lưu thông tin nháp");
+        LocalDateTime createdAt = findHistoryTime(application, "CREATE").orElse(null);
+        LocalDateTime savedAt = findHistoryTime(application, "SAVE_DRAFT").orElse(LocalDateTime.now());
 
         return new LoanApplicationDraftResponse(
-                updated.applicationCode(),
-                LoanApplicationState.valueOf(updated.stateCode()),
-                updated.customerCode(),
+                application.getLoanApplicationCode(),
+                LoanApplicationState.valueOf(application.getCurrentState().getCode()),
+                application.getCustomer().getCustomerCode(),
                 createdAt,
                 savedAt
         );
@@ -161,37 +180,35 @@ public class LoanApplicationServiceDbImpl implements LoanApplicationService {
     @Override
     @Transactional
     public LoanApplicationDraftResponse cancel(String applicationCode, CancelLoanApplicationRequest request) {
-        LoanApplicationRow application = findApplication(applicationCode);
-        UUID cancelledStateId = findTransitionToState(application.stateId(), "CANCEL");
+        LoanApplicationEntity application = findApplication(applicationCode);
+        LoanApplicationStateEntity cancelledState = findTransitionToState(application.getCurrentState(), "CANCEL");
+        LoanApplicationStateEntity fromState = application.getCurrentState();
 
-        jdbcTemplate.update(
-                "UPDATE loan_application SET current_state_id = ? WHERE id = ?",
-                cancelledStateId,
-                application.id()
-        );
-        insertHistory(application.id(), application.stateId(), cancelledStateId, "CANCEL", "system", request.note());
+        application.setCurrentState(cancelledState);
+        loanApplicationRepository.save(application);
+        insertHistory(application, fromState, cancelledState, "CANCEL", "system", request.note());
 
-        LoanApplicationRow updated = findApplication(applicationCode);
         return new LoanApplicationDraftResponse(
-                updated.applicationCode(),
-                LoanApplicationState.valueOf(updated.stateCode()),
-                updated.customerCode(),
-                findHistoryTime(updated.id(), "CREATE").orElse(null),
-                findHistoryTime(updated.id(), "CANCEL").orElse(LocalDateTime.now())
+                application.getLoanApplicationCode(),
+                LoanApplicationState.valueOf(application.getCurrentState().getCode()),
+                application.getCustomer().getCustomerCode(),
+                findHistoryTime(application, "CREATE").orElse(null),
+                findHistoryTime(application, "CANCEL").orElse(LocalDateTime.now())
         );
     }
 
     @Override
+    @Transactional(readOnly = true)
     public StepCompletionResponse completePreliminaryStep(String applicationCode) {
-        LoanApplicationRow application = findApplication(applicationCode);
+        LoanApplicationEntity application = findApplication(applicationCode);
         List<String> errors = new java.util.ArrayList<>();
-        if (application.requestedAmount() == null) {
+        if (application.getRequestedAmount() == null) {
             errors.add("Số tiền vay chưa được nhập");
         }
-        if (application.loanPurpose() == null || application.loanPurpose().isBlank()) {
+        if (application.getLoanPurpose() == null) {
             errors.add("Mục đích vay chưa được nhập");
         }
-        if (application.loanTermMonths() == null) {
+        if (application.getLoanTermMonths() == null) {
             errors.add("Kỳ hạn vay chưa được nhập");
         }
 
@@ -207,22 +224,20 @@ public class LoanApplicationServiceDbImpl implements LoanApplicationService {
     @Override
     @Transactional
     public SubmitForApprovalResponse submitForApproval(String applicationCode) {
-        LoanApplicationRow application = findApplication(applicationCode);
-        ensureState(application.stateCode(), STATE_DRAFT, "Chỉ hồ sơ nháp mới được gửi phê duyệt");
+        LoanApplicationEntity application = findApplication(applicationCode);
+        ensureState(application.getCurrentState().getCode(), STATE_DRAFT, "Chỉ hồ sơ nháp mới được gửi phê duyệt");
 
-        if (application.requestedAmount() == null || application.loanPurpose() == null || application.loanTermMonths() == null) {
+        if (application.getRequestedAmount() == null || application.getLoanPurpose() == null || application.getLoanTermMonths() == null) {
             throw new BusinessException(ErrorCode.INVALID_REQUESTED_AMOUNT, "Hồ sơ chưa đủ thông tin khoản vay để gửi phê duyệt");
         }
 
-        UUID submittedStateId = findTransitionToState(application.stateId(), "SUBMIT");
-        jdbcTemplate.update(
-                "UPDATE loan_application SET current_state_id = ? WHERE id = ?",
-                submittedStateId,
-                application.id()
-        );
-        insertHistory(application.id(), application.stateId(), submittedStateId, "SUBMIT", "system", "Gửi hồ sơ vào luồng xử lý");
+        LoanApplicationStateEntity submittedState = findTransitionToState(application.getCurrentState(), "SUBMIT");
+        LoanApplicationStateEntity fromState = application.getCurrentState();
+        application.setCurrentState(submittedState);
+        loanApplicationRepository.save(application);
+        insertHistory(application, fromState, submittedState, "SUBMIT", "system", "Gửi hồ sơ vào luồng xử lý");
 
-        LocalDateTime submittedAt = findHistoryTime(application.id(), "SUBMIT").orElse(LocalDateTime.now());
+        LocalDateTime submittedAt = findHistoryTime(application, "SUBMIT").orElse(LocalDateTime.now());
         return new SubmitForApprovalResponse(
                 applicationCode,
                 LoanApplicationState.APP_SUBMITTED,
@@ -233,211 +248,75 @@ public class LoanApplicationServiceDbImpl implements LoanApplicationService {
         );
     }
 
-    private UUID findCustomerId(String customerCode) {
-        try {
-            return jdbcTemplate.queryForObject(
-                    "SELECT id FROM customer WHERE customer_code = ?",
-                    UUID.class,
-                    customerCode
-            );
-        } catch (EmptyResultDataAccessException ex) {
-            throw new BusinessException(ErrorCode.CUSTOMER_NOT_FOUND, "Không tìm thấy khách hàng trong database");
-        }
+    private LoanApplicationEntity findApplication(String applicationCode) {
+        return loanApplicationRepository.findByLoanApplicationCode(applicationCode)
+                .orElseThrow(() -> new BusinessException(ErrorCode.LOAN_APPLICATION_NOT_FOUND, "Không tìm thấy hồ sơ vay trong database"));
     }
 
-    private UUID findStateId(String stateCode) {
-        return jdbcTemplate.queryForObject(
-                "SELECT id FROM loan_application_state WHERE code = ?",
-                UUID.class,
-                stateCode
-        );
+    private LoanApplicationStateEntity findState(String stateCode) {
+        return stateRepository.findByCode(stateCode)
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_LOAN_APPLICATION_STATE, "Không tìm thấy trạng thái hồ sơ trong database"));
     }
 
-    private UUID findTransitionToState(UUID fromStateId, String actionCode) {
-        try {
-            return jdbcTemplate.queryForObject(
-                    """
-                    SELECT to_state_id
-                    FROM loan_application_state_transition
-                    WHERE from_state_id = ? AND action_code = ?
-                    """,
-                    UUID.class,
-                    fromStateId,
-                    actionCode
-            );
-        } catch (EmptyResultDataAccessException ex) {
-            throw new BusinessException(ErrorCode.INVALID_LOAN_APPLICATION_STATE, "Lifecycle trong database không cho phép thao tác này");
-        }
+    private LoanApplicationStateEntity findTransitionToState(LoanApplicationStateEntity fromState, String actionCode) {
+        return transitionRepository.findByFromStateAndActionCode(fromState, actionCode)
+                .map(LoanApplicationStateTransitionEntity::getToState)
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_LOAN_APPLICATION_STATE, "Lifecycle trong database không cho phép thao tác này"));
     }
 
-    private LoanApplicationRow findApplication(String applicationCode) {
-        try {
-            return jdbcTemplate.queryForObject(
-                    """
-                    SELECT la.id,
-                           la.loan_application_code,
-                           la.customer_id,
-                           c.customer_code,
-                           c.full_name,
-                           c.phone_number,
-                           c.identity_number,
-                           c.date_of_birth,
-                           la.current_state_id,
-                           las.code AS state_code,
-                           la.requested_amount,
-                           lp.code AS loan_purpose,
-                           la.loan_term_months,
-                           la.branch
-                    FROM loan_application la
-                    JOIN customer c ON c.id = la.customer_id
-                    JOIN loan_application_state las ON las.id = la.current_state_id
-                    LEFT JOIN loan_purpose lp ON lp.id = la.loan_purpose_id
-                    WHERE la.loan_application_code = ?
-                    """,
-                    this::mapApplication,
-                    applicationCode
-            );
-        } catch (EmptyResultDataAccessException ex) {
-            throw new BusinessException(ErrorCode.LOAN_APPLICATION_NOT_FOUND, "Không tìm thấy hồ sơ vay trong database");
-        }
+    private Optional<LocalDateTime> findHistoryTime(LoanApplicationEntity application, String actionCode) {
+        return historyRepository.findTopByLoanApplicationAndActionCodeOrderByChangedAtDesc(application, actionCode)
+                .map(LoanApplicationStateHistoryEntity::getChangedAt);
     }
 
-    private LoanApplicationRow mapApplication(ResultSet rs, int rowNum) throws SQLException {
-        return new LoanApplicationRow(
-                rs.getObject("id", UUID.class),
-                rs.getString("loan_application_code"),
-                rs.getObject("customer_id", UUID.class),
-                rs.getString("customer_code"),
-                rs.getString("full_name"),
-                rs.getString("phone_number"),
-                rs.getString("identity_number"),
-                rs.getDate("date_of_birth") == null ? null : rs.getDate("date_of_birth").toLocalDate(),
-                rs.getObject("current_state_id", UUID.class),
-                rs.getString("state_code"),
-                rs.getBigDecimal("requested_amount"),
-                rs.getString("loan_purpose"),
-                (Integer) rs.getObject("loan_term_months"),
-                rs.getString("branch")
-        );
+    private Optional<LocalDateTime> findLastHistoryTime(LoanApplicationEntity application) {
+        return historyRepository.findTopByLoanApplicationOrderByChangedAtDesc(application)
+                .map(LoanApplicationStateHistoryEntity::getChangedAt);
     }
 
-    private Optional<LocalDateTime> findHistoryTime(UUID applicationId, String actionCode) {
-        List<LocalDateTime> times = jdbcTemplate.query(
-                """
-                SELECT changed_at
-                FROM loan_application_state_history
-                WHERE loan_application_id = ? AND action_code = ?
-                ORDER BY changed_at DESC
-                LIMIT 1
-                """,
-                (rs, rowNum) -> toLocalDateTime(rs.getTimestamp("changed_at")),
-                applicationId,
-                actionCode
-        );
-        return times.stream().findFirst();
-    }
-
-    private Optional<LocalDateTime> findLastHistoryTime(UUID applicationId) {
-        List<LocalDateTime> times = jdbcTemplate.query(
-                """
-                SELECT changed_at
-                FROM loan_application_state_history
-                WHERE loan_application_id = ?
-                ORDER BY changed_at DESC
-                LIMIT 1
-                """,
-                (rs, rowNum) -> toLocalDateTime(rs.getTimestamp("changed_at")),
-                applicationId
-        );
-        return times.stream().findFirst();
-    }
-
-    private void insertHistory(UUID applicationId, UUID fromStateId, UUID toStateId, String actionCode, String changedBy, String note) {
-        jdbcTemplate.update(
-                """
-                INSERT INTO loan_application_state_history
-                    (loan_application_id, from_state_id, to_state_id, action_code, changed_by, note)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """,
-                applicationId,
-                fromStateId,
-                toStateId,
-                actionCode,
-                changedBy,
-                note
-        );
+    private void insertHistory(
+            LoanApplicationEntity application,
+            LoanApplicationStateEntity fromState,
+            LoanApplicationStateEntity toState,
+            String actionCode,
+            String changedBy,
+            String note
+    ) {
+        LoanApplicationStateHistoryEntity history = new LoanApplicationStateHistoryEntity();
+        history.setLoanApplication(application);
+        history.setFromState(fromState);
+        history.setToState(toState);
+        history.setActionCode(actionCode);
+        history.setChangedAt(LocalDateTime.now());
+        history.setChangedBy(changedBy);
+        history.setNote(note);
+        historyRepository.save(history);
     }
 
     private String nextApplicationCode() {
-        Integer next = jdbcTemplate.queryForObject(
-                """
-                SELECT COALESCE(MAX(CAST(substring(loan_application_code FROM 'APP-[0-9]{4}-([0-9]+)') AS INT)), 0) + 1
-                FROM loan_application
-                WHERE loan_application_code LIKE ?
-                """,
-                Integer.class,
-                "APP-2026-%"
-        );
-        return "APP-2026-%06d".formatted(next == null ? 1 : next);
+        String lastCode = loanApplicationRepository
+                .findTopByLoanApplicationCodeStartingWithOrderByLoanApplicationCodeDesc(APPLICATION_CODE_PREFIX)
+                .map(LoanApplicationEntity::getLoanApplicationCode)
+                .orElse(null);
+        int next = lastCode == null ? 1 : parseApplicationSequence(lastCode) + 1;
+        return APPLICATION_CODE_PREFIX + "%06d".formatted(next);
+    }
+
+    private int parseApplicationSequence(String applicationCode) {
+        int delimiter = applicationCode.lastIndexOf('-');
+        if (delimiter < 0 || delimiter == applicationCode.length() - 1) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(applicationCode.substring(delimiter + 1));
+        } catch (NumberFormatException ex) {
+            return 0;
+        }
     }
 
     private void ensureState(String actualState, String expectedState, String message) {
         if (!expectedState.equals(actualState)) {
             throw new BusinessException(ErrorCode.INVALID_LOAN_APPLICATION_STATE, message);
         }
-    }
-
-    private UUID findLoanPurposeId(String loanPurposeCode) {
-        try {
-            return jdbcTemplate.queryForObject(
-                    """
-                    SELECT id
-                    FROM loan_purpose
-                    WHERE code = ? AND is_active = true
-                    """,
-                    UUID.class,
-                    loanPurposeCode
-            );
-        } catch (EmptyResultDataAccessException ex) {
-            throw new BusinessException(ErrorCode.INVALID_LOAN_PURPOSE, "Mục đích vay không tồn tại hoặc đã ngừng áp dụng trong database");
-        }
-    }
-
-    private UUID findLoanTermId(Integer loanTermMonths) {
-        try {
-            return jdbcTemplate.queryForObject(
-                    """
-                    SELECT id
-                    FROM loan_term
-                    WHERE term_months = ? AND is_active = true
-                    """,
-                    UUID.class,
-                    loanTermMonths
-            );
-        } catch (EmptyResultDataAccessException ex) {
-            throw new BusinessException(ErrorCode.INVALID_LOAN_TERM, "Kỳ hạn vay không tồn tại hoặc đã ngừng áp dụng trong database");
-        }
-    }
-
-    private LocalDateTime toLocalDateTime(Timestamp timestamp) {
-        return timestamp == null ? null : timestamp.toLocalDateTime();
-    }
-
-    private record LoanApplicationRow(
-            UUID id,
-            String applicationCode,
-            UUID customerId,
-            String customerCode,
-            String customerName,
-            String phoneNumber,
-            String identityNumber,
-            java.time.LocalDate customerDateOfBirth,
-            UUID stateId,
-            String stateCode,
-            java.math.BigDecimal requestedAmount,
-            String loanPurpose,
-            Integer loanTermMonths,
-            String branch
-    ) {
     }
 }

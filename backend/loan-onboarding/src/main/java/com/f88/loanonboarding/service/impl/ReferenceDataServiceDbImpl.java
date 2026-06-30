@@ -2,19 +2,56 @@ package com.f88.loanonboarding.service.impl;
 
 import java.util.List;
 
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import com.f88.loanonboarding.dto.response.common.ReferenceDataItemResponse;
+import com.f88.loanonboarding.entity.AssetDeductionTypeEntity;
+import com.f88.loanonboarding.entity.LoanPurposeEntity;
+import com.f88.loanonboarding.entity.VehicleBrandEntity;
+import com.f88.loanonboarding.entity.VehicleColorEntity;
+import com.f88.loanonboarding.entity.VehicleModelEntity;
+import com.f88.loanonboarding.entity.VehicleTypeEntity;
+import com.f88.loanonboarding.entity.VehicleVersionEntity;
+import com.f88.loanonboarding.repository.AssetDeductionTypeRepository;
+import com.f88.loanonboarding.repository.LoanPurposeRepository;
+import com.f88.loanonboarding.repository.VehicleBrandRepository;
+import com.f88.loanonboarding.repository.VehicleColorRepository;
+import com.f88.loanonboarding.repository.VehicleModelRepository;
+import com.f88.loanonboarding.repository.VehicleTypeRepository;
+import com.f88.loanonboarding.repository.VehicleVersionRepository;
+import com.f88.loanonboarding.repository.VehicleYearRepository;
 import com.f88.loanonboarding.service.ReferenceDataService;
 
 @Service
 public class ReferenceDataServiceDbImpl implements ReferenceDataService {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final LoanPurposeRepository loanPurposeRepository;
+    private final VehicleTypeRepository vehicleTypeRepository;
+    private final VehicleBrandRepository vehicleBrandRepository;
+    private final VehicleModelRepository vehicleModelRepository;
+    private final VehicleVersionRepository vehicleVersionRepository;
+    private final VehicleYearRepository vehicleYearRepository;
+    private final VehicleColorRepository vehicleColorRepository;
+    private final AssetDeductionTypeRepository assetDeductionTypeRepository;
 
-    public ReferenceDataServiceDbImpl(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
+    public ReferenceDataServiceDbImpl(
+            LoanPurposeRepository loanPurposeRepository,
+            VehicleTypeRepository vehicleTypeRepository,
+            VehicleBrandRepository vehicleBrandRepository,
+            VehicleModelRepository vehicleModelRepository,
+            VehicleVersionRepository vehicleVersionRepository,
+            VehicleYearRepository vehicleYearRepository,
+            VehicleColorRepository vehicleColorRepository,
+            AssetDeductionTypeRepository assetDeductionTypeRepository
+    ) {
+        this.loanPurposeRepository = loanPurposeRepository;
+        this.vehicleTypeRepository = vehicleTypeRepository;
+        this.vehicleBrandRepository = vehicleBrandRepository;
+        this.vehicleModelRepository = vehicleModelRepository;
+        this.vehicleVersionRepository = vehicleVersionRepository;
+        this.vehicleYearRepository = vehicleYearRepository;
+        this.vehicleColorRepository = vehicleColorRepository;
+        this.assetDeductionTypeRepository = assetDeductionTypeRepository;
     }
 
     @Override
@@ -29,127 +66,94 @@ public class ReferenceDataServiceDbImpl implements ReferenceDataService {
 
     @Override
     public List<ReferenceDataItemResponse> getLoanPurposes() {
-        return queryItems(
-                """
-                SELECT code, name, description
-                FROM loan_purpose
-                WHERE is_active = true
-                ORDER BY sort_order, name
-                """
-        );
+        return loanPurposeRepository.findByActiveTrueOrderBySortOrderAscNameAsc()
+                .stream()
+                .map(this::item)
+                .toList();
     }
 
     @Override
     public List<ReferenceDataItemResponse> getAssetTypes() {
-        return queryItems(
-                """
-                SELECT code, name, description
-                FROM vehicle_type
-                WHERE is_active = true
-                ORDER BY sort_order, name
-                """
-        );
+        return vehicleTypeRepository.findByActiveTrueOrderBySortOrderAscNameAsc()
+                .stream()
+                .map(this::item)
+                .toList();
     }
 
     @Override
     public List<ReferenceDataItemResponse> getVehicleBrands(String assetType) {
-        return jdbcTemplate.query(
-                """
-                SELECT vb.code, vb.name, NULL::text AS description
-                FROM vehicle_brand vb
-                JOIN vehicle_type vt ON vt.id = vb.vehicle_type_id
-                WHERE vb.is_active = true
-                  AND vt.is_active = true
-                  AND (? IS NULL OR vt.code = ?)
-                ORDER BY vb.sort_order, vb.name
-                """,
-                (rs, rowNum) -> item(rs.getString("code"), rs.getString("name"), rs.getString("description")),
-                assetType,
-                assetType
-        );
+        List<VehicleBrandEntity> brands = assetType == null || assetType.isBlank()
+                ? vehicleBrandRepository.findByActiveTrueAndVehicleTypeActiveTrueOrderBySortOrderAscNameAsc()
+                : vehicleBrandRepository.findByActiveTrueAndVehicleTypeActiveTrueAndVehicleTypeCodeOrderBySortOrderAscNameAsc(assetType);
+        return brands.stream().map(this::item).toList();
     }
 
     @Override
     public List<ReferenceDataItemResponse> getVehicleModels(String brandCode) {
-        return jdbcTemplate.query(
-                """
-                SELECT vm.code, vm.name, NULL::text AS description
-                FROM vehicle_model vm
-                JOIN vehicle_brand vb ON vb.id = vm.vehicle_brand_id
-                WHERE vm.is_active = true
-                  AND vb.is_active = true
-                  AND (? IS NULL OR vb.code = ?)
-                ORDER BY vm.sort_order, vm.name
-                """,
-                (rs, rowNum) -> item(rs.getString("code"), rs.getString("name"), rs.getString("description")),
-                brandCode,
-                brandCode
-        );
+        List<VehicleModelEntity> models = brandCode == null || brandCode.isBlank()
+                ? vehicleModelRepository.findByActiveTrueAndVehicleBrandActiveTrueOrderBySortOrderAscNameAsc()
+                : vehicleModelRepository.findByActiveTrueAndVehicleBrandActiveTrueAndVehicleBrandCodeOrderBySortOrderAscNameAsc(brandCode);
+        return models.stream().map(this::item).toList();
     }
 
     @Override
     public List<ReferenceDataItemResponse> getVehicleVariants(String modelCode) {
-        return jdbcTemplate.query(
-                """
-                SELECT vv.code, vv.name, NULL::text AS description
-                FROM vehicle_version vv
-                JOIN vehicle_model vm ON vm.id = vv.vehicle_model_id
-                WHERE vv.is_active = true
-                  AND vm.is_active = true
-                  AND (? IS NULL OR vm.code = ?)
-                ORDER BY vv.sort_order, vv.name
-                """,
-                (rs, rowNum) -> item(rs.getString("code"), rs.getString("name"), rs.getString("description")),
-                modelCode,
-                modelCode
-        );
+        List<VehicleVersionEntity> versions = modelCode == null || modelCode.isBlank()
+                ? vehicleVersionRepository.findByActiveTrueAndVehicleModelActiveTrueOrderBySortOrderAscNameAsc()
+                : vehicleVersionRepository.findByActiveTrueAndVehicleModelActiveTrueAndVehicleModelCodeOrderBySortOrderAscNameAsc(modelCode);
+        return versions.stream().map(this::item).toList();
     }
 
     @Override
     public List<ReferenceDataItemResponse> getManufactureYears() {
-        return jdbcTemplate.query(
-                """
-                SELECT DISTINCT
-                       manufacture_year::text AS code,
-                       manufacture_year::text AS name,
-                       NULL::text AS description
-                FROM vehicle_year
-                WHERE is_active = true
-                ORDER BY manufacture_year DESC
-                """,
-                (rs, rowNum) -> item(rs.getString("code"), rs.getString("name"), rs.getString("description"))
-        );
+        return vehicleYearRepository.findActiveManufactureYears()
+                .stream()
+                .map(year -> item(year.toString(), year.toString(), null))
+                .toList();
     }
 
     @Override
     public List<ReferenceDataItemResponse> getVehicleColors() {
-        return queryItems(
-                """
-                SELECT code, name, NULL::text AS description
-                FROM vehicle_color
-                WHERE is_active = true
-                ORDER BY sort_order, name
-                """
-        );
+        return vehicleColorRepository.findByActiveTrueOrderBySortOrderAscNameAsc()
+                .stream()
+                .map(this::item)
+                .toList();
     }
 
     @Override
     public List<ReferenceDataItemResponse> getValuationDeductionFactors() {
-        return queryItems(
-                """
-                SELECT code, name, description
-                FROM asset_deduction_type
-                WHERE is_active = true
-                ORDER BY sort_order, name
-                """
-        );
+        return assetDeductionTypeRepository.findByActiveTrueOrderBySortOrderAscNameAsc()
+                .stream()
+                .map(this::item)
+                .toList();
     }
 
-    private List<ReferenceDataItemResponse> queryItems(String sql) {
-        return jdbcTemplate.query(
-                sql,
-                (rs, rowNum) -> item(rs.getString("code"), rs.getString("name"), rs.getString("description"))
-        );
+    private ReferenceDataItemResponse item(LoanPurposeEntity entity) {
+        return item(entity.getCode(), entity.getName(), entity.getDescription());
+    }
+
+    private ReferenceDataItemResponse item(VehicleTypeEntity entity) {
+        return item(entity.getCode(), entity.getName(), entity.getDescription());
+    }
+
+    private ReferenceDataItemResponse item(VehicleBrandEntity entity) {
+        return item(entity.getCode(), entity.getName(), null);
+    }
+
+    private ReferenceDataItemResponse item(VehicleModelEntity entity) {
+        return item(entity.getCode(), entity.getName(), null);
+    }
+
+    private ReferenceDataItemResponse item(VehicleVersionEntity entity) {
+        return item(entity.getCode(), entity.getName(), null);
+    }
+
+    private ReferenceDataItemResponse item(VehicleColorEntity entity) {
+        return item(entity.getCode(), entity.getName(), null);
+    }
+
+    private ReferenceDataItemResponse item(AssetDeductionTypeEntity entity) {
+        return item(entity.getCode(), entity.getName(), entity.getDescription());
     }
 
     private ReferenceDataItemResponse item(String code, String name, String description) {
