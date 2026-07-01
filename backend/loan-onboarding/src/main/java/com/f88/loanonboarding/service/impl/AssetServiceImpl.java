@@ -27,6 +27,9 @@ import com.f88.loanonboarding.service.AssetService;
 @Service
 public class AssetServiceImpl implements AssetService {
 
+    private static final String AVAILABLE = "AVAILABLE";
+    private static final String DRAFT_STATE = "APP_DRAFT";
+
     private final LoanApplicationRepository loanApplicationRepository;
     private final AssetRepository assetRepository;
     private final VehicleVariantRepository vehicleVariantRepository;
@@ -57,8 +60,8 @@ public class AssetServiceImpl implements AssetService {
                         true,
                         asset.getAssetCode(),
                         asset.getStatus(),
-                        "AVAILABLE".equals(asset.getStatus()),
-                        "AVAILABLE".equals(asset.getStatus()) ? null : "ASSET_NOT_AVAILABLE"
+                        AVAILABLE.equals(asset.getStatus()),
+                        AVAILABLE.equals(asset.getStatus()) ? null : "ASSET_NOT_AVAILABLE"
                 ))
                 .orElseGet(() -> new AssetLookupResponse(false, null, null, true, null));
     }
@@ -68,15 +71,14 @@ public class AssetServiceImpl implements AssetService {
     public AssetSnapshotResponse saveSnapshot(String applicationCode, SaveAssetSnapshotRequest request) {
         LoanApplication application = loanApplicationRepository.findByLoanApplicationCode(applicationCode)
                 .orElseThrow(() -> new BusinessException(ErrorCode.LOAN_APPLICATION_NOT_FOUND));
+        ensureDraftApplication(application);
         VehicleVariant variant = resolveVariant(request);
-        validateAssetType(request.assetType(), variant);
+        validateCatalogSelection(request, variant);
         String licensePlate = normalizeLicensePlate(request.licensePlate());
 
         Asset asset = assetRepository.findByLicensePlate(licensePlate)
                 .orElseGet(() -> createAsset(licensePlate, variant));
-        if (!"AVAILABLE".equals(asset.getStatus()) && application.getAsset() == null) {
-            throw new BusinessException(ErrorCode.ASSET_ALREADY_PLEDGED);
-        }
+        ensureAssetCanBeAttached(application, asset);
 
         asset.setVehicleVariant(variant);
         asset = assetRepository.save(asset);
@@ -86,31 +88,87 @@ public class AssetServiceImpl implements AssetService {
         return toSnapshotResponse(applicationCode, asset);
     }
 
+    private void ensureDraftApplication(LoanApplication application) {
+        if (application.getCurrentState() == null || !DRAFT_STATE.equals(application.getCurrentState().getCode())) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_LOAN_APPLICATION_STATE,
+                    "Chỉ được lưu thông tin tài sản khi hồ sơ vay đang ở trạng thái nháp."
+            );
+        }
+    }
+
     private VehicleVariant resolveVariant(SaveAssetSnapshotRequest request) {
         if (request.vehicleVariant() == null || request.vehicleVariant().isBlank()) {
             throw new BusinessException(
                     ErrorCode.BUSINESS_RULE_VIOLATION,
-                    "vehicleVariant la bat buoc de gan dung bien the xe trong catalog."
+                    "Phiên bản xe là bắt buộc để gắn đúng biến thể xe trong catalog."
             );
         }
         return vehicleVariantRepository.findByCode(request.vehicleVariant())
                 .orElseThrow(() -> new BusinessException(
                         ErrorCode.RESOURCE_NOT_FOUND,
-                        "Khong tim thay vehicle variant: " + request.vehicleVariant()
+                        "Không tìm thấy phiên bản xe trong database: " + request.vehicleVariant()
                 ));
     }
 
-    private void validateAssetType(AssetType assetType, VehicleVariant variant) {
-        String variantAssetTypeCode = variant.getVehicleYear()
-                .getVehicleVersion()
-                .getVehicleModel()
-                .getVehicleBrand()
-                .getVehicleType()
-                .getCode();
-        if (!assetType.code().equals(variantAssetTypeCode)) {
+    private void validateCatalogSelection(SaveAssetSnapshotRequest request, VehicleVariant variant) {
+        var vehicleYear = variant.getVehicleYear();
+        var vehicleVersion = vehicleYear.getVehicleVersion();
+        var vehicleModel = vehicleVersion.getVehicleModel();
+        var vehicleBrand = vehicleModel.getVehicleBrand();
+        var vehicleType = vehicleBrand.getVehicleType();
+        var vehicleColor = variant.getVehicleColor();
+
+        if (!request.assetType().code().equals(vehicleType.getCode())) {
             throw new BusinessException(
                     ErrorCode.BUSINESS_RULE_VIOLATION,
-                    "Loai tai san khong khop voi bien the xe trong catalog."
+                    "Loại tài sản không khớp với phiên bản xe trong catalog."
+            );
+        }
+        if (!sameCode(request.brand(), vehicleBrand.getCode())) {
+            throw new BusinessException(
+                    ErrorCode.BUSINESS_RULE_VIOLATION,
+                    "Hãng xe không khớp với phiên bản xe trong catalog."
+            );
+        }
+        if (!sameCode(request.model(), vehicleModel.getCode())) {
+            throw new BusinessException(
+                    ErrorCode.BUSINESS_RULE_VIOLATION,
+                    "Dòng xe không khớp với phiên bản xe trong catalog."
+            );
+        }
+        if (!request.manufactureYear().equals(vehicleYear.getManufactureYear())) {
+            throw new BusinessException(
+                    ErrorCode.BUSINESS_RULE_VIOLATION,
+                    "Năm sản xuất không khớp với phiên bản xe trong catalog."
+            );
+        }
+        if (!sameCode(request.vehicleColor(), vehicleColor.getCode())) {
+            throw new BusinessException(
+                    ErrorCode.BUSINESS_RULE_VIOLATION,
+                    "Màu xe không khớp với phiên bản xe trong catalog."
+            );
+        }
+    }
+
+    private void ensureAssetCanBeAttached(LoanApplication application, Asset asset) {
+        boolean sameAssetOnCurrentApplication = application.getAsset() != null
+                && application.getAsset().getId().equals(asset.getId());
+        if (!sameAssetOnCurrentApplication && !AVAILABLE.equals(asset.getStatus())) {
+            throw new BusinessException(
+                    ErrorCode.ASSET_ALREADY_PLEDGED,
+                    "Tài sản hiện tại đang bị cầm cố hoặc không có sẵn."
+            );
+        }
+        boolean usedByAnotherOpenApplication = loanApplicationRepository
+                .existsByAssetAndCurrentState_TerminalFalseAndLoanApplicationCodeNot(
+                        asset,
+                        application.getLoanApplicationCode()
+                );
+        if (usedByAnotherOpenApplication) {
+            throw new BusinessException(
+                    ErrorCode.ASSET_ALREADY_PLEDGED,
+                    "Tài sản đã được gắn với một hồ sơ vay khác chưa kết thúc."
             );
         }
     }
@@ -120,7 +178,7 @@ public class AssetServiceImpl implements AssetService {
         asset.setAssetCode(nextAssetCode());
         asset.setVehicleVariant(variant);
         asset.setLicensePlate(licensePlate);
-        asset.setStatus("AVAILABLE");
+        asset.setStatus(AVAILABLE);
         return asset;
     }
 
@@ -153,5 +211,13 @@ public class AssetServiceImpl implements AssetService {
 
     private String normalizeLicensePlate(String licensePlate) {
         return licensePlate == null ? null : licensePlate.trim().toUpperCase();
+    }
+
+    private boolean sameCode(String input, String code) {
+        return normalizeCode(input).equals(normalizeCode(code));
+    }
+
+    private String normalizeCode(String value) {
+        return value == null ? "" : value.trim().toUpperCase();
     }
 }

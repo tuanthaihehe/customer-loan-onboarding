@@ -1,6 +1,7 @@
 package com.f88.loanonboarding.entity;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -55,4 +56,25 @@ public class LoanApplication {
 
     @Column(name = "branch")
     private String branch;
+
+    @Column(name = "applicant_full_name")
+    private String applicantFullName;
+
+    @Column(name = "applicant_identity_number", length = 20)
+    private String applicantIdentityNumber;
+
+    @Column(name = "applicant_phone_number", length = 20)
+    private String applicantPhoneNumber;
+
+    @Column(name = "applicant_date_of_birth")
+    private LocalDate applicantDateOfBirth;
+
+    @Column(name = "applicant_gender", length = 30)
+    private String applicantGender;
+
+    @Column(name = "applicant_occupation", length = 100)
+    private String applicantOccupation;
+
+    @Column(name = "applicant_monthly_income", precision = 18, scale = 2)
+    private BigDecimal applicantMonthlyIncome;
 }

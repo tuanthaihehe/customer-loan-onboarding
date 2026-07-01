@@ -30,7 +30,7 @@ public class AssetController {
     @Operation(summary = "Tra cứu tài sản trước khi gắn vào hồ sơ vay")
     @PostMapping("/api/v1/assets/lookup")
     public ApiResponse<AssetLookupResponse> lookup(@Valid @RequestBody AssetLookupRequest request) {
-        return ApiResponse.success("Asset lookup completed", assetService.lookup(request));
+        return ApiResponse.success("Tra cứu tài sản thành công", assetService.lookup(request));
     }
 
     @Operation(summary = "Lưu thông tin tài sản vào hồ sơ vay nháp")
@@ -39,6 +39,6 @@ public class AssetController {
             @PathVariable String applicationCode,
             @Valid @RequestBody SaveAssetSnapshotRequest request
     ) {
-        return ApiResponse.success("Asset snapshot saved", assetService.saveSnapshot(applicationCode, request));
+        return ApiResponse.success("Lưu thông tin tài sản thành công", assetService.saveSnapshot(applicationCode, request));
     }
 }

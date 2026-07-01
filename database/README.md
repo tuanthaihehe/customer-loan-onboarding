@@ -32,14 +32,18 @@ Theo cập nhật BA/DA mới nhất, database **không có Eligibility** nên b
 │   ├── V7__update_customer_status_enum.sql
 │   ├── V8__add_loan_purpose_catalog.sql
 │   ├── V9__add_loan_term_catalog.sql
-│   └── V10__add_lead_customer_status.sql
+│   ├── V10__add_lead_customer_status.sql
+│   ├── V11__add_loan_product_catalog.sql
+│   ├── V12__add_loan_application_reference_person.sql
+│   └── V13__add_preliminary_applicant_snapshot.sql
 └── seed
     ├── V1__seed_reference_data.sql
     ├── V2__seed_demo_business_data.sql
     ├── V3__seed_vehicle_catalog_and_asset.sql
     ├── V4__seed_asset_deduction_type.sql
     ├── V5__seed_loan_purpose.sql
-    └── V6__seed_loan_term.sql
+    ├── V6__seed_loan_term.sql
+    └── V7__seed_loan_product.sql
 ```
 
 ## Bảng Chính

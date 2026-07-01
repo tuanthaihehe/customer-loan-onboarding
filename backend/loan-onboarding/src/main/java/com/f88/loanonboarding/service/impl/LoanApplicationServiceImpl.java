@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.f88.loanonboarding.common.error.ErrorCode;
+import com.f88.loanonboarding.dto.request.loan.ApplicantSnapshotRequest;
 import com.f88.loanonboarding.dto.request.loan.CancelLoanApplicationRequest;
 import com.f88.loanonboarding.dto.request.loan.CreateLoanApplicationRequest;
 import com.f88.loanonboarding.dto.request.loan.SaveLoanApplicationDraftRequest;
@@ -49,6 +50,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     private static final String STATE_SUBMITTED = "APP_SUBMITTED";
     private static final String STATE_CANCELLED = "APP_CANCELLED";
     private static final String APPLICATION_CODE_PREFIX = "APP-2026-";
+    private static final List<String> SUPPORTED_GENDERS = List.of("MALE", "FEMALE", "OTHER");
 
     private final CustomerRepository customerRepository;
     private final LoanApplicationRepository loanApplicationRepository;
@@ -106,15 +108,14 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 application.getLoanApplicationCode(),
                 toStateEnum(application.getCurrentState()),
                 application.getCustomer().getCustomerCode(),
-                mapOf(
-                        "fullName", application.getCustomer().getFullName(),
-                        "dateOfBirth", application.getCustomer().getDateOfBirth(),
-                        "identifierNumber", application.getCustomer().getIdentityNumber(),
-                        "phoneNumber", application.getCustomer().getPhoneNumber()
-                ),
+                toApplicantSnapshot(application),
                 mapOf(
                         "requestedAmount", application.getRequestedAmount(),
+                        "loanPurposeId", application.getLoanPurpose() == null ? null : application.getLoanPurpose().getId(),
                         "loanPurpose", application.getLoanPurpose() == null ? null : application.getLoanPurpose().getCode(),
+                        "loanPurposeName", application.getLoanPurpose() == null ? null : application.getLoanPurpose().getName(),
+                        "loanTermId", application.getLoanTerm() == null ? null : application.getLoanTerm().getId(),
+                        "loanTermMonths", application.getLoanTermMonths(),
                         "requestedTenure", application.getLoanTermMonths()
                 ),
                 toAssetSnapshot(application.getAsset()),
@@ -143,6 +144,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         LoanTerm loanTerm = loanTermRepository.findByTermMonthsAndActiveTrue(request.loanRequest().requestedTenure())
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_LOAN_TERM, "Kỳ hạn vay không tồn tại hoặc đã ngừng áp dụng trong database"));
 
+        saveApplicantSnapshot(application, request.applicantSnapshot());
         application.setRequestedAmount(request.loanRequest().requestedAmount());
         application.setLoanPurpose(loanPurpose);
         application.setLoanTerm(loanTerm);
@@ -172,9 +174,9 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     @Transactional(readOnly = true)
     public StepCompletionResponse completePreliminaryStep(String applicationCode) {
         LoanApplication application = findApplication(applicationCode);
-        List<String> errors = hasCompleteLoanRequest(application)
+        List<String> errors = hasCompletePreliminaryInfo(application)
                 ? List.of()
-                : List.of("Loan request data is incomplete");
+                : List.of("Thông tin sơ bộ khách hàng hoặc nhu cầu vay chưa đầy đủ");
 
         return new StepCompletionResponse(
                 applicationCode,
@@ -190,8 +192,8 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     public SubmitForApprovalResponse submitForApproval(String applicationCode) {
         LoanApplication application = findApplication(applicationCode);
         ensureState(application.getCurrentState().getCode(), STATE_DRAFT, "Chỉ hồ sơ nháp mới được gửi phê duyệt");
-        if (!hasCompleteLoanRequest(application)) {
-            throw new BusinessException(ErrorCode.INVALID_REQUESTED_AMOUNT, "Hồ sơ chưa đủ thông tin khoản vay để gửi phê duyệt");
+        if (!hasCompletePreliminaryInfo(application)) {
+            throw new BusinessException(ErrorCode.INVALID_REQUESTED_AMOUNT, "Hồ sơ chưa đủ thông tin sơ bộ khách hàng và nhu cầu vay để gửi phê duyệt");
         }
         LoanApplicationState submittedState = findState(STATE_SUBMITTED);
         validateTransition(application.getCurrentState(), submittedState, "SUBMIT");
@@ -287,6 +289,46 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 && application.getLoanTermMonths() != null;
     }
 
+    private boolean hasCompletePreliminaryInfo(LoanApplication application) {
+        return hasCompleteLoanRequest(application)
+                && isNotBlank(application.getApplicantFullName())
+                && isNotBlank(application.getApplicantIdentityNumber())
+                && isNotBlank(application.getApplicantPhoneNumber())
+                && application.getApplicantDateOfBirth() != null
+                && isNotBlank(application.getApplicantGender())
+                && isNotBlank(application.getApplicantOccupation())
+                && application.getApplicantMonthlyIncome() != null;
+    }
+
+    private void saveApplicantSnapshot(LoanApplication application, ApplicantSnapshotRequest request) {
+        String gender = normalizeText(request.gender()).toUpperCase();
+        if (!SUPPORTED_GENDERS.contains(gender)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Giới tính không hợp lệ. Giá trị hợp lệ: MALE, FEMALE, OTHER");
+        }
+
+        Customer customer = application.getCustomer();
+        application.setApplicantFullName(customer.getFullName());
+        application.setApplicantIdentityNumber(customer.getIdentityNumber());
+        application.setApplicantPhoneNumber(customer.getPhoneNumber());
+        application.setApplicantDateOfBirth(customer.getDateOfBirth());
+        application.setApplicantGender(gender);
+        application.setApplicantOccupation(normalizeText(request.occupation()));
+        application.setApplicantMonthlyIncome(request.monthlyIncome());
+    }
+
+    private Map<String, Object> toApplicantSnapshot(LoanApplication application) {
+        Customer customer = application.getCustomer();
+        return mapOf(
+                "fullName", coalesce(application.getApplicantFullName(), customer.getFullName()),
+                "dateOfBirth", coalesce(application.getApplicantDateOfBirth(), customer.getDateOfBirth()),
+                "identifierNumber", coalesce(application.getApplicantIdentityNumber(), customer.getIdentityNumber()),
+                "phoneNumber", coalesce(application.getApplicantPhoneNumber(), customer.getPhoneNumber()),
+                "gender", application.getApplicantGender(),
+                "occupation", application.getApplicantOccupation(),
+                "monthlyIncome", application.getApplicantMonthlyIncome()
+        );
+    }
+
     private Map<String, Object> toAssetSnapshot(Asset asset) {
         if (asset == null) {
             return Map.of();
@@ -336,6 +378,18 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         if (!expectedState.equals(actualState)) {
             throw new BusinessException(ErrorCode.INVALID_LOAN_APPLICATION_STATE, message);
         }
+    }
+
+    private String normalizeText(String value) {
+        return value == null ? null : value.trim();
+    }
+
+    private boolean isNotBlank(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private Object coalesce(Object first, Object fallback) {
+        return first == null ? fallback : first;
     }
 
     private static Map<String, Object> mapOf(Object... values) {

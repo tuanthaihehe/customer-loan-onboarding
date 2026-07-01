@@ -18,11 +18,13 @@ public record SaveAssetSnapshotRequest(
         @NotBlank(message = "Dòng xe là bắt buộc")
         String model,
 
+        @NotBlank(message = "Phiên bản xe là bắt buộc")
         String vehicleVariant,
 
         @NotNull(message = "Năm sản xuất là bắt buộc")
         Integer manufactureYear,
 
+        @NotBlank(message = "Màu xe là bắt buộc")
         String vehicleColor
 ) {
 }

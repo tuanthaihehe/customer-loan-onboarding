@@ -71,6 +71,13 @@ Table loan_application {
   loan_purpose_id uuid [note: 'Nullable. Draft application may be created before loan purpose selection.']
   requested_amount numeric(18,2) [note: 'Nullable for early draft applications. Must be positive when provided.']
   loan_term_months int [note: 'Nullable for early draft applications. Must be positive when provided.']
+  applicant_full_name varchar(255) [note: 'Preliminary applicant snapshot.']
+  applicant_identity_number varchar(20) [note: 'Preliminary applicant identity snapshot.']
+  applicant_phone_number varchar(20) [note: 'Preliminary applicant phone snapshot.']
+  applicant_date_of_birth date [note: 'Preliminary applicant date of birth snapshot.']
+  applicant_gender varchar(30) [note: 'MALE, FEMALE, OTHER']
+  applicant_occupation varchar(100)
+  applicant_monthly_income numeric(18,2)
 }
 
 Table loan_application_state_history {

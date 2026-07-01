@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import com.f88.loanonboarding.entity.Asset;
 import com.f88.loanonboarding.entity.LoanApplication;
 
 public interface LoanApplicationRepository extends JpaRepository<LoanApplication, UUID> {
@@ -29,4 +30,9 @@ public interface LoanApplicationRepository extends JpaRepository<LoanApplication
     Optional<LoanApplication> findByLoanApplicationCode(String loanApplicationCode);
 
     Optional<LoanApplication> findTopByLoanApplicationCodeStartingWithOrderByLoanApplicationCodeDesc(String prefix);
+
+    boolean existsByAssetAndCurrentState_TerminalFalseAndLoanApplicationCodeNot(
+            Asset asset,
+            String loanApplicationCode
+    );
 }
