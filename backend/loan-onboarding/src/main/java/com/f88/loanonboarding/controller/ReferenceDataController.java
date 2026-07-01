@@ -44,6 +44,12 @@ public class ReferenceDataController {
         return ApiResponse.success(referenceDataService.getLoanPurposes());
     }
 
+    @Operation(summary = "Lấy danh mục kỳ hạn vay")
+    @GetMapping("/loan-terms")
+    public ApiResponse<List<ReferenceDataItemResponse>> getLoanTerms() {
+        return ApiResponse.success(referenceDataService.getLoanTerms());
+    }
+
     @Operation(summary = "Lấy danh mục loại tài sản")
     @GetMapping("/asset-types")
     public ApiResponse<List<ReferenceDataItemResponse>> getAssetTypes() {

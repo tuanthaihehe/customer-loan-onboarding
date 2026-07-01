@@ -21,15 +21,19 @@ import com.f88.loanonboarding.dto.response.loan.SubmitForApprovalResponse;
 import com.f88.loanonboarding.entity.Asset;
 import com.f88.loanonboarding.entity.Customer;
 import com.f88.loanonboarding.entity.LoanApplication;
+import com.f88.loanonboarding.entity.LoanPurpose;
+import com.f88.loanonboarding.entity.LoanTerm;
 import com.f88.loanonboarding.entity.LoanApplicationState;
 import com.f88.loanonboarding.entity.LoanApplicationStateHistory;
 import com.f88.loanonboarding.enums.AssetType;
 import com.f88.loanonboarding.exception.BusinessException;
 import com.f88.loanonboarding.repository.CustomerRepository;
 import com.f88.loanonboarding.repository.LoanApplicationRepository;
+import com.f88.loanonboarding.repository.LoanPurposeRepository;
 import com.f88.loanonboarding.repository.LoanApplicationStateHistoryRepository;
 import com.f88.loanonboarding.repository.LoanApplicationStateRepository;
 import com.f88.loanonboarding.repository.LoanApplicationStateTransitionRepository;
+import com.f88.loanonboarding.repository.LoanTermRepository;
 import com.f88.loanonboarding.rule.RuleContext;
 import com.f88.loanonboarding.rule.RuleEvaluationService;
 import com.f88.loanonboarding.rule.loan.LoanPurposeRule;
@@ -46,6 +50,8 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
 
     private final CustomerRepository customerRepository;
     private final LoanApplicationRepository loanApplicationRepository;
+    private final LoanPurposeRepository loanPurposeRepository;
+    private final LoanTermRepository loanTermRepository;
     private final LoanApplicationStateRepository stateRepository;
     private final LoanApplicationStateHistoryRepository historyRepository;
     private final LoanApplicationStateTransitionRepository transitionRepository;
@@ -54,6 +60,8 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     public LoanApplicationServiceImpl(
             CustomerRepository customerRepository,
             LoanApplicationRepository loanApplicationRepository,
+            LoanPurposeRepository loanPurposeRepository,
+            LoanTermRepository loanTermRepository,
             LoanApplicationStateRepository stateRepository,
             LoanApplicationStateHistoryRepository historyRepository,
             LoanApplicationStateTransitionRepository transitionRepository,
@@ -61,6 +69,8 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     ) {
         this.customerRepository = customerRepository;
         this.loanApplicationRepository = loanApplicationRepository;
+        this.loanPurposeRepository = loanPurposeRepository;
+        this.loanTermRepository = loanTermRepository;
         this.stateRepository = stateRepository;
         this.historyRepository = historyRepository;
         this.transitionRepository = transitionRepository;
@@ -102,7 +112,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 ),
                 mapOf(
                         "requestedAmount", application.getRequestedAmount(),
-                        "loanPurpose", application.getLoanPurpose(),
+                        "loanPurpose", application.getLoanPurpose() == null ? null : application.getLoanPurpose().getCode(),
                         "requestedTenure", application.getLoanTermMonths()
                 ),
                 toAssetSnapshot(application.getAsset()),
@@ -125,8 +135,19 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         );
 
         LoanApplication application = findApplication(applicationCode);
+        LoanPurpose loanPurpose = loanPurposeRepository.findByCode(request.loanRequest().loanPurpose())
+                .orElseThrow(() -> new BusinessException(
+                        ErrorCode.RESOURCE_NOT_FOUND,
+                        "Loan purpose is not configured: " + request.loanRequest().loanPurpose()
+                ));
+        LoanTerm loanTerm = loanTermRepository.findByTermMonths(request.loanRequest().requestedTenure())
+                .orElseThrow(() -> new BusinessException(
+                        ErrorCode.RESOURCE_NOT_FOUND,
+                        "Loan term is not configured: " + request.loanRequest().requestedTenure()
+                ));
         application.setRequestedAmount(request.loanRequest().requestedAmount());
-        application.setLoanPurpose(request.loanRequest().loanPurpose());
+        application.setLoanPurpose(loanPurpose);
+        application.setLoanTerm(loanTerm);
         application.setLoanTermMonths(request.loanRequest().requestedTenure());
 
         return toDraftResponse(loanApplicationRepository.save(application));

@@ -13,6 +13,8 @@ public interface LoanApplicationRepository extends JpaRepository<LoanApplication
     @EntityGraph(attributePaths = {
             "customer",
             "currentState",
+            "loanPurpose",
+            "loanTerm",
             "asset",
             "asset.vehicleVariant",
             "asset.vehicleVariant.vehicleColor",

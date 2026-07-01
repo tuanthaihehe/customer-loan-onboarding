@@ -42,8 +42,13 @@ public class LoanApplication {
     @Column(name = "requested_amount", precision = 18, scale = 2)
     private BigDecimal requestedAmount;
 
-    @Column(name = "loan_purpose", length = 50)
-    private String loanPurpose;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "loan_purpose_id")
+    private LoanPurpose loanPurpose;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "loan_term_id")
+    private LoanTerm loanTerm;
 
     @Column(name = "loan_term_months")
     private Integer loanTermMonths;

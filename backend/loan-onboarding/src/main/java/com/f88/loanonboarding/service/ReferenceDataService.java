@@ -13,6 +13,8 @@ public interface ReferenceDataService {
 
     List<ReferenceDataItemResponse> getLoanPurposes();
 
+    List<ReferenceDataItemResponse> getLoanTerms();
+
     List<ReferenceDataItemResponse> getAssetTypes();
 
     List<ReferenceDataItemResponse> getVehicleBrands(AssetType assetType);
