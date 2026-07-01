@@ -2,18 +2,21 @@
 // Current scope:
 // - Customer lookup and basic customer storage
 // - Loan application lifecycle
+// - Loan purpose catalog for frontend selection
 // - Vehicle catalog for dropdown selection
 // - Asset record linked to loan application after draft creation
-// - Asset valuation snapshot and valuation deductions
+// - Asset valuation snapshot and fixed valuation deductions
 //
 // Design notes:
 // - id is the technical primary key used for database references.
 // - *_code is the business code used for lookup/display.
 // - loan_application.asset_id is nullable because a draft application can be created before asset selection.
+// - loan_application.loan_purpose_id is nullable because a draft application can be created before loan purpose selection.
 // - asset does not store customer_id. The customer is resolved through loan_application.customer_id.
 // - vehicle_market_price stores market price by vehicle_variant and effective date.
+// - asset_deduction_type stores fixed deduction amounts used by valuation.
 // - asset_valuation stores the valuation snapshot used for an asset.
-// - asset_valuation_deduction stores deduction lines applied in one valuation.
+// - asset_valuation_deduction stores deduction types applied in one valuation and snapshots the deduction amount.
 // - The rule "one asset must not be attached to more than one active loan application"
 //   is enforced by backend logic using loan_application.current_state_id and loan_application_state.is_terminal.
 
@@ -24,7 +27,16 @@ Table customer {
   phone_number varchar(20) [unique]
   identity_number varchar(20) [unique]
   date_of_birth date
-  status varchar(30) [not null, default: 'ACTIVE', note: 'ACTIVE, INACTIVE, RESTRICTED']
+  status varchar(30) [not null, default: 'ACTIVE', note: 'ACTIVE, INACTIVE, BLACKLIST']
+}
+
+Table loan_purpose {
+  id uuid [pk]
+  code varchar(50) [not null, unique]
+  name varchar(100) [not null]
+  description text
+  is_active boolean [not null, default: true]
+  sort_order int [not null, default: 0]
 }
 
 Table loan_application_state {
@@ -56,9 +68,9 @@ Table loan_application {
   customer_id uuid [not null]
   current_state_id uuid [not null]
   asset_id uuid [note: 'Nullable. Draft application may be created before asset selection.']
+  loan_purpose_id uuid [note: 'Nullable. Draft application may be created before loan purpose selection.']
   requested_amount numeric(18,2) [note: 'Nullable for early draft applications. Must be positive when provided.']
   loan_term_months int [note: 'Nullable for early draft applications. Must be positive when provided.']
-  loan_purpose varchar(50) [note: 'BUSINESS, PERSONAL_CONSUMPTION, VEHICLE_REPAIR, MEDICAL, EDUCATION, HOME_REPAIR, DEBT_REPAYMENT, OTHER']
 }
 
 Table loan_application_state_history {
@@ -178,6 +190,7 @@ Table asset_deduction_type {
   code varchar(50) [not null, unique]
   name varchar(100) [not null]
   description text
+  deduction_amount numeric(18,2) [not null, note: 'Fixed deduction amount for this deduction type.']
   is_active boolean [not null, default: true]
   sort_order int [not null, default: 0]
 }
@@ -199,10 +212,8 @@ Table asset_valuation_deduction {
   id uuid [pk]
   asset_valuation_id uuid [not null]
   deduction_type_id uuid [not null]
-  deduction_method varchar(20) [not null, note: 'PERCENT, AMOUNT']
-  deduction_value numeric(18,2) [not null, note: 'Percentage value or fixed amount depending on deduction_method.']
-  deduction_amount numeric(18,2) [not null, note: 'Actual money amount deducted in this valuation.']
-  description text
+  deduction_amount_snapshot numeric(18,2) [not null, note: 'Snapshot of asset_deduction_type.deduction_amount at valuation time.']
+  note text
   created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
 
   indexes {
@@ -212,6 +223,7 @@ Table asset_valuation_deduction {
 
 Ref: customer.id < loan_application.customer_id
 Ref: asset.id < loan_application.asset_id
+Ref: loan_purpose.id < loan_application.loan_purpose_id
 Ref: loan_application_state.id < loan_application.current_state_id
 
 Ref: loan_application_state.id < loan_application_state_transition.from_state_id
