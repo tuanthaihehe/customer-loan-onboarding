@@ -1,6 +1,7 @@
 package com.f88.loanonboarding.repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -44,4 +45,10 @@ public interface LoanProductRepository extends JpaRepository<LoanProduct, UUID> 
             @Param("loanTermMonths") Integer loanTermMonths,
             @Param("scoreGradeCode") String scoreGradeCode
     );
+
+    @EntityGraph(attributePaths = {"loanPurposes", "vehicleTypes", "loanTerms", "scoreGrades"})
+    List<LoanProduct> findByActiveTrueOrderBySortOrderAsc();
+
+    @EntityGraph(attributePaths = {"loanPurposes", "vehicleTypes", "loanTerms", "scoreGrades"})
+    Optional<LoanProduct> findByProductCode(String productCode);
 }

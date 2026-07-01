@@ -44,6 +44,12 @@ public class ReferenceDataController {
         return ApiResponse.success(referenceDataService.getLoanPurposes());
     }
 
+    @Operation(summary = "Lấy danh mục kỳ hạn vay")
+    @GetMapping("/loan-terms")
+    public ApiResponse<List<ReferenceDataItemResponse>> getLoanTerms() {
+        return ApiResponse.success(referenceDataService.getLoanTerms());
+    }
+
     @Operation(summary = "Lấy danh mục loại tài sản")
     @GetMapping("/asset-types")
     public ApiResponse<List<ReferenceDataItemResponse>> getAssetTypes() {
@@ -68,35 +74,43 @@ public class ReferenceDataController {
         return ApiResponse.success(referenceDataService.getVehicleVersions(modelCode));
     }
 
-    @Operation(summary = "Lấy danh mục biến thể xe")
-    @GetMapping("/vehicle-variants")
-    public ApiResponse<List<ReferenceDataItemResponse>> getVehicleVariants(@RequestParam(required = false) String modelCode) {
-        return ApiResponse.success(referenceDataService.getVehicleVariants(modelCode));
-    }
-
-    @Operation(summary = "Lấy danh mục năm sản xuất")
+    @Operation(
+            summary = "Lấy năm sản xuất theo dòng xe và phiên bản xe",
+            description = "Trả các năm sản xuất có dữ liệu variant thật trong catalog theo modelCode và versionCode đã chọn. versionCode chỉ unique trong phạm vi model."
+    )
     @GetMapping("/manufacture-years")
-    public ApiResponse<List<ReferenceDataItemResponse>> getManufactureYears(@RequestParam(required = false) String versionCode) {
-        return ApiResponse.success(referenceDataService.getManufactureYears(versionCode));
+    public ApiResponse<List<ReferenceDataItemResponse>> getManufactureYears(
+            @RequestParam String modelCode,
+            @RequestParam String versionCode
+    ) {
+        return ApiResponse.success(referenceDataService.getManufactureYears(modelCode, versionCode));
     }
 
-    @Operation(summary = "Lấy danh mục màu xe")
+    @Operation(
+            summary = "Lấy màu xe theo dòng xe, phiên bản và năm sản xuất",
+            description = "Không trả toàn bộ bảng màu master. API join vehicle_variant, vehicle_year và vehicle_color để chỉ trả các màu có thật cho modelCode, versionCode và manufactureYear đã chọn."
+    )
     @GetMapping("/vehicle-colors")
     public ApiResponse<List<ReferenceDataItemResponse>> getVehicleColors(
-            @RequestParam(required = false) String versionCode,
-            @RequestParam(required = false) Integer manufactureYear
+            @RequestParam String modelCode,
+            @RequestParam String versionCode,
+            @RequestParam Integer manufactureYear
     ) {
-        return ApiResponse.success(referenceDataService.getVehicleColors(versionCode, manufactureYear));
+        return ApiResponse.success(referenceDataService.getVehicleColors(modelCode, versionCode, manufactureYear));
     }
 
-    @Operation(summary = "Lấy biến thể xe cuối cùng theo phiên bản, năm và màu")
+    @Operation(
+            summary = "Resolve biến thể xe cuối cùng theo dòng xe, phiên bản, năm và màu",
+            description = "Dùng sau khi user đã chọn modelCode, versionCode, manufactureYear và colorCode. API trả vehicleVariant duy nhất để lưu asset snapshot, preview valuation hoặc lấy market price."
+    )
     @GetMapping("/vehicle-variant")
     public ApiResponse<ReferenceDataItemResponse> resolveVehicleVariant(
+            @RequestParam String modelCode,
             @RequestParam String versionCode,
             @RequestParam Integer manufactureYear,
             @RequestParam String colorCode
     ) {
-        return ApiResponse.success(referenceDataService.resolveVehicleVariant(versionCode, manufactureYear, colorCode));
+        return ApiResponse.success(referenceDataService.resolveVehicleVariant(modelCode, versionCode, manufactureYear, colorCode));
     }
 
     @Operation(summary = "Lấy danh mục yếu tố giảm trừ định giá")

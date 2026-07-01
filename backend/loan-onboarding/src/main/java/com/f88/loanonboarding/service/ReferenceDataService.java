@@ -13,6 +13,8 @@ public interface ReferenceDataService {
 
     List<ReferenceDataItemResponse> getLoanPurposes();
 
+    List<ReferenceDataItemResponse> getLoanTerms();
+
     List<ReferenceDataItemResponse> getAssetTypes();
 
     List<ReferenceDataItemResponse> getVehicleBrands(AssetType assetType);
@@ -21,13 +23,11 @@ public interface ReferenceDataService {
 
     List<ReferenceDataItemResponse> getVehicleVersions(String modelCode);
 
-    List<ReferenceDataItemResponse> getVehicleVariants(String modelCode);
+    List<ReferenceDataItemResponse> getManufactureYears(String modelCode, String versionCode);
 
-    List<ReferenceDataItemResponse> getManufactureYears(String versionCode);
+    List<ReferenceDataItemResponse> getVehicleColors(String modelCode, String versionCode, Integer manufactureYear);
 
-    List<ReferenceDataItemResponse> getVehicleColors(String versionCode, Integer manufactureYear);
-
-    ReferenceDataItemResponse resolveVehicleVariant(String versionCode, Integer manufactureYear, String colorCode);
+    ReferenceDataItemResponse resolveVehicleVariant(String modelCode, String versionCode, Integer manufactureYear, String colorCode);
 
     List<ReferenceDataItemResponse> getValuationDeductionFactors();
 }
