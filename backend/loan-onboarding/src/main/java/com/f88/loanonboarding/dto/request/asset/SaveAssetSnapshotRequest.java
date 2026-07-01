@@ -1,11 +1,13 @@
 package com.f88.loanonboarding.dto.request.asset;
 
+import com.f88.loanonboarding.enums.AssetType;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 public record SaveAssetSnapshotRequest(
-        @NotBlank(message = "Loại tài sản là bắt buộc")
-        String assetType,
+        @NotNull(message = "Loại tài sản là bắt buộc")
+        AssetType assetType,
 
         @NotBlank(message = "Biển số xe là bắt buộc")
         String licensePlate,
@@ -16,11 +18,13 @@ public record SaveAssetSnapshotRequest(
         @NotBlank(message = "Dòng xe là bắt buộc")
         String model,
 
+        @NotBlank(message = "Phiên bản xe là bắt buộc")
         String vehicleVariant,
 
         @NotNull(message = "Năm sản xuất là bắt buộc")
         Integer manufactureYear,
 
+        @NotBlank(message = "Màu xe là bắt buộc")
         String vehicleColor
 ) {
 }

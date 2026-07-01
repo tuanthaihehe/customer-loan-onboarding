@@ -9,7 +9,7 @@ public class AssetRequiredRule implements BusinessRule {
 
     @Override
     public RuleResult evaluate(RuleContext context) {
-        if (isBlank(context.assetType()) || isBlank(context.licensePlate())) {
+        if (context.assetType() == null || isBlank(context.licensePlate())) {
             return RuleResult.fail(
                     RuleCode.ASSET_REQUIRED,
                     "Asset type and license plate are required before linking asset to loan application"

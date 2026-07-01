@@ -38,7 +38,7 @@ public class LoanApplicationController {
     public ApiResponse<LoanApplicationDraftResponse> createDraft(
             @Valid @RequestBody CreateLoanApplicationRequest request
     ) {
-        return ApiResponse.success("Loan application draft created", loanApplicationService.createDraft(request));
+        return ApiResponse.success("Tạo hồ sơ vay nháp thành công", loanApplicationService.createDraft(request));
     }
 
     @Operation(summary = "Lấy chi tiết hồ sơ vay")
@@ -47,13 +47,13 @@ public class LoanApplicationController {
         return ApiResponse.success(loanApplicationService.getDetail(applicationCode));
     }
 
-    @Operation(summary = "Lưu nháp thông tin hồ sơ vay")
+    @Operation(summary = "Lưu thông tin sơ bộ khách hàng và nhu cầu vay")
     @PatchMapping("/{applicationCode}/draft")
     public ApiResponse<LoanApplicationDraftResponse> saveDraft(
             @PathVariable String applicationCode,
             @Valid @RequestBody SaveLoanApplicationDraftRequest request
     ) {
-        return ApiResponse.success("Loan application draft saved", loanApplicationService.saveDraft(applicationCode, request));
+        return ApiResponse.success("Lưu thông tin sơ bộ khách hàng thành công", loanApplicationService.saveDraft(applicationCode, request));
     }
 
     @Operation(summary = "Hủy hồ sơ vay")
@@ -62,14 +62,14 @@ public class LoanApplicationController {
             @PathVariable String applicationCode,
             @Valid @RequestBody CancelLoanApplicationRequest request
     ) {
-        return ApiResponse.success("Loan application cancelled", loanApplicationService.cancel(applicationCode, request));
+        return ApiResponse.success("Hủy hồ sơ vay thành công", loanApplicationService.cancel(applicationCode, request));
     }
 
     @Operation(summary = "Hoàn thành bước thông tin sơ bộ và gói vay")
     @PostMapping("/{applicationCode}/steps/preliminary/complete")
     public ApiResponse<StepCompletionResponse> completePreliminaryStep(@PathVariable String applicationCode) {
         return ApiResponse.success(
-                "Preliminary step completed",
+                "Hoàn thành bước thông tin sơ bộ",
                 loanApplicationService.completePreliminaryStep(applicationCode)
         );
     }
@@ -78,7 +78,7 @@ public class LoanApplicationController {
     @PostMapping("/{applicationCode}/submit-for-approval")
     public ApiResponse<SubmitForApprovalResponse> submitForApproval(@PathVariable String applicationCode) {
         return ApiResponse.success(
-                "Loan application submitted for approval",
+                "Gửi hồ sơ vay sang bước phê duyệt thành công",
                 loanApplicationService.submitForApproval(applicationCode)
         );
     }

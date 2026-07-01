@@ -9,7 +9,9 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.f88.loanonboarding.common.response.ApiResponse;
+import com.f88.loanonboarding.dto.request.customer.CreateCustomerRequest;
 import com.f88.loanonboarding.dto.request.customer.CustomerLookupRequest;
+import com.f88.loanonboarding.dto.response.customer.CreatedCustomerResponse;
 import com.f88.loanonboarding.dto.response.customer.CustomerLookupResponse;
 import com.f88.loanonboarding.dto.response.customer.OcrExtractResponse;
 import com.f88.loanonboarding.service.CustomerService;
@@ -35,7 +37,13 @@ public class CustomerController {
     @Operation(summary = "Tra cứu khách hàng trước khi tạo hồ sơ vay")
     @PostMapping("/lookup")
     public ApiResponse<CustomerLookupResponse> lookup(@Valid @RequestBody CustomerLookupRequest request) {
-        return ApiResponse.success("Customer lookup completed", customerService.lookup(request));
+        return ApiResponse.success("Tra cứu khách hàng thành công", customerService.lookup(request));
+    }
+
+    @Operation(summary = "Tạo khách hàng mới khi tra cứu không tìm thấy")
+    @PostMapping
+    public ApiResponse<CreatedCustomerResponse> create(@Valid @RequestBody CreateCustomerRequest request) {
+        return ApiResponse.success("Tạo khách hàng thành công", customerService.create(request));
     }
 
     @Operation(
@@ -49,6 +57,6 @@ public class CustomerController {
             @RequestPart("frontImage") MultipartFile frontImage,
             @RequestPart(value = "backImage", required = false) MultipartFile backImage
     ) {
-        return ApiResponse.success("OCR extraction completed", ocrService.extract(frontImage, backImage));
+        return ApiResponse.success("Trích xuất OCR thành công", ocrService.extract(frontImage, backImage));
     }
 }

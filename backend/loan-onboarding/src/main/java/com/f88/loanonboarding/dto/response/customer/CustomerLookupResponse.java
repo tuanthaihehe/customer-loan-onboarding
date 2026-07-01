@@ -4,7 +4,7 @@ public record CustomerLookupResponse(
         boolean found,
         String customerCode,
         String customerState,
-        String legalEligibilityStatus,
+        String lookupStatus,
         String onboardingPermission,
         MatchedCustomerResponse matchedCustomer,
         String reasonCode
