@@ -1,10 +1,10 @@
-# DEV Standards
+﻿# DEV Standards
 
 ## 1. Coding rules
 
 - Controller không chứa business logic.
 - Service xử lý flow demo.
-- Mock data nằm trong package `mock`.
+- Dữ liệu database/seed nằm trong migration/seed database.
 - DTO không phụ thuộc entity.
 - Response luôn dùng `ApiResponse<T>`.
 - Không tạo entity/repository thật khi ERD chưa chốt.
@@ -15,8 +15,8 @@
 |---|---|
 | Controller | `XxxController` |
 | Service interface | `XxxService` |
-| Mock service | `XxxServiceMockImpl` |
-| Mock data provider | `DemoXxxMockDataProvider` |
+| Database service | `XxxServiceDbImpl` |
+| Database seed/migration | `DemoXxxDatabaseDataProvider` |
 | Request DTO | `XxxRequest` |
 | Response DTO | `XxxResponse` |
 
@@ -27,8 +27,9 @@ Cần cập nhật:
 ```text
 1. Controller
 2. Service interface
-3. Mock service implementation
+3. Database service implementation
 4. Request/response DTO nếu cần
 5. docs/api/01_API_REQUEST_RESPONSE_SAMPLES.md
 6. docs/api-test/01_API_SWAGGER_TEST_REPORT.md
 ```
+

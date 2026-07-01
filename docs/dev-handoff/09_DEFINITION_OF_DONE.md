@@ -1,49 +1,34 @@
-# Definition of Done - Demo Flow 1
+# Definition of Done
 
 Một thay đổi backend được xem là xong khi đạt các tiêu chí sau.
 
-## 1. Code
+## Code
 
-- API nằm trong scope Flow 1 hoặc được mentor yêu cầu.
 - Controller chỉ gọi service.
-- Service không hard-code mock data dài dòng.
-- Mock data nằm trong package `mock`.
+- Service dùng database/migration/seed thật, không tự tạo dữ liệu giả.
+- Nếu schema chưa có, trả lỗi nghiệp vụ rõ ràng bằng tiếng Việt.
 - Response dùng `ApiResponse<T>`.
-- Không tạo entity/repository thật nếu chưa có ERD.
+- Không sửa `.env`, `docker`, hoặc `db/migration` nếu không có yêu cầu rõ.
 
-## 2. Swagger
+## Swagger
 
 - Endpoint hiển thị trên Swagger.
 - Request body có schema rõ.
-- Response chạy được bằng dữ liệu mẫu.
+- Response success/error đúng format.
 
-## 3. Tài liệu
+## Database
 
-Khi thêm/sửa API phải cập nhật:
+- Flyway validate/migrate thành công.
+- Không tự thiết kế bảng ngoài migration BA/DA đã đưa.
+- Khi BA/DA thêm migration/seed mới, cập nhật service và tài liệu theo schema đó.
 
-- `docs/api/01_API_REQUEST_RESPONSE_SAMPLES.md`;
-- `docs/api-test/01_API_SWAGGER_TEST_REPORT.md`;
-- các file handoff liên quan nếu scope thay đổi.
+## Test
 
-## 4. Test
+Tối thiểu cần chạy:
 
-Giai đoạn hiện tại yêu cầu:
-
-```text
-Manual Swagger test checklist pass
+```powershell
+cd backend/loan-onboarding
+.\mvnw clean test
 ```
 
-Chưa bắt buộc:
-
-- unit test rule chi tiết;
-- controller test chi tiết;
-- integration test DB.
-
-## 5. Demo pass
-
-Demo pass khi endpoint cuối trả:
-
-```text
-applicationState = APP_SUBMITTED
-approvalCaseCode = APR-2026-000001
-```
+Với workflow hiện tại, demo pass khi customer/loan APIs đọc ghi database thật và submit chuyển state sang `APP_SUBMITTED`.

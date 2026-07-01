@@ -1,4 +1,4 @@
-# Testing Guide
+﻿# Testing Guide
 
 ## 1. Chiến lược test hiện tại
 
@@ -42,3 +42,4 @@ Chỉ thêm khi:
 - rule nghiệp vụ chốt;
 - mentor yêu cầu nâng chất lượng kiểm thử;
 - project vượt khỏi demo Flow 1.
+

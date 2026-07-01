@@ -10,7 +10,7 @@ public class CustomerBlacklistRule implements BusinessRule {
     @Override
     public RuleResult evaluate(RuleContext context) {
         if (context.blacklist()) {
-            return RuleResult.fail(RuleCode.CUSTOMER_BLACKLIST_CHECK, "Customer is in blacklist");
+            return RuleResult.fail(RuleCode.CUSTOMER_BLACKLIST_CHECK, "Khách hàng đang thuộc danh sách hạn chế");
         }
 
         return RuleResult.pass(RuleCode.CUSTOMER_BLACKLIST_CHECK);

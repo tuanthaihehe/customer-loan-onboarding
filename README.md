@@ -1,99 +1,59 @@
 # Customer & Loan Onboarding
 
-Repository này là baseline backend cho đề tài **Customer & Loan Onboarding**. Mục tiêu hiện tại không phải xây dựng hệ thống production đầy đủ, mà là chuẩn bị một backend **API-first, mock-first** để demo được **luồng 1: tạo hồ sơ vay và gửi đi phê duyệt**.
+Repository này là backend cho đề tài **Customer & Loan Onboarding**. Backend chạy theo hướng **database-first** với PostgreSQL, Flyway, JPA Entity và Spring Data Repository để thao tác trên dữ liệu thật.
 
-## 1. Phạm vi hiện tại
+## Phạm Vi Hiện Tại
 
-Backend cần chạy được luồng sau:
+Database do BA/DA cung cấp đang chốt các phần chính:
 
-```text
-Customer Lookup
-→ Create Loan Application Draft
-→ Save Loan Application Draft
-→ Asset Lookup
-→ Save Asset Snapshot
-→ Preview / Save Asset Valuation
-→ Run Eligibility Check
-→ Submit Loan Application For Approval
-```
+- `customer`: tra cứu khách hàng theo CCCD, số điện thoại hoặc tên + ngày sinh.
+- `loan_application`: tạo hồ sơ vay, lưu số tiền, kỳ hạn, mục đích vay, chi nhánh và tài sản.
+- `loan_purpose`, `loan_term`: danh mục mục đích vay và kỳ hạn vay cho dropdown/frontend.
+- `loan_application_state`, `loan_application_state_transition`, `loan_application_state_history`: lifecycle hồ sơ vay.
+- Nhóm vehicle catalog: loại xe, hãng xe, dòng xe, phiên bản, năm sản xuất, màu, biến thể và giá thị trường.
+- `asset`, `asset_valuation`, `asset_valuation_deduction`: lưu tài sản và kết quả định giá.
+- OCR CCCD gọi FPT AI và trả dữ liệu cho FE tự điền form định danh.
 
-Kết quả mong muốn của demo:
+Theo cập nhật BA/DA mới nhất, **không làm Eligibility** vì không có trong database.
 
-```text
-Một Loan Application được tạo, có thông tin khách hàng, thông tin khoản vay, thông tin tài sản, kết quả định giá, kết quả eligibility và được gửi sang bước phê duyệt.
-```
-
-Endpoint cuối của demo:
-
-```text
-POST /api/v1/loan-applications/{applicationCode}/submit-for-approval
-```
-
-## 2. Những gì đã chuẩn bị
-
-| Nhóm | Trạng thái |
-|---|---|
-| Spring Boot backend | Đã có |
-| Health check API | Đã có |
-| Swagger/OpenAPI | Đã có |
-| API skeleton cho Flow 1 | Đã có |
-| DTO request/response | Đã có |
-| `ApiResponse<T>` chuẩn | Đã có |
-| Exception handling | Đã có |
-| Mock service | Đã có |
-| Mock data provider | Đã tách riêng |
-| Demo guard/rule skeleton | Đã có ở mức tối giản |
-| Tài liệu `.md` cho AI/DEV | Đã có |
-
-## 3. Những gì chưa thuộc phạm vi hiện tại
-
-Các phần sau chưa làm sâu vì demo hiện tại chỉ dừng ở gửi hồ sơ đi phê duyệt:
-
-| Không làm sâu hiện tại | Lý do |
-|---|---|
-| Unit test chi tiết cho rule | Rule nghiệp vụ chưa được team chốt hoàn thiện |
-| Controller test chi tiết | API/rule còn có thể thay đổi theo BA/FE/mentor |
-| Rule registry/rule engine | Quá nặng cho demo Flow 1 |
-| Entity/Repository thật | Chờ ERD/DB schema chính thức |
-| Flyway/Liquibase migration | Chờ ERD |
-| Approval decision đầy đủ | Ngoài phạm vi Flow 1 |
-| Contract signing | Ngoài phạm vi Flow 1 |
-| Disbursement/Core integration | Ngoài phạm vi Flow 1 |
-| Security/JWT | Chưa cần cho demo local |
-
-## 4. Cách chạy backend
+## Cách Chạy
 
 ```powershell
+docker compose up -d postgres
 cd backend/loan-onboarding
 .\mvnw clean test
 .\mvnw spring-boot:run
 ```
 
-Backend mặc định chạy bằng `mock` profile, không cần database.
+Backend mặc định dùng profile `db`:
 
-```text
-http://localhost:8080/api/v1/health
-http://localhost:8080/swagger-ui/index.html
-http://localhost:8080/swagger-ui.html
+```properties
+spring.profiles.default=db
 ```
 
-## 5. Thứ tự đọc tài liệu
+URL:
+
+```text
+Health:  http://localhost:8080/api/v1/health
+Swagger: http://localhost:8080/swagger-ui/index.html
+```
+
+## Tài Liệu Cần Đọc
 
 | Thứ tự | File | Mục đích |
-|---:|---|---|
-| 1 | `docs/00_READ_ME_FIRST.md` | Tổng quan phạm vi và cách đọc tài liệu |
-| 2 | `docs/01_DEMO_FLOW_1.md` | Luồng demo chính cần chạy |
-| 3 | `docs/api/01_API_REQUEST_RESPONSE_SAMPLES.md` | Request/response mẫu theo flow |
-| 4 | `docs/api-test/01_API_SWAGGER_TEST_REPORT.md` | Checklist test Swagger |
-| 5 | `docs/backend/01_RULE_SKELETON.md` | Cách hiểu rule skeleton hiện tại |
-| 6 | `docs/ai-context/01_AI_CONTEXT.md` | Context cho AI/DEV khi tiếp tục code |
-| 7 | `docs/dev-handoff/00_READ_ME_FIRST.md` | Handoff cho dev mới |
+| -----: | ---- | -------- |
+| 1 | `database/README.md` | Database scope hiện tại |
+| 2 | `database/data-dictionary.md` | Field/constraint theo schema |
+| 3 | `database/lifecycle.md` | Lifecycle hồ sơ vay |
+| 4 | `docs/api/01_API_REQUEST_RESPONSE_SAMPLES.md` | Request/response mẫu theo DB thật |
+| 5 | `03_OCR_CCCD.md` | Tài liệu OCR CCCD |
+| 6 | `docs/02_WORK_LOG_2026_06_30.md` | Work log ngày 2026-06-30 |
 
-## 6. Nguyên tắc phát triển tiếp
+## Nguyên Tắc Phát Triển Tiếp
 
-- Giữ scope là **Demo Flow 1**.
-- Ưu tiên API chạy được và tài liệu rõ ràng.
-- Không thiết kế DB thật trước khi ERD chốt.
-- Không làm rule engine phức tạp khi rule chưa ổn định.
-- Không viết business logic trong controller.
-- Mock data phải nằm trong package `mock`, không hard-code rải rác trong service.
+- Không sửa `.env`, docker hoặc migration/seed khi không có yêu cầu rõ.
+- Không hard-code dữ liệu nghiệp vụ thay cho database/seed.
+- Không thêm lại mock data provider hoặc mock service.
+- Service xử lý nghiệp vụ, Repository xử lý truy vấn JPA/JPQL.
+- Khi BA/DA thêm migration/seed mới, service và tài liệu phải cập nhật theo schema mới.
+- Error message trả Swagger ưu tiên tiếng Việt để dễ test.

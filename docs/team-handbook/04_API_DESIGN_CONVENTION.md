@@ -1,4 +1,4 @@
-# API Design Convention
+﻿# API Design Convention
 
 ## 1. Base path
 
@@ -40,3 +40,4 @@ Mỗi controller cần có:
 - `@Tag`;
 - `@Operation(summary = "...")`;
 - request body có validation nếu cần.
+

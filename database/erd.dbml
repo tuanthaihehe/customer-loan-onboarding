@@ -27,7 +27,7 @@ Table customer {
   phone_number varchar(20) [unique]
   identity_number varchar(20) [unique]
   date_of_birth date
-  status varchar(30) [not null, default: 'ACTIVE', note: 'ACTIVE, INACTIVE, BLACKLIST']
+  status varchar(30) [not null, default: 'ACTIVE', note: 'ACTIVE, INACTIVE, BLACKLIST, LEAD']
 }
 
 Table loan_purpose {

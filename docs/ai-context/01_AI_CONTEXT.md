@@ -1,4 +1,4 @@
-# AI Context - Customer & Loan Onboarding Demo Backend
+﻿# AI Context - Customer & Loan Onboarding Demo Backend
 
 Tài liệu này dùng để cung cấp ngữ cảnh cho AI hoặc DEV mới khi tiếp tục làm trên repository.
 
@@ -11,7 +11,7 @@ Không được hiểu đây là production backend hoàn chỉnh. Đây là bas
 - chứng minh backend chạy được;
 - có Swagger cho FE/BA/DEV review;
 - có API skeleton cho Flow 1;
-- có mock service khi chưa có ERD/DB;
+- có database service khi chưa có ERD/DB;
 - có tài liệu để AI/DEV tiếp tục làm đúng hướng.
 
 ## 2. Scope bắt buộc giữ
@@ -19,7 +19,7 @@ Không được hiểu đây là production backend hoàn chỉnh. Đây là bas
 Chỉ tập trung Flow 1:
 
 ```text
-Tạo hồ sơ vay → bổ sung thông tin → định giá/eligibility mock → gửi đi phê duyệt
+Tạo hồ sơ vay → bổ sung thông tin → định giá/eligibility database → gửi đi phê duyệt
 ```
 
 Không tự mở rộng sang:
@@ -36,9 +36,9 @@ Không tự mở rộng sang:
 | Nguyên tắc | Cách áp dụng |
 |---|---|
 | API-first | Tạo/đọc API contract trước khi nghĩ DB |
-| Mock-first | Chạy được khi chưa có DB |
+| Database-first | Chạy được khi chưa có DB |
 | Không viết logic trong controller | Controller chỉ nhận request và gọi service |
-| Mock data tách riêng | Dữ liệu giả nằm trong package `mock` |
+| Dữ liệu database/seed tách riêng | Dữ liệu giả nằm trong migration/seed database |
 | Rule đơn giản | Chỉ dùng demo guard/rule skeleton, chưa làm rule registry |
 | Không over-engineering | Không thêm framework/lớp phức tạp nếu không phục vụ Flow 1 |
 
@@ -48,8 +48,8 @@ Không tự mở rộng sang:
 |---|---|
 | `controller` | REST API endpoint |
 | `service` | Interface nghiệp vụ |
-| `service.impl` | Mock implementation hiện tại |
-| `mock` | Dữ liệu giả dùng cho demo |
+| `service.impl` | Database implementation hiện tại |
+| `database` | Dữ liệu giả dùng cho demo |
 | `dto.request` | Request body |
 | `dto.response` | Response data |
 | `rule` | Rule skeleton/demo guard |
@@ -64,7 +64,7 @@ Nên làm:
 ```text
 - Đồng bộ docs/api sample với Swagger.
 - Đồng bộ API với màn hình FE demo.
-- Giữ mock data provider sạch, dễ chỉnh scenario.
+- Giữ database seed/migration sạch, dễ chỉnh scenario.
 - Cập nhật docs khi thêm/sửa endpoint.
 ```
 
@@ -79,3 +79,4 @@ Chưa nên làm:
 ```
 
 Lý do: rule và ERD chưa chốt, scope hiện tại chỉ là demo Flow 1.
+

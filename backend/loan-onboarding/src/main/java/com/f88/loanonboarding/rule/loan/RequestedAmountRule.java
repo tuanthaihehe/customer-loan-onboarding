@@ -15,15 +15,15 @@ public class RequestedAmountRule implements BusinessRule {
     @Override
     public RuleResult evaluate(RuleContext context) {
         if (context.requestedAmount() == null) {
-            return RuleResult.fail(RuleCode.REQUESTED_AMOUNT_LIMIT, "Requested amount is required");
+            return RuleResult.fail(RuleCode.REQUESTED_AMOUNT_LIMIT, "Số tiền vay là bắt buộc");
         }
 
         if (context.requestedAmount().compareTo(MIN_AMOUNT) < 0) {
-            return RuleResult.fail(RuleCode.REQUESTED_AMOUNT_LIMIT, "Requested amount must be at least 1000000");
+            return RuleResult.fail(RuleCode.REQUESTED_AMOUNT_LIMIT, "Số tiền vay tối thiểu là 1.000.000");
         }
 
         if (context.requestedAmount().compareTo(MAX_AMOUNT) > 0) {
-            return RuleResult.fail(RuleCode.REQUESTED_AMOUNT_LIMIT, "Requested amount must not exceed 100000000");
+            return RuleResult.fail(RuleCode.REQUESTED_AMOUNT_LIMIT, "Số tiền vay không được vượt quá 100.000.000");
         }
 
         return RuleResult.pass(RuleCode.REQUESTED_AMOUNT_LIMIT);

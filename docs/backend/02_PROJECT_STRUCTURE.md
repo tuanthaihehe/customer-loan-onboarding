@@ -1,4 +1,4 @@
-# PROJECT_STRUCTURE.md
+﻿# PROJECT_STRUCTURE.md
 
 # Cấu trúc package và mối liên hệ trong project `loan-onboarding`
 
@@ -11,7 +11,7 @@ Mục tiêu là giúp DEV/AI/FE/BA khi đọc project có thể hiểu nhanh:
 - Package nào dùng để làm gì.
 - File nào liên hệ với file nào.
 - Request từ Swagger/FE đi qua các tầng nào.
-- Dữ liệu mock đang được đặt ở đâu.
+- Dữ liệu database/seed đang được đặt ở đâu.
 - Rule demo được đặt ở đâu.
 - Những package nào hiện tại chỉ là placeholder, chưa triển khai thật.
 - Cách thêm API mới mà không làm rối cấu trúc project.
@@ -29,7 +29,7 @@ Customer Lookup
 → Submit For Approval
 ```
 
-Phạm vi hiện tại là **API-first + Mock-first**, chưa phải production backend hoàn chỉnh.
+Phạm vi hiện tại là **API-first + Database-first**, chưa phải production backend hoàn chỉnh.
 
 ---
 
@@ -54,7 +54,7 @@ com.f88.loanonboarding
 ├── enums
 ├── exception
 ├── mapper
-├── mock
+├── database
 ├── repository
 ├── rule
 ├── service
@@ -67,7 +67,7 @@ Tài nguyên cấu hình:
 ```text
 src/main/resources
 ├── application.properties
-├── application-mock.properties
+├── application-database.properties
 └── application-db.properties
 ```
 
@@ -92,11 +92,11 @@ DTO Request
     ↓
 Service Interface
     ↓
-Mock Service Implementation
+Database Service Implementation
     ↓
 Rule / Guard Demo
     ↓
-Mock Data Provider
+Database seed/migration
     ↓
 DTO Response
     ↓
@@ -113,9 +113,9 @@ Giải thích ngắn:
 | Controller | Nhận request, định nghĩa endpoint |
 | DTO Request | Định nghĩa dữ liệu đầu vào |
 | Service Interface | Định nghĩa nghiệp vụ ở mức abstract |
-| Mock Service Implementation | Xử lý flow demo bằng dữ liệu mock |
+| Database Service Implementation | Xử lý flow demo bằng dữ liệu database/seed |
 | Rule / Guard Demo | Kiểm tra điều kiện tối thiểu của flow |
-| Mock Data Provider | Cung cấp dữ liệu giả cho demo |
+| Database seed/migration | Cung cấp dữ liệu giả cho demo |
 | DTO Response | Định nghĩa dữ liệu đầu ra |
 | ApiResponse<T> | Chuẩn hóa format response trả về |
 
@@ -177,7 +177,7 @@ ReferenceDataController
 
 Controller không nên:
 
-- tự tạo dữ liệu mock;
+- tự tạo dữ liệu database/seed;
 - tự viết rule;
 - tự xử lý logic nghiệp vụ dài;
 - tự thao tác DB;
@@ -197,31 +197,31 @@ Trong project hiện tại, service có 2 loại chính:
 
 ```text
 Service Interface
-Service Mock Implementation
+Service Database Implementation
 ```
 
 Ví dụ:
 
 ```text
 CustomerService
-CustomerServiceMockImpl
+CustomerServiceDbImpl
 ```
 
 ### Mối liên hệ
 
 ```text
-Controller → Service Interface → Mock Implementation
+Controller → Service Interface → Database Implementation
 ```
 
 Controller chỉ biết interface, không nên phụ thuộc trực tiếp vào implementation cụ thể.
 
 ### Vì sao cần interface?
 
-Dù hiện tại đang dùng mock, sau này khi có DB thật có thể thêm implementation khác:
+Dù hiện tại đang dùng database, sau này khi có DB thật có thể thêm implementation khác:
 
 ```text
 CustomerService
-├── CustomerServiceMockImpl
+├── CustomerServiceDbImpl
 └── CustomerServiceDbImpl
 ```
 
@@ -242,17 +242,17 @@ Gửi hồ sơ đi phê duyệt
 
 ---
 
-## 4.3. `mock`
+## 4.3. `database`
 
 ### Vai trò
 
-Package `mock` chứa các class cung cấp dữ liệu giả cho demo.
+Package `database` chứa các class cung cấp dữ liệu giả cho demo.
 
-Đây là package quan trọng vì project đang đi theo hướng **Mock-first**.
+Đây là package quan trọng vì project đang đi theo hướng **Database-first**.
 
-### Vì sao cần tách package `mock`?
+### Vì sao cần tách migration/seed database?
 
-Nếu để dữ liệu mock trực tiếp trong service, service sẽ bị lẫn nhiều trách nhiệm:
+Nếu để dữ liệu database/seed trực tiếp trong service, service sẽ bị lẫn nhiều trách nhiệm:
 
 ```text
 Nhận request
@@ -261,46 +261,46 @@ Tự tạo dữ liệu giả
 Tự quyết định scenario demo
 ```
 
-Sau khi tách `mock`, trách nhiệm rõ hơn:
+Sau khi tách `database`, trách nhiệm rõ hơn:
 
 ```text
 Service = xử lý flow demo
-Mock Data Provider = cung cấp dữ liệu giả
+Database seed/migration = cung cấp dữ liệu giả
 ```
 
 ### Ví dụ file
 
 ```text
-DemoCustomerMockDataProvider
-DemoLoanApplicationMockDataProvider
-DemoAssetMockDataProvider
-DemoValuationMockDataProvider
-DemoEligibilityMockDataProvider
-DemoReferenceDataMockDataProvider
+customer seed data
+loan_application seed data
+asset migration pending
+valuation migration pending
+eligibility migration pending
+reference seed data
 ```
 
 ### Mối liên hệ
 
 ```text
-Mock Service Implementation → Mock Data Provider
+Database Service Implementation → Database seed/migration
 ```
 
 Ví dụ:
 
 ```text
-CustomerServiceMockImpl
+CustomerServiceDbImpl
     ↓
-DemoCustomerMockDataProvider
+customer seed data
 ```
 
 ### Nguyên tắc
 
-Package `mock` chỉ phục vụ demo, không phải nguồn dữ liệu production.
+Package `database` chỉ phục vụ demo, không phải nguồn dữ liệu production.
 
 Sau này khi có ERD/DB:
 
 ```text
-Mock Data Provider có thể được giữ lại để demo/test
+Database seed/migration có thể được giữ lại để demo/test
 DB Repository sẽ xử lý dữ liệu thật
 ```
 
@@ -576,7 +576,7 @@ Service → Rule / Guard → Nếu hợp lệ thì xử lý tiếp
 Ví dụ:
 
 ```text
-LoanApplicationServiceMockImpl
+LoanApplicationServiceDbImpl
     ↓
 LoanApplicationDemoRuleValidator
     ↓
@@ -696,7 +696,7 @@ EligibilityCheckRepository
 
 ### Hiện tại vì sao chưa dùng?
 
-Project đang chạy mock-first, chưa cần DB thật.
+Project đang chạy database-first, chưa cần DB thật.
 
 ---
 
@@ -842,9 +842,9 @@ CustomerLookupRequest
     ↓
 CustomerService
     ↓
-CustomerServiceMockImpl
+CustomerServiceDbImpl
     ↓
-DemoCustomerMockDataProvider
+customer seed data
     ↓
 CustomerLookupResponse
     ↓
@@ -868,9 +868,9 @@ CreateLoanApplicationRequest
     ↓
 LoanApplicationService
     ↓
-LoanApplicationServiceMockImpl
+LoanApplicationServiceDbImpl
     ↓
-DemoLoanApplicationMockDataProvider
+loan_application seed data
     ↓
 CreateLoanApplicationResponse
     ↓
@@ -894,9 +894,9 @@ UpdateLoanApplicationDraftRequest
     ↓
 LoanApplicationService
     ↓
-LoanApplicationServiceMockImpl
+LoanApplicationServiceDbImpl
     ↓
-DemoLoanApplicationMockDataProvider
+loan_application seed data
     ↓
 LoanApplicationDraftResponse
     ↓
@@ -920,9 +920,9 @@ AssetLookupRequest
     ↓
 AssetService
     ↓
-AssetServiceMockImpl
+AssetServiceDbImpl
     ↓
-DemoAssetMockDataProvider
+asset migration pending
     ↓
 AssetLookupResponse
     ↓
@@ -946,9 +946,9 @@ SaveAssetSnapshotRequest
     ↓
 AssetService / LoanApplicationService
     ↓
-Mock Service Implementation
+Database Service Implementation
     ↓
-DemoAssetMockDataProvider
+asset migration pending
     ↓
 AssetSnapshotResponse
     ↓
@@ -972,9 +972,9 @@ ValuationPreviewRequest
     ↓
 AssetValuationService
     ↓
-AssetValuationServiceMockImpl
+AssetValuationServiceDbImpl
     ↓
-DemoValuationMockDataProvider
+valuation migration pending
     ↓
 ValuationPreviewResponse
     ↓
@@ -998,9 +998,9 @@ EligibilityCheckRequest
     ↓
 EligibilityService
     ↓
-EligibilityServiceMockImpl
+EligibilityServiceDbImpl
     ↓
-DemoEligibilityMockDataProvider
+eligibility migration pending
     ↓
 EligibilityCheckResponse
     ↓
@@ -1024,11 +1024,11 @@ applicationCode
     ↓
 LoanApplicationService
     ↓
-LoanApplicationServiceMockImpl
+LoanApplicationServiceDbImpl
     ↓
 Rule / Guard Demo
     ↓
-DemoLoanApplicationMockDataProvider
+loan_application seed data
     ↓
 SubmitForApprovalResponse
     ↓
@@ -1058,7 +1058,7 @@ eventName = LoanApplicationSubmittedForApproval
 ```text
 controller → service
 service → rule
-service → mock
+service → database
 service → dto
 controller → dto
 controller → common
@@ -1071,17 +1071,17 @@ config → toàn app
 ```text
 controller → repository
 controller → entity
-controller → mock
+controller → database
 controller → rule trực tiếp
 dto → entity
 entity → dto
-mock → controller
+database → controller
 repository → controller
 ```
 
 ### Lý do
 
-Controller không nên biết dữ liệu đến từ mock hay DB.
+Controller không nên biết dữ liệu đến từ database hay DB.
 
 Controller chỉ nên biết service.
 
@@ -1096,8 +1096,8 @@ Khi cần thêm một API mới, nên đi theo thứ tự:
 2. Tạo Request DTO nếu API cần body
 3. Tạo Response DTO
 4. Thêm method vào Service Interface
-5. Implement method trong Mock Service
-6. Nếu cần dữ liệu giả, thêm vào Mock Data Provider
+5. Implement method trong Database Service
+6. Nếu cần dữ liệu giả, thêm vào Database seed/migration
 7. Nếu cần guard đơn giản, thêm vào rule package
 8. Thêm endpoint vào Controller
 9. Cập nhật Swagger/API docs
@@ -1115,7 +1115,7 @@ Không nên bắt đầu bằng entity/repository nếu DB chưa chốt.
 | REST endpoint | `controller` |
 | Request/Response object | `dto` |
 | Logic flow/API use case | `service` |
-| Dữ liệu giả demo | `mock` |
+| Dữ liệu giả demo | `database` |
 | Rule/guard kiểm soát action | `rule` |
 | Response wrapper | `common` |
 | Exception/error handling | `exception` |
@@ -1151,8 +1151,8 @@ Các package này được giữ lại để định hướng cấu trúc backen
 API skeleton
 Swagger/OpenAPI
 DTO request/response
-Mock service
-Mock data provider
+Database service
+Database seed/migration
 ApiResponse<T>
 Exception handling
 Demo guard rule đơn giản
@@ -1186,7 +1186,7 @@ Project hiện tại nên được hiểu là:
 ```text
 Demo-ready backend cho Flow 1
 API-first
-Mock-first
+Database-first
 Swagger-driven
 Chưa phụ thuộc ERD/DB
 Chưa phải production system
@@ -1216,7 +1216,7 @@ Khi AI/DEV mới vào project, nên đọc theo thứ tự:
 6. docs/backend/01_RULE_SKELETON.md
 7. File controller tương ứng với API cần sửa
 8. File service tương ứng
-9. File mock data provider tương ứng
+9. File database seed/migration tương ứng
 10. DTO request/response tương ứng
 ```
 
@@ -1232,7 +1232,7 @@ Trước khi sửa một chức năng, cần trả lời:
 API này thuộc Flow 1 không?
 API này phục vụ bước nào trong demo?
 Có cần DTO mới không?
-Có cần mock data mới không?
+Có cần dữ liệu database/seed mới không?
 Có cần guard rule đơn giản không?
 Có cần cập nhật tài liệu API sample không?
 Có cần cập nhật Swagger test checklist không?
@@ -1250,11 +1250,12 @@ Cấu trúc hiện tại được thiết kế để phục vụ giai đoạn ch
 Có backend chạy được
 Có Swagger xem được
 Có API contract
-Có mock service
-Có dữ liệu mock tách riêng
+Có database service
+Có dữ liệu database/seed tách riêng
 Có rule/guard demo
 Có tài liệu để AI/DEV/FE đọc hiểu
 Có điểm kết thúc rõ ràng cho Flow 1: Submit For Approval
 ```
 
 Các phần phức tạp như rule engine, controller test chi tiết, entity/repository thật và DB migration chưa cần triển khai ở giai đoạn này vì project hiện tại chỉ cần demo luồng tạo hồ sơ vay và gửi đi phê duyệt.
+

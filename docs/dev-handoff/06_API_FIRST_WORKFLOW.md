@@ -1,4 +1,4 @@
-# API-first Workflow
+﻿# API-first Workflow
 
 ## 1. Quy trình thêm/sửa API
 
@@ -7,7 +7,7 @@ Xác định màn hình/flow cần API
 → Xác định request/response
 → Tạo DTO
 → Tạo service method
-→ Tạo mock data provider nếu cần
+→ Tạo database seed/migration nếu cần
 → Tạo controller endpoint
 → Test Swagger
 → Cập nhật tài liệu API sample và test checklist
@@ -26,5 +26,6 @@ Tự thiết kế table → tạo entity → ép API theo DB
 Đúng hướng hiện tại:
 
 ```text
-Luồng demo → API contract → DTO → mock service → Swagger
+Luồng demo → API contract → DTO → database service → Swagger
 ```
+

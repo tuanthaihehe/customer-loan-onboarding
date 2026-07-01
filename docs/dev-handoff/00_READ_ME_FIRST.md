@@ -1,4 +1,4 @@
-# Dev Handoff - Đọc trước
+﻿# Dev Handoff - Đọc trước
 
 Bộ tài liệu này dành cho DEV/AI tiếp tục phát triển backend.
 
@@ -12,8 +12,8 @@ Project đang ở trạng thái **demo-ready baseline** cho Flow 1.
 - Swagger/OpenAPI;
 - API skeleton theo Flow 1;
 - DTO request/response;
-- mock service;
-- mock data provider;
+- database service;
+- database seed/migration;
 - rule skeleton tối giản;
 - tài liệu API/test/handoff.
 
@@ -50,6 +50,7 @@ Không phát triển sâu:
 
 - Không đổi scope nếu chưa có yêu cầu mới.
 - Không tạo entity/repository thật khi chưa có ERD.
-- Không đưa mock data vào service.
+- Không đưa dữ liệu database/seed vào service.
 - Không viết business logic trong controller.
 - Khi thêm API phải cập nhật sample và test checklist.
+

@@ -1,4 +1,4 @@
-# Current Baseline
+﻿# Current Baseline
 
 ## 1. Backend đã có
 
@@ -6,16 +6,16 @@
 |---|---|
 | Health API | Hoàn thành |
 | Swagger/OpenAPI | Hoàn thành |
-| Customer API | Có skeleton/mock |
-| Loan Application API | Có skeleton/mock |
-| Asset API | Có skeleton/mock |
-| Asset Valuation API | Có skeleton/mock |
-| Eligibility API | Có skeleton/mock |
-| Submit for Approval API | Có skeleton/mock |
-| Reference Data API | Có skeleton/mock |
+| Customer API | Có skeleton/database |
+| Loan Application API | Có skeleton/database |
+| Asset API | Có skeleton/database |
+| Asset Valuation API | Có skeleton/database |
+| Eligibility API | Có skeleton/database |
+| Submit for Approval API | Có skeleton/database |
+| Reference Data API | Có skeleton/database |
 | ApiResponse | Hoàn thành |
 | Exception Handler | Hoàn thành |
-| Mock Data Provider | Đã tách |
+| Database seed/migration | Đã tách |
 | Rule Skeleton | Có, tối giản |
 
 ## 2. Endpoint quan trọng nhất
@@ -34,3 +34,4 @@ Endpoint này đánh dấu demo Flow 1 hoàn thành.
 | ERD/DB schema | Chưa tạo entity/repository thật |
 | FE prototype hoàn thiện | Có thể cần chỉnh request/response |
 | Mentor xác nhận scope tiếp theo | Chưa mở rộng approval/contract/disbursement |
+

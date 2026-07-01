@@ -1,4 +1,4 @@
-# Team Definition of Done
+﻿# Team Definition of Done
 
 ## 1. Done cho API trong Flow 1
 
@@ -7,7 +7,7 @@ Một API được xem là done khi:
 - có controller endpoint;
 - có request/response DTO nếu cần;
 - có service method;
-- mock data không hard-code rối trong service;
+- dữ liệu database/seed không hard-code rối trong service;
 - Swagger chạy được;
 - docs/api sample cập nhật;
 - Swagger checklist cập nhật.
@@ -34,3 +34,4 @@ approvalCaseCode != null
 - DB integration;
 - rule registry;
 - production security.
+

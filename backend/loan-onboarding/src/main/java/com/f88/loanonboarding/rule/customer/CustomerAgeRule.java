@@ -15,12 +15,12 @@ public class CustomerAgeRule implements BusinessRule {
     @Override
     public RuleResult evaluate(RuleContext context) {
         if (context.dateOfBirth() == null) {
-            return RuleResult.fail(RuleCode.CUSTOMER_AGE_CHECK, "Customer date of birth is required");
+            return RuleResult.fail(RuleCode.CUSTOMER_AGE_CHECK, "Ngày sinh khách hàng là bắt buộc");
         }
 
         int age = Period.between(context.dateOfBirth(), LocalDate.now()).getYears();
         if (age < MIN_AGE) {
-            return RuleResult.fail(RuleCode.CUSTOMER_AGE_CHECK, "Customer must be at least 18 years old");
+            return RuleResult.fail(RuleCode.CUSTOMER_AGE_CHECK, "Khách hàng phải đủ 18 tuổi trở lên");
         }
 
         return RuleResult.pass(RuleCode.CUSTOMER_AGE_CHECK);
