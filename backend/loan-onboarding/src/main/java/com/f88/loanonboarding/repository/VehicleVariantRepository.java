@@ -49,12 +49,15 @@ public interface VehicleVariantRepository extends JpaRepository<VehicleVariant, 
             join variant.vehicleColor color
             join variant.vehicleYear vehicleYear
             join vehicleYear.vehicleVersion vehicleVersion
-            where vehicleVersion.code = :versionCode
+            join vehicleVersion.vehicleModel vehicleModel
+            where vehicleModel.code = :modelCode
+              and vehicleVersion.code = :versionCode
               and vehicleYear.manufactureYear = :manufactureYear
               and color.code = :colorCode
               and variant.active = true
             """)
-    Optional<VehicleVariant> findActiveByVersionCodeAndManufactureYearAndColorCode(
+    Optional<VehicleVariant> findActiveByModelCodeAndVersionCodeAndManufactureYearAndColorCode(
+            @Param("modelCode") String modelCode,
             @Param("versionCode") String versionCode,
             @Param("manufactureYear") Integer manufactureYear,
             @Param("colorCode") String colorCode

@@ -19,13 +19,16 @@ public interface VehicleColorRepository extends JpaRepository<VehicleColor, UUID
             join variant.vehicleColor color
             join variant.vehicleYear vehicleYear
             join vehicleYear.vehicleVersion vehicleVersion
-            where vehicleVersion.code = :versionCode
+            join vehicleVersion.vehicleModel vehicleModel
+            where vehicleModel.code = :modelCode
+              and vehicleVersion.code = :versionCode
               and vehicleYear.manufactureYear = :manufactureYear
               and variant.active = true
               and color.active = true
             order by color.sortOrder asc
             """)
-    List<VehicleColor> findActiveByVersionCodeAndManufactureYear(
+    List<VehicleColor> findActiveByModelCodeAndVersionCodeAndManufactureYear(
+            @Param("modelCode") String modelCode,
             @Param("versionCode") String versionCode,
             @Param("manufactureYear") Integer manufactureYear
     );

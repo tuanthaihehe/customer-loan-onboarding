@@ -138,45 +138,34 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
     }
 
     @Override
-    public List<ReferenceDataItemResponse> getVehicleVariants(String modelCode) {
-        if (modelCode == null || modelCode.isBlank()) {
-            return List.of();
+    public List<ReferenceDataItemResponse> getManufactureYears(String modelCode, String versionCode) {
+        if (modelCode == null || modelCode.isBlank() || versionCode == null || versionCode.isBlank()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "modelCode va versionCode la bat buoc de lay nam san xuat.");
         }
-        return vehicleVariantRepository.findActiveByModelCode(modelCode)
-                .stream()
-                .map(item -> new ReferenceDataItemResponse(item.getCode(), item.getName(), null))
-                .toList();
-    }
-
-    @Override
-    public List<ReferenceDataItemResponse> getManufactureYears(String versionCode) {
-        var years = versionCode == null || versionCode.isBlank()
-                ? vehicleYearRepository.findActiveManufactureYears()
-                : vehicleYearRepository.findActiveManufactureYearsByVersionCode(versionCode);
-        return years
+        return vehicleYearRepository.findActiveManufactureYearsByModelCodeAndVersionCode(modelCode, versionCode)
                 .stream()
                 .map(year -> new ReferenceDataItemResponse(String.valueOf(year), String.valueOf(year), null))
                 .toList();
     }
 
     @Override
-    public List<ReferenceDataItemResponse> getVehicleColors(String versionCode, Integer manufactureYear) {
-        var colors = versionCode == null || versionCode.isBlank() || manufactureYear == null
-                ? vehicleColorRepository.findByActiveTrueOrderBySortOrderAsc()
-                : vehicleColorRepository.findActiveByVersionCodeAndManufactureYear(versionCode, manufactureYear);
-        return colors
+    public List<ReferenceDataItemResponse> getVehicleColors(String modelCode, String versionCode, Integer manufactureYear) {
+        if (modelCode == null || modelCode.isBlank() || versionCode == null || versionCode.isBlank() || manufactureYear == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "modelCode, versionCode va manufactureYear la bat buoc de lay mau xe.");
+        }
+        return vehicleColorRepository.findActiveByModelCodeAndVersionCodeAndManufactureYear(modelCode, versionCode, manufactureYear)
                 .stream()
                 .map(item -> new ReferenceDataItemResponse(item.getCode(), item.getName(), null))
                 .toList();
     }
 
     @Override
-    public ReferenceDataItemResponse resolveVehicleVariant(String versionCode, Integer manufactureYear, String colorCode) {
-        if (versionCode == null || versionCode.isBlank() || manufactureYear == null || colorCode == null || colorCode.isBlank()) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "versionCode, manufactureYear va colorCode la bat buoc.");
+    public ReferenceDataItemResponse resolveVehicleVariant(String modelCode, String versionCode, Integer manufactureYear, String colorCode) {
+        if (modelCode == null || modelCode.isBlank() || versionCode == null || versionCode.isBlank() || manufactureYear == null || colorCode == null || colorCode.isBlank()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "modelCode, versionCode, manufactureYear va colorCode la bat buoc.");
         }
         return vehicleVariantRepository
-                .findActiveByVersionCodeAndManufactureYearAndColorCode(versionCode, manufactureYear, colorCode)
+                .findActiveByModelCodeAndVersionCodeAndManufactureYearAndColorCode(modelCode, versionCode, manufactureYear, colorCode)
                 .map(item -> new ReferenceDataItemResponse(item.getCode(), item.getName(), null))
                 .orElseThrow(() -> new BusinessException(
                         ErrorCode.RESOURCE_NOT_FOUND,
