@@ -38,4 +38,16 @@ public class Customer {
 
     @Column(name = "status", nullable = false, length = 30)
     private String status = "ACTIVE";
+
+    @Column(name = "gender", length = 20)
+    private String gender;
+
+    @Column(name = "email")
+    private String email;
+
+    @Column(name = "marital_status", length = 30)
+    private String maritalStatus;
+
+    @Column(name = "permanent_address")
+    private String permanentAddress;
 }
