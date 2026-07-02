@@ -32,10 +32,34 @@ public class ReferenceDataController {
         return ApiResponse.success(referenceDataService.getGenders());
     }
 
-    @Operation(summary = "Lấy danh mục nghề nghiệp")
+    @Operation(summary = "Lay danh muc tinh trang hon nhan")
+    @GetMapping("/marital-statuses")
+    public ApiResponse<List<ReferenceDataItemResponse>> getMaritalStatuses() {
+        return ApiResponse.success(referenceDataService.getMaritalStatuses());
+    }
+
+    @Operation(summary = "Lay danh muc nghe nghiep")
     @GetMapping("/occupations")
     public ApiResponse<List<ReferenceDataItemResponse>> getOccupations() {
         return ApiResponse.success(referenceDataService.getOccupations());
+    }
+
+    @Operation(summary = "Lay danh muc nguon thu nhap")
+    @GetMapping("/income-sources")
+    public ApiResponse<List<ReferenceDataItemResponse>> getIncomeSources() {
+        return ApiResponse.success(referenceDataService.getIncomeSources());
+    }
+
+    @Operation(summary = "Lay danh muc ngan hang giai ngan")
+    @GetMapping("/banks")
+    public ApiResponse<List<ReferenceDataItemResponse>> getBanks() {
+        return ApiResponse.success(referenceDataService.getBanks());
+    }
+
+    @Operation(summary = "Lay danh muc moi quan he nguoi tham chieu")
+    @GetMapping("/reference-person-relationships")
+    public ApiResponse<List<ReferenceDataItemResponse>> getReferencePersonRelationships() {
+        return ApiResponse.success(referenceDataService.getReferencePersonRelationships());
     }
 
     @Operation(summary = "Lấy danh mục mục đích vay")

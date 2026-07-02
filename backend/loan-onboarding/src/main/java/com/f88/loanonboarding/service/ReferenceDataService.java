@@ -9,7 +9,15 @@ public interface ReferenceDataService {
 
     List<ReferenceDataItemResponse> getGenders();
 
+    List<ReferenceDataItemResponse> getMaritalStatuses();
+
     List<ReferenceDataItemResponse> getOccupations();
+
+    List<ReferenceDataItemResponse> getIncomeSources();
+
+    List<ReferenceDataItemResponse> getBanks();
+
+    List<ReferenceDataItemResponse> getReferencePersonRelationships();
 
     List<ReferenceDataItemResponse> getLoanPurposes();
 

@@ -11,4 +11,6 @@ public interface LoanApplicationReferencePersonRepository
         extends JpaRepository<LoanApplicationReferencePerson, UUID> {
 
     List<LoanApplicationReferencePerson> findByLoanApplicationId(UUID loanApplicationId);
+
+    void deleteByLoanApplicationId(UUID loanApplicationId);
 }

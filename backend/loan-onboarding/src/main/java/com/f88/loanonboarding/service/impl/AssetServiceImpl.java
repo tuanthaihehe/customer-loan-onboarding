@@ -8,8 +8,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.f88.loanonboarding.common.error.ErrorCode;
 import com.f88.loanonboarding.dto.request.asset.AssetLookupRequest;
+import com.f88.loanonboarding.dto.request.asset.SaveAssetLegalInfoRequest;
 import com.f88.loanonboarding.dto.request.asset.SaveAssetSnapshotRequest;
+import com.f88.loanonboarding.dto.request.asset.SaveVehicleRegistrationRequest;
 import com.f88.loanonboarding.dto.response.asset.AssetLookupResponse;
+import com.f88.loanonboarding.dto.response.asset.AssetLegalInfoResponse;
 import com.f88.loanonboarding.dto.response.asset.AssetSnapshotResponse;
 import com.f88.loanonboarding.entity.Asset;
 import com.f88.loanonboarding.entity.LoanApplication;
@@ -86,6 +89,57 @@ public class AssetServiceImpl implements AssetService {
         loanApplicationRepository.save(application);
 
         return toSnapshotResponse(applicationCode, asset);
+    }
+
+    @Override
+    @Transactional
+    public AssetLegalInfoResponse saveLegalInfo(String applicationCode, SaveAssetLegalInfoRequest request) {
+        LoanApplication application = findDraftApplication(applicationCode);
+        Asset asset = requireAsset(application);
+        String frameNumber = normalizeIdentifier(request.frameNumber());
+        String engineNumber = normalizeIdentifier(request.engineNumber());
+        ensureUniqueIdentifier(asset, assetRepository.findByFrameNumber(frameNumber), "So khung da ton tai trong database");
+        ensureUniqueIdentifier(asset, assetRepository.findByEngineNumber(engineNumber), "So may da ton tai trong database");
+        asset.setFrameNumber(frameNumber);
+        asset.setEngineNumber(engineNumber);
+        Asset saved = assetRepository.save(asset);
+        return toLegalInfoResponse(applicationCode, saved);
+    }
+
+    @Override
+    @Transactional
+    public AssetLegalInfoResponse saveVehicleRegistration(String applicationCode, SaveVehicleRegistrationRequest request) {
+        LoanApplication application = findDraftApplication(applicationCode);
+        Asset asset = requireAsset(application);
+        String registrationNumber = normalizeIdentifier(request.registrationNumber());
+        ensureUniqueIdentifier(asset, assetRepository.findByRegistrationNumber(registrationNumber), "So dang ky xe da ton tai trong database");
+        asset.setRegistrationNumber(registrationNumber);
+        asset.setRegistrationIssueDate(request.registrationIssueDate());
+        Asset saved = assetRepository.save(asset);
+        return toLegalInfoResponse(applicationCode, saved);
+    }
+
+    private LoanApplication findDraftApplication(String applicationCode) {
+        LoanApplication application = loanApplicationRepository.findByLoanApplicationCode(applicationCode)
+                .orElseThrow(() -> new BusinessException(ErrorCode.LOAN_APPLICATION_NOT_FOUND));
+        ensureDraftApplication(application);
+        return application;
+    }
+
+    private Asset requireAsset(LoanApplication application) {
+        if (application.getAsset() == null) {
+            throw new BusinessException(
+                    ErrorCode.BUSINESS_RULE_VIOLATION,
+                    "Ho so chua co thong tin tai san. Hay luu thong tin so bo tai san truoc."
+            );
+        }
+        return application.getAsset();
+    }
+
+    private void ensureUniqueIdentifier(Asset currentAsset, java.util.Optional<Asset> existingAsset, String message) {
+        if (existingAsset.isPresent() && !existingAsset.get().getId().equals(currentAsset.getId())) {
+            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, message);
+        }
     }
 
     private void ensureDraftApplication(LoanApplication application) {
@@ -209,8 +263,38 @@ public class AssetServiceImpl implements AssetService {
         );
     }
 
+    private AssetLegalInfoResponse toLegalInfoResponse(String applicationCode, Asset asset) {
+        VehicleVariant variant = asset.getVehicleVariant();
+        var vehicleYear = variant.getVehicleYear();
+        var vehicleVersion = vehicleYear.getVehicleVersion();
+        var vehicleModel = vehicleVersion.getVehicleModel();
+        var vehicleBrand = vehicleModel.getVehicleBrand();
+        var vehicleType = vehicleBrand.getVehicleType();
+        var vehicleColor = variant.getVehicleColor();
+
+        return new AssetLegalInfoResponse(
+                applicationCode,
+                asset.getAssetCode(),
+                AssetType.fromCode(vehicleType.getCode()),
+                asset.getLicensePlate(),
+                vehicleBrand.getCode(),
+                vehicleModel.getCode(),
+                variant.getCode(),
+                vehicleYear.getManufactureYear(),
+                vehicleColor.getCode(),
+                asset.getFrameNumber(),
+                asset.getEngineNumber(),
+                asset.getRegistrationNumber(),
+                asset.getRegistrationIssueDate()
+        );
+    }
+
     private String normalizeLicensePlate(String licensePlate) {
         return licensePlate == null ? null : licensePlate.trim().toUpperCase();
+    }
+
+    private String normalizeIdentifier(String value) {
+        return value == null ? null : value.trim().toUpperCase();
     }
 
     private boolean sameCode(String input, String code) {

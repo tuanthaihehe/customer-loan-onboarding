@@ -13,5 +13,11 @@ public interface AssetRepository extends JpaRepository<Asset, UUID> {
 
     Optional<Asset> findByLicensePlate(String licensePlate);
 
+    Optional<Asset> findByFrameNumber(String frameNumber);
+
+    Optional<Asset> findByEngineNumber(String engineNumber);
+
+    Optional<Asset> findByRegistrationNumber(String registrationNumber);
+
     long countByAssetCodeStartingWith(String prefix);
 }
