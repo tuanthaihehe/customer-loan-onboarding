@@ -150,7 +150,8 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
 
         FinalOfferInput input = resolveFinalOfferInput(application, request);
         FinalOfferCalculation calculation = calculateFinalOffer(application, input);
-        return toFinalOfferResponse(application, input, calculation, application.getLoanProduct() == null ? null : application.getLoanProduct().getProductCode(), null);
+        String selectedProductCode = application.getLoanProduct() == null ? null : application.getLoanProduct().getProductCode();
+        return toFinalOfferResponse(application, input, calculation, selectedProductCode, null, null);
     }
 
     @Override
@@ -183,17 +184,9 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
         if (input.processingBranch() != null) {
             application.setBranch(input.processingBranch());
         }
-        application.setFinalRequestedAmount(input.requestedAmount());
-        application.setFinalLoanTermMonths(input.loanTermMonths());
-        application.setFinalPaymentMethod(input.paymentMethod());
-        application.setFinalMonthlyPaymentDay(input.monthlyPaymentDay());
-        application.setFinalSelectedAmount(selected.suggestedLoanAmount());
-        application.setFinalEstimatedMonthlyPayment(selected.estimatedMonthlyPayment());
-        application.setFinalScoreGrade(calculation.scoring().scoreGrade());
-        application.setFinalSelectedAt(LocalDateTime.now());
         LoanApplication saved = loanApplicationRepository.save(application);
 
-        return toFinalOfferResponse(saved, input, calculation, productCode, selected);
+        return toFinalOfferResponse(saved, input, calculation, productCode, selected, LocalDateTime.now());
     }
 
     private void ensureApplicationReady(LoanApplication application) {
@@ -377,7 +370,8 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
             FinalOfferInput input,
             FinalOfferCalculation calculation,
             String selectedProductCode,
-            RecommendedLoanProductResponse selectedProduct
+            RecommendedLoanProductResponse selectedProduct,
+            LocalDateTime selectedAt
     ) {
         RecommendedLoanProductResponse selected = selectedProduct == null
                 ? calculation.products().stream()
@@ -385,6 +379,8 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
                         .findFirst()
                         .orElse(null)
                 : selectedProduct;
+        BigDecimal selectedLoanAmount = selected == null ? null : selected.suggestedLoanAmount();
+        BigDecimal estimatedMonthlyPayment = selected == null ? null : selected.estimatedMonthlyPayment();
         return new FinalLoanOfferResponse(
                 application.getLoanApplicationCode(),
                 input.requestedAmount(),
@@ -396,9 +392,9 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
                 calculation.valuation(),
                 calculation.recommendedProductCode(),
                 selectedProductCode,
-                selected == null ? application.getFinalSelectedAmount() : selected.suggestedLoanAmount(),
-                selected == null ? application.getFinalEstimatedMonthlyPayment() : selected.estimatedMonthlyPayment(),
-                application.getFinalSelectedAt(),
+                selectedLoanAmount,
+                estimatedMonthlyPayment,
+                selectedAt,
                 calculation.products()
         );
     }

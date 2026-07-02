@@ -59,7 +59,7 @@ public class LoanProductRecommendationController {
 
     @Operation(
             summary = "Luu goi vay cuoi cung duoc chon",
-            description = "Dung khi staff chon san pham vay cuoi cung. Backend validate san pham con phu hop, sau do luu loan_product_id va snapshot final offer vao APP_DRAFT."
+            description = "Dung khi staff chon san pham vay cuoi cung. Backend validate san pham con phu hop, sau do luu loan_product_id vao ho so APP_DRAFT."
     )
     @PostMapping("/api/v1/loan-applications/{applicationCode}/final-loan-offer/select")
     public ApiResponse<FinalLoanOfferResponse> selectFinalOffer(

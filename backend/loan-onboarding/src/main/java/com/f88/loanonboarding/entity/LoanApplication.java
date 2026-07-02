@@ -1,7 +1,6 @@
 package com.f88.loanonboarding.entity;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -90,28 +89,4 @@ public class LoanApplication {
 
     @Column(name = "monthly_income_amount", precision = 18, scale = 2)
     private BigDecimal monthlyIncomeAmount;
-
-    @Column(name = "final_requested_amount", precision = 18, scale = 2)
-    private BigDecimal finalRequestedAmount;
-
-    @Column(name = "final_loan_term_months")
-    private Integer finalLoanTermMonths;
-
-    @Column(name = "final_payment_method", length = 50)
-    private String finalPaymentMethod;
-
-    @Column(name = "final_monthly_payment_day")
-    private Integer finalMonthlyPaymentDay;
-
-    @Column(name = "final_selected_amount", precision = 18, scale = 2)
-    private BigDecimal finalSelectedAmount;
-
-    @Column(name = "final_estimated_monthly_payment", precision = 18, scale = 2)
-    private BigDecimal finalEstimatedMonthlyPayment;
-
-    @Column(name = "final_score_grade", length = 10)
-    private String finalScoreGrade;
-
-    @Column(name = "final_selected_at")
-    private LocalDateTime finalSelectedAt;
 }

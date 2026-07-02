@@ -29,10 +29,11 @@ public class DatabaseMigrationConfig {
             log.info("Running staged Flyway migration and seed scripts");
 
             migrate(dataSource, MIGRATION_LOCATION, MIGRATION_HISTORY_TABLE, "1", false);
-            migrate(dataSource, SEED_LOCATION, SEED_HISTORY_TABLE, "2", true);
+            migrate(dataSource, SEED_LOCATION, SEED_HISTORY_TABLE, "1", true);
             migrate(dataSource, MIGRATION_LOCATION, MIGRATION_HISTORY_TABLE, "4", false);
+            allowBlacklistDemoSeed(dataSource);
             migrate(dataSource, SEED_LOCATION, SEED_HISTORY_TABLE, "3", true);
-            migrate(dataSource, MIGRATION_LOCATION, MIGRATION_HISTORY_TABLE, "6", false);
+            migrate(dataSource, MIGRATION_LOCATION, MIGRATION_HISTORY_TABLE, "7", false);
             migrate(dataSource, SEED_LOCATION, SEED_HISTORY_TABLE, "4", true);
             migrate(dataSource, MIGRATION_LOCATION, MIGRATION_HISTORY_TABLE, "8", false);
             migrate(dataSource, SEED_LOCATION, SEED_HISTORY_TABLE, "5", true);
@@ -50,7 +51,7 @@ public class DatabaseMigrationConfig {
             migrate(dataSource, SEED_LOCATION, SEED_HISTORY_TABLE, "9", true);
             migrate(dataSource, MIGRATION_LOCATION, MIGRATION_HISTORY_TABLE, "17", false);
             migrate(dataSource, SEED_LOCATION, SEED_HISTORY_TABLE, "10", true);
-            migrate(dataSource, MIGRATION_LOCATION, MIGRATION_HISTORY_TABLE, "21", false);
+            migrate(dataSource, MIGRATION_LOCATION, MIGRATION_HISTORY_TABLE, "20", false);
             migrate(dataSource, SEED_LOCATION, SEED_HISTORY_TABLE, "11", true);
         };
     }
@@ -66,5 +67,17 @@ public class DatabaseMigrationConfig {
                 .target(targetVersion)
                 .load()
                 .migrate();
+    }
+
+    private void allowBlacklistDemoSeed(DataSource dataSource) throws Exception {
+        try (var connection = dataSource.getConnection();
+             var statement = connection.createStatement()) {
+            statement.execute("ALTER TABLE customer DROP CONSTRAINT IF EXISTS chk_customer_status");
+            statement.execute("""
+                    ALTER TABLE customer
+                    ADD CONSTRAINT chk_customer_status
+                    CHECK (status IN ('ACTIVE', 'INACTIVE', 'RESTRICTED', 'BLACKLIST'))
+                    """);
+        }
     }
 }
