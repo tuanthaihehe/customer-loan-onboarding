@@ -14,6 +14,7 @@ import com.f88.loanonboarding.dto.response.asset.AssetSnapshotResponse;
 import com.f88.loanonboarding.entity.Asset;
 import com.f88.loanonboarding.entity.LoanApplication;
 import com.f88.loanonboarding.entity.VehicleVariant;
+import com.f88.loanonboarding.enums.AssetStatus;
 import com.f88.loanonboarding.enums.AssetType;
 import com.f88.loanonboarding.exception.BusinessException;
 import com.f88.loanonboarding.repository.AssetRepository;
@@ -57,10 +58,11 @@ public class AssetServiceImpl implements AssetService {
                         true,
                         asset.getAssetCode(),
                         asset.getStatus(),
-                        "AVAILABLE".equals(asset.getStatus()),
-                        "AVAILABLE".equals(asset.getStatus()) ? null : "ASSET_NOT_AVAILABLE"
+                        asset.getStatus().isEligibleForPledge(),
+                        asset.getStatus().getBlockReasonCode(),
+                        asset.getStatus().getBlockReasonMessage()
                 ))
-                .orElseGet(() -> new AssetLookupResponse(false, null, null, true, null));
+                .orElseGet(() -> new AssetLookupResponse(false, null, null, true, null, null));
     }
 
     @Override
@@ -74,7 +76,7 @@ public class AssetServiceImpl implements AssetService {
 
         Asset asset = assetRepository.findByLicensePlate(licensePlate)
                 .orElseGet(() -> createAsset(licensePlate, variant));
-        if (!"AVAILABLE".equals(asset.getStatus()) && application.getAsset() == null) {
+        if (!asset.getStatus().isEligibleForPledge() && application.getAsset() == null) {
             throw new BusinessException(ErrorCode.ASSET_ALREADY_PLEDGED);
         }
 
@@ -120,7 +122,7 @@ public class AssetServiceImpl implements AssetService {
         asset.setAssetCode(nextAssetCode());
         asset.setVehicleVariant(variant);
         asset.setLicensePlate(licensePlate);
-        asset.setStatus("AVAILABLE");
+        asset.setStatus(AssetStatus.AVAILABLE);
         return asset;
     }
 

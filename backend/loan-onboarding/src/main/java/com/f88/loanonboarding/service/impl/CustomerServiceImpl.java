@@ -8,6 +8,7 @@ import com.f88.loanonboarding.dto.request.customer.CustomerLookupRequest;
 import com.f88.loanonboarding.dto.response.customer.CustomerLookupResponse;
 import com.f88.loanonboarding.dto.response.customer.MatchedCustomerResponse;
 import com.f88.loanonboarding.entity.Customer;
+import com.f88.loanonboarding.enums.CustomerStatus;
 import com.f88.loanonboarding.repository.CustomerRepository;
 import com.f88.loanonboarding.rule.RuleContext;
 import com.f88.loanonboarding.rule.RuleEvaluationService;
@@ -17,8 +18,6 @@ import com.f88.loanonboarding.service.CustomerService;
 
 @Service
 public class CustomerServiceImpl implements CustomerService {
-
-    private static final String STATUS_ACTIVE = "ACTIVE";
 
     private final CustomerRepository customerRepository;
     private final RuleEvaluationService ruleEvaluationService;
@@ -53,11 +52,11 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     private CustomerLookupResponse toLookupResponse(Customer customer) {
-        boolean eligible = STATUS_ACTIVE.equals(customer.getStatus());
+        boolean eligible = CustomerStatus.ACTIVE.equals(customer.getStatus());
         return new CustomerLookupResponse(
                 true,
                 customer.getCustomerCode(),
-                customer.getStatus(),
+                customer.getStatus().name(),
                 eligible ? "ELIGIBLE" : "NOT_ELIGIBLE",
                 eligible ? "ALLOWED" : "BLOCKED",
                 new MatchedCustomerResponse(
@@ -66,7 +65,7 @@ public class CustomerServiceImpl implements CustomerService {
                         customer.getIdentityNumber(),
                         customer.getPhoneNumber()
                 ),
-                eligible ? null : "CUSTOMER_" + customer.getStatus()
+                eligible ? null : "CUSTOMER_" + customer.getStatus().name()
         );
     }
 }
