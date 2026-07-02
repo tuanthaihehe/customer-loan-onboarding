@@ -28,6 +28,9 @@ import com.f88.loanonboarding.repository.AssetValuationRepository;
 import com.f88.loanonboarding.repository.LoanApplicationRepository;
 import com.f88.loanonboarding.repository.VehicleMarketPriceRepository;
 import com.f88.loanonboarding.repository.VehicleVariantRepository;
+import com.f88.loanonboarding.rule.RuleContext;
+import com.f88.loanonboarding.rule.RuleEvaluationService;
+import com.f88.loanonboarding.rule.valuation.AssetValuationDeductionLimitRule;
 import com.f88.loanonboarding.service.AssetValuationService;
 
 @Service
@@ -39,6 +42,7 @@ public class AssetValuationServiceImpl implements AssetValuationService {
     private final AssetDeductionTypeRepository assetDeductionTypeRepository;
     private final AssetValuationRepository assetValuationRepository;
     private final AssetValuationDeductionRepository assetValuationDeductionRepository;
+    private final RuleEvaluationService ruleEvaluationService;
 
     public AssetValuationServiceImpl(
             LoanApplicationRepository loanApplicationRepository,
@@ -46,7 +50,8 @@ public class AssetValuationServiceImpl implements AssetValuationService {
             VehicleMarketPriceRepository vehicleMarketPriceRepository,
             AssetDeductionTypeRepository assetDeductionTypeRepository,
             AssetValuationRepository assetValuationRepository,
-            AssetValuationDeductionRepository assetValuationDeductionRepository
+            AssetValuationDeductionRepository assetValuationDeductionRepository,
+            RuleEvaluationService ruleEvaluationService
     ) {
         this.loanApplicationRepository = loanApplicationRepository;
         this.vehicleVariantRepository = vehicleVariantRepository;
@@ -54,6 +59,7 @@ public class AssetValuationServiceImpl implements AssetValuationService {
         this.assetDeductionTypeRepository = assetDeductionTypeRepository;
         this.assetValuationRepository = assetValuationRepository;
         this.assetValuationDeductionRepository = assetValuationDeductionRepository;
+        this.ruleEvaluationService = ruleEvaluationService;
     }
 
     @Override
@@ -134,12 +140,10 @@ public class AssetValuationServiceImpl implements AssetValuationService {
         BigDecimal totalDeductionAmount = deductionTypes.stream()
                 .map(AssetDeductionType::getDeductionAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        if (totalDeductionAmount.compareTo(marketPrice.getPriceAmount()) > 0) {
-            throw new BusinessException(
-                    ErrorCode.INVALID_VALUATION_VALUE,
-                    "Tong giam tru khong duoc lon hon gia thi truong."
-            );
-        }
+        ruleEvaluationService.validateOrThrow(
+                RuleContext.valuation(null, null, null, marketPrice.getPriceAmount(), totalDeductionAmount),
+                List.of(new AssetValuationDeductionLimitRule())
+        );
         BigDecimal finalValue = marketPrice.getPriceAmount().subtract(totalDeductionAmount);
         return new ValuationCalculation(
                 marketPrice.getPriceAmount(),
