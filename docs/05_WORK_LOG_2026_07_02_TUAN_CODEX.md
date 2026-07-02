@@ -749,3 +749,52 @@ los-postgres healthy
 - Cac message moi trong API tai san dang dung tieng Viet khong dau de tranh loi encoding hien tai trong source.
 - Mot so file cu trong project dang bi hien thi mojibake tieng Viet, can co dot rieng de chuan hoa encoding neu team muon sua dong bo.
 
+## 12. Cap nhat sau khi BA/DA merge them V20
+
+Sau khi merge them tai lieu database moi, BA/DA da bo sung migration:
+
+```text
+database/migrations/V20__add_registration_certificate_number_to_asset.sql
+```
+
+Migration nay chot ten cot:
+
+```text
+asset.registration_certificate_number
+```
+
+Vi vay resources da duoc dieu chinh lai de dong bo voi BA/DA:
+
+```text
+backend/loan-onboarding/src/main/resources/db/migration/V20__add_registration_certificate_number_to_asset.sql
+```
+
+File V20 cu do Codex tao truoc do da bi loai bo:
+
+```text
+backend/loan-onboarding/src/main/resources/db/migration/V20__add_vehicle_registration_number_to_asset.sql
+```
+
+Code JPA cung da doi mapping:
+
+```text
+Asset.registrationNumber -> @Column(name = "registration_certificate_number")
+```
+
+API request/response van giu field JSON:
+
+```text
+registrationNumber
+```
+
+Ly do giu field JSON:
+
+- FE dang goi theo nghia nghiep vu "so dang ky xe".
+- Ten cot DB theo BA/DA la `registration_certificate_number`.
+- Backend map trung gian nen FE khong can doi payload.
+
+Luu y quan trong:
+
+- Docker/local DB truoc do co the da apply V20 cu voi cot `registration_number`.
+- Sau khi source da doi theo BA/DA, database dev cu can reset hoac Flyway repair truoc khi chay lai migration.
+- Tren database reset moi, V20 se tao dung cot `registration_certificate_number`.

@@ -43,7 +43,7 @@ public class Asset {
     @Column(name = "engine_number", unique = true, length = 100)
     private String engineNumber;
 
-    @Column(name = "registration_number", unique = true, length = 100)
+    @Column(name = "registration_certificate_number", unique = true, length = 100)
     private String registrationNumber;
 
     @Column(name = "registration_issue_date")

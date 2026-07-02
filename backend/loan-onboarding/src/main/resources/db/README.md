@@ -40,7 +40,7 @@ Backend chạy Flyway theo chặng trong `DatabaseMigrationConfig`:
 | 22   | `seed`      |  `V10` | Seed document_type                                                 |
 | 23   | `migration` |  `V19` | Thêm kyc_profile, loan_product_id và income_source                 |
 | 24   | `seed`      |  `V11` | Seed income_source                                                 |
-| 25   | `migration` |  `V20` | Thêm số đăng ký xe vào asset theo dataflow bổ sung tài sản         |
+| 25   | `migration` |  `V20` | Thêm `registration_certificate_number` vào asset theo BA/DA V20    |
 
 Ghi chú: hai file BA/DA `V13_add_additional_customer_info_and_additional_loan_info.sql`
 và `V14_add_extra_fields_customer_and_loan_application.sql` không đúng chuẩn tên Flyway
