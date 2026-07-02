@@ -28,7 +28,10 @@ public class AssetValuationController {
         this.assetValuationService = assetValuationService;
     }
 
-    @Operation(summary = "Lấy giá thị trường hiện hành theo biến thể xe")
+    @Operation(
+            summary = "Lấy giá thị trường hiện hành theo vehicleVariant",
+            description = "Dùng sau khi frontend đã resolve được vehicleVariant cuối cùng từ versionCode + manufactureYear + colorCode. API này chỉ nhận vehicleVariant vì bảng vehicle_market_price liên kết trực tiếp với vehicle_variant."
+    )
     @GetMapping("/api/v1/asset-valuations/market-price")
     public ApiResponse<VehicleMarketPriceResponse> getMarketPrice(@RequestParam String vehicleVariant) {
         return ApiResponse.success(assetValuationService.getMarketPrice(vehicleVariant));

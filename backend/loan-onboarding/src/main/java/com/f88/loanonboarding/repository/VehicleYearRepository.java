@@ -23,9 +23,14 @@ public interface VehicleYearRepository extends JpaRepository<VehicleYear, UUID> 
             select distinct vehicleYear.manufactureYear
             from VehicleYear vehicleYear
             join vehicleYear.vehicleVersion vehicleVersion
-            where vehicleVersion.code = :versionCode
+            join vehicleVersion.vehicleModel vehicleModel
+            where vehicleModel.code = :modelCode
+              and vehicleVersion.code = :versionCode
               and vehicleYear.active = true
             order by vehicleYear.manufactureYear desc
             """)
-    List<Integer> findActiveManufactureYearsByVersionCode(@Param("versionCode") String versionCode);
+    List<Integer> findActiveManufactureYearsByModelCodeAndVersionCode(
+            @Param("modelCode") String modelCode,
+            @Param("versionCode") String versionCode
+    );
 }

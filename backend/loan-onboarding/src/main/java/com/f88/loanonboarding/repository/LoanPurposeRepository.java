@@ -13,4 +13,8 @@ public interface LoanPurposeRepository extends JpaRepository<LoanPurpose, UUID> 
     Optional<LoanPurpose> findByCodeAndActiveTrue(String code);
 
     List<LoanPurpose> findByActiveTrueOrderBySortOrderAscNameAsc();
+
+    List<LoanPurpose> findByActiveTrueOrderBySortOrderAsc();
+
+    Optional<LoanPurpose> findByCode(String code);
 }

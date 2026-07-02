@@ -8,7 +8,7 @@ import jakarta.validation.constraints.NotNull;
 public record AssetValuationPreviewRequest(
         @Valid
         @NotNull(message = "Thông tin tài sản là bắt buộc")
-        SaveAssetSnapshotRequest assetSnapshot,
+        AssetValuationAssetRequest assetSnapshot,
 
         @Valid
         List<ValuationDeductionItemRequest> deductionItems

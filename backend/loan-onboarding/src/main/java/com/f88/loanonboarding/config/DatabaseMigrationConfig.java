@@ -43,6 +43,13 @@ public class DatabaseMigrationConfig {
             migrate(dataSource, SEED_LOCATION, SEED_HISTORY_TABLE, "7", true);
             migrate(dataSource, MIGRATION_LOCATION, MIGRATION_HISTORY_TABLE, "12", false);
             migrate(dataSource, MIGRATION_LOCATION, MIGRATION_HISTORY_TABLE, "13", false);
+            migrate(dataSource, MIGRATION_LOCATION, MIGRATION_HISTORY_TABLE, "14", false);
+            migrate(dataSource, SEED_LOCATION, SEED_HISTORY_TABLE, "8", true);
+            migrate(dataSource, MIGRATION_LOCATION, MIGRATION_HISTORY_TABLE, "15", false);
+            migrate(dataSource, MIGRATION_LOCATION, MIGRATION_HISTORY_TABLE, "16", false);
+            migrate(dataSource, SEED_LOCATION, SEED_HISTORY_TABLE, "9", true);
+            migrate(dataSource, MIGRATION_LOCATION, MIGRATION_HISTORY_TABLE, "17", false);
+            migrate(dataSource, SEED_LOCATION, SEED_HISTORY_TABLE, "10", true);
         };
     }
 

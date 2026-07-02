@@ -23,18 +23,18 @@ import com.f88.loanonboarding.entity.Asset;
 import com.f88.loanonboarding.entity.Customer;
 import com.f88.loanonboarding.entity.LoanApplication;
 import com.f88.loanonboarding.entity.LoanApplicationStateTransition;
-import com.f88.loanonboarding.entity.LoanPurpose;
-import com.f88.loanonboarding.entity.LoanTerm;
 import com.f88.loanonboarding.entity.LoanApplicationState;
 import com.f88.loanonboarding.entity.LoanApplicationStateHistory;
+import com.f88.loanonboarding.entity.LoanPurpose;
+import com.f88.loanonboarding.entity.LoanTerm;
 import com.f88.loanonboarding.enums.AssetType;
 import com.f88.loanonboarding.exception.BusinessException;
 import com.f88.loanonboarding.repository.CustomerRepository;
 import com.f88.loanonboarding.repository.LoanApplicationRepository;
+import com.f88.loanonboarding.repository.LoanPurposeRepository;
 import com.f88.loanonboarding.repository.LoanApplicationStateHistoryRepository;
 import com.f88.loanonboarding.repository.LoanApplicationStateRepository;
 import com.f88.loanonboarding.repository.LoanApplicationStateTransitionRepository;
-import com.f88.loanonboarding.repository.LoanPurposeRepository;
 import com.f88.loanonboarding.repository.LoanTermRepository;
 import com.f88.loanonboarding.rule.RuleContext;
 import com.f88.loanonboarding.rule.RuleEvaluationService;
@@ -54,30 +54,30 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
 
     private final CustomerRepository customerRepository;
     private final LoanApplicationRepository loanApplicationRepository;
+    private final LoanPurposeRepository loanPurposeRepository;
+    private final LoanTermRepository loanTermRepository;
     private final LoanApplicationStateRepository stateRepository;
     private final LoanApplicationStateHistoryRepository historyRepository;
     private final LoanApplicationStateTransitionRepository transitionRepository;
-    private final LoanPurposeRepository loanPurposeRepository;
-    private final LoanTermRepository loanTermRepository;
     private final RuleEvaluationService ruleEvaluationService;
 
     public LoanApplicationServiceImpl(
             CustomerRepository customerRepository,
             LoanApplicationRepository loanApplicationRepository,
+            LoanPurposeRepository loanPurposeRepository,
+            LoanTermRepository loanTermRepository,
             LoanApplicationStateRepository stateRepository,
             LoanApplicationStateHistoryRepository historyRepository,
             LoanApplicationStateTransitionRepository transitionRepository,
-            LoanPurposeRepository loanPurposeRepository,
-            LoanTermRepository loanTermRepository,
             RuleEvaluationService ruleEvaluationService
     ) {
         this.customerRepository = customerRepository;
         this.loanApplicationRepository = loanApplicationRepository;
+        this.loanPurposeRepository = loanPurposeRepository;
+        this.loanTermRepository = loanTermRepository;
         this.stateRepository = stateRepository;
         this.historyRepository = historyRepository;
         this.transitionRepository = transitionRepository;
-        this.loanPurposeRepository = loanPurposeRepository;
-        this.loanTermRepository = loanTermRepository;
         this.ruleEvaluationService = ruleEvaluationService;
     }
 
