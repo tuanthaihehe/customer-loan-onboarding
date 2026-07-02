@@ -1,10 +1,12 @@
 package com.f88.loanonboarding.service.impl;
 
 import java.time.LocalDateTime;
-import java.time.Year;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -14,28 +16,42 @@ import com.f88.loanonboarding.common.error.ErrorCode;
 import com.f88.loanonboarding.dto.request.loan.ApplicantSnapshotRequest;
 import com.f88.loanonboarding.dto.request.loan.CancelLoanApplicationRequest;
 import com.f88.loanonboarding.dto.request.loan.CreateLoanApplicationRequest;
+import com.f88.loanonboarding.dto.request.loan.ReferencePersonRequest;
+import com.f88.loanonboarding.dto.request.loan.SaveCustomerDetailRequest;
 import com.f88.loanonboarding.dto.request.loan.SaveLoanApplicationDraftRequest;
+import com.f88.loanonboarding.dto.request.loan.SaveReferencePersonsRequest;
+import com.f88.loanonboarding.dto.response.loan.CustomerDetailResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDetailResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDraftResponse;
+import com.f88.loanonboarding.dto.response.loan.ReferencePersonResponse;
+import com.f88.loanonboarding.dto.response.loan.ReferencePersonsResponse;
 import com.f88.loanonboarding.dto.response.loan.StepCompletionResponse;
 import com.f88.loanonboarding.dto.response.loan.SubmitForApprovalResponse;
 import com.f88.loanonboarding.entity.Asset;
+import com.f88.loanonboarding.entity.Bank;
 import com.f88.loanonboarding.entity.Customer;
+import com.f88.loanonboarding.entity.IncomeSource;
 import com.f88.loanonboarding.entity.LoanApplication;
+import com.f88.loanonboarding.entity.LoanApplicationReferencePerson;
 import com.f88.loanonboarding.entity.LoanApplicationStateTransition;
 import com.f88.loanonboarding.entity.LoanApplicationState;
 import com.f88.loanonboarding.entity.LoanApplicationStateHistory;
 import com.f88.loanonboarding.entity.LoanPurpose;
 import com.f88.loanonboarding.entity.LoanTerm;
+import com.f88.loanonboarding.entity.Occupation;
 import com.f88.loanonboarding.enums.AssetType;
 import com.f88.loanonboarding.exception.BusinessException;
+import com.f88.loanonboarding.repository.BankRepository;
 import com.f88.loanonboarding.repository.CustomerRepository;
+import com.f88.loanonboarding.repository.IncomeSourceRepository;
+import com.f88.loanonboarding.repository.LoanApplicationReferencePersonRepository;
 import com.f88.loanonboarding.repository.LoanApplicationRepository;
 import com.f88.loanonboarding.repository.LoanPurposeRepository;
 import com.f88.loanonboarding.repository.LoanApplicationStateHistoryRepository;
 import com.f88.loanonboarding.repository.LoanApplicationStateRepository;
 import com.f88.loanonboarding.repository.LoanApplicationStateTransitionRepository;
 import com.f88.loanonboarding.repository.LoanTermRepository;
+import com.f88.loanonboarding.repository.OccupationRepository;
 import com.f88.loanonboarding.rule.RuleContext;
 import com.f88.loanonboarding.rule.RuleEvaluationService;
 import com.f88.loanonboarding.rule.loan.LoanPurposeRule;
@@ -50,12 +66,27 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     private static final String STATE_SUBMITTED = "APP_SUBMITTED";
     private static final String STATE_CANCELLED = "APP_CANCELLED";
     private static final String APPLICATION_CODE_PREFIX = "APP-2026-";
-    private static final List<String> SUPPORTED_GENDERS = List.of("MALE", "FEMALE", "OTHER");
+    private static final List<String> SUPPORTED_GENDERS = List.of("MALE", "FEMALE");
+    private static final List<String> SUPPORTED_MARITAL_STATUSES = List.of("SINGLE", "MARRIED");
+    private static final List<String> SUPPORTED_RELATIONSHIP_TYPES = List.of(
+            "FATHER",
+            "MOTHER",
+            "SPOUSE",
+            "SIBLING",
+            "RELATIVE",
+            "FRIEND",
+            "COLLEAGUE",
+            "OTHER"
+    );
 
     private final CustomerRepository customerRepository;
     private final LoanApplicationRepository loanApplicationRepository;
     private final LoanPurposeRepository loanPurposeRepository;
     private final LoanTermRepository loanTermRepository;
+    private final OccupationRepository occupationRepository;
+    private final BankRepository bankRepository;
+    private final IncomeSourceRepository incomeSourceRepository;
+    private final LoanApplicationReferencePersonRepository referencePersonRepository;
     private final LoanApplicationStateRepository stateRepository;
     private final LoanApplicationStateHistoryRepository historyRepository;
     private final LoanApplicationStateTransitionRepository transitionRepository;
@@ -66,6 +97,10 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
             LoanApplicationRepository loanApplicationRepository,
             LoanPurposeRepository loanPurposeRepository,
             LoanTermRepository loanTermRepository,
+            OccupationRepository occupationRepository,
+            BankRepository bankRepository,
+            IncomeSourceRepository incomeSourceRepository,
+            LoanApplicationReferencePersonRepository referencePersonRepository,
             LoanApplicationStateRepository stateRepository,
             LoanApplicationStateHistoryRepository historyRepository,
             LoanApplicationStateTransitionRepository transitionRepository,
@@ -75,6 +110,10 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         this.loanApplicationRepository = loanApplicationRepository;
         this.loanPurposeRepository = loanPurposeRepository;
         this.loanTermRepository = loanTermRepository;
+        this.occupationRepository = occupationRepository;
+        this.bankRepository = bankRepository;
+        this.incomeSourceRepository = incomeSourceRepository;
+        this.referencePersonRepository = referencePersonRepository;
         this.stateRepository = stateRepository;
         this.historyRepository = historyRepository;
         this.transitionRepository = transitionRepository;
@@ -153,6 +192,72 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         LoanApplication saved = loanApplicationRepository.save(application);
         historyRepository.save(history(saved, null, saved.getCurrentState(), "SAVE_DRAFT", "system", "Lưu thông tin nháp"));
         return toDraftResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public CustomerDetailResponse saveCustomerDetail(String applicationCode, SaveCustomerDetailRequest request) {
+        LoanApplication application = findApplication(applicationCode);
+        ensureState(application.getCurrentState().getCode(), STATE_DRAFT, "Chi ho so nhap moi duoc luu thong tin chi tiet khach hang");
+
+        Customer customer = application.getCustomer();
+        customer.setGender(validateGender(request.gender()));
+        customer.setEmail(normalizeNullableText(request.email()));
+        customer.setMaritalStatus(validateMaritalStatus(request.maritalStatus()));
+        customer.setPermanentAddress(normalizeText(request.permanentAddress()));
+
+        Occupation occupation = occupationRepository.findByCode(normalizeCode(request.occupationCode()))
+                .filter(Occupation::isActive)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Khong tim thay nghe nghiep dang hoat dong: " + request.occupationCode()));
+        IncomeSource incomeSource = incomeSourceRepository.findByCode(normalizeCode(request.incomeSourceCode()))
+                .filter(IncomeSource::isActive)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Khong tim thay nguon thu nhap dang hoat dong: " + request.incomeSourceCode()));
+        Bank bank = bankRepository.findByCode(normalizeCode(request.disbursementBankCode()))
+                .filter(Bank::isActive)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Khong tim thay ngan hang dang hoat dong: " + request.disbursementBankCode()));
+
+        application.setOccupation(occupation);
+        application.setIncomeSource(incomeSource);
+        application.setMonthlyIncomeAmount(request.monthlyIncomeAmount());
+        application.setDisbursementBank(bank);
+        application.setDisbursementAccountNumber(normalizeText(request.disbursementAccountNumber()));
+        application.setDisbursementAccountName(normalizeText(request.disbursementAccountName()));
+        application.setWorkplaceName(normalizeNullableText(request.workplaceName()));
+        application.setWorkplaceAddress(normalizeNullableText(request.workplaceAddress()));
+        application.setCurrentAddress(normalizeText(request.currentAddress()));
+
+        customerRepository.save(customer);
+        LoanApplication saved = loanApplicationRepository.save(application);
+        historyRepository.save(history(saved, null, saved.getCurrentState(), "SAVE_CUSTOMER_DETAIL", "system", "Luu thong tin chi tiet khach hang"));
+        return toCustomerDetailResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public ReferencePersonsResponse saveReferencePersons(String applicationCode, SaveReferencePersonsRequest request) {
+        LoanApplication application = findApplication(applicationCode);
+        ensureState(application.getCurrentState().getCode(), STATE_DRAFT, "Chi ho so nhap moi duoc luu nguoi tham chieu");
+
+        validateReferencePhones(request.referencePersons());
+        referencePersonRepository.deleteByLoanApplicationId(application.getId());
+
+        List<LoanApplicationReferencePerson> savedPersons = new ArrayList<>();
+        for (ReferencePersonRequest item : request.referencePersons()) {
+            LoanApplicationReferencePerson referencePerson = new LoanApplicationReferencePerson();
+            referencePerson.setLoanApplication(application);
+            referencePerson.setFullName(normalizeText(item.fullName()));
+            referencePerson.setPhoneNumber(normalizeText(item.phoneNumber()));
+            referencePerson.setRelationshipType(validateRelationshipType(item.relationshipType()));
+            referencePerson.setAddress(normalizeNullableText(item.address()));
+            referencePerson.setNote(normalizeNullableText(item.note()));
+            LocalDateTime now = LocalDateTime.now();
+            referencePerson.setCreatedAt(now);
+            referencePerson.setUpdatedAt(now);
+            savedPersons.add(referencePersonRepository.save(referencePerson));
+        }
+
+        historyRepository.save(history(application, null, application.getCurrentState(), "SAVE_REFERENCE_PERSONS", "system", "Luu nguoi tham chieu"));
+        return toReferencePersonsResponse(application.getLoanApplicationCode(), savedPersons);
     }
 
     @Override
@@ -290,43 +395,83 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     }
 
     private boolean hasCompletePreliminaryInfo(LoanApplication application) {
+        Customer customer = application.getCustomer();
         return hasCompleteLoanRequest(application)
-                && isNotBlank(application.getApplicantFullName())
-                && isNotBlank(application.getApplicantIdentityNumber())
-                && isNotBlank(application.getApplicantPhoneNumber())
-                && application.getApplicantDateOfBirth() != null
-                && isNotBlank(application.getApplicantGender())
-                && isNotBlank(application.getApplicantOccupation())
-                && application.getApplicantMonthlyIncome() != null;
+                && isNotBlank(customer.getFullName())
+                && isNotBlank(customer.getIdentityNumber())
+                && isNotBlank(customer.getPhoneNumber())
+                && customer.getDateOfBirth() != null
+                && isNotBlank(customer.getGender())
+                && application.getOccupation() != null
+                && application.getMonthlyIncomeAmount() != null;
     }
 
     private void saveApplicantSnapshot(LoanApplication application, ApplicantSnapshotRequest request) {
-        String gender = normalizeText(request.gender()).toUpperCase();
-        if (!SUPPORTED_GENDERS.contains(gender)) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Giới tính không hợp lệ. Giá trị hợp lệ: MALE, FEMALE, OTHER");
-        }
-
         Customer customer = application.getCustomer();
-        application.setApplicantFullName(customer.getFullName());
-        application.setApplicantIdentityNumber(customer.getIdentityNumber());
-        application.setApplicantPhoneNumber(customer.getPhoneNumber());
-        application.setApplicantDateOfBirth(customer.getDateOfBirth());
-        application.setApplicantGender(gender);
-        application.setApplicantOccupation(normalizeText(request.occupation()));
-        application.setApplicantMonthlyIncome(request.monthlyIncome());
+        customer.setGender(validateGender(request.gender()));
+        application.setOccupation(occupationRepository.findByCode(normalizeCode(request.occupation()))
+                .filter(Occupation::isActive)
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Khong tim thay nghe nghiep dang hoat dong: " + request.occupation())));
+        application.setMonthlyIncomeAmount(request.monthlyIncome());
+        customerRepository.save(customer);
     }
 
     private Map<String, Object> toApplicantSnapshot(LoanApplication application) {
         Customer customer = application.getCustomer();
         return mapOf(
-                "fullName", coalesce(application.getApplicantFullName(), customer.getFullName()),
-                "dateOfBirth", coalesce(application.getApplicantDateOfBirth(), customer.getDateOfBirth()),
-                "identifierNumber", coalesce(application.getApplicantIdentityNumber(), customer.getIdentityNumber()),
-                "phoneNumber", coalesce(application.getApplicantPhoneNumber(), customer.getPhoneNumber()),
-                "gender", application.getApplicantGender(),
-                "occupation", application.getApplicantOccupation(),
-                "monthlyIncome", application.getApplicantMonthlyIncome()
+                "fullName", customer.getFullName(),
+                "dateOfBirth", customer.getDateOfBirth(),
+                "identifierNumber", customer.getIdentityNumber(),
+                "phoneNumber", customer.getPhoneNumber(),
+                "gender", customer.getGender(),
+                "occupation", application.getOccupation() == null ? null : application.getOccupation().getCode(),
+                "occupationName", application.getOccupation() == null ? null : application.getOccupation().getName(),
+                "monthlyIncome", application.getMonthlyIncomeAmount()
         );
+    }
+
+    private CustomerDetailResponse toCustomerDetailResponse(LoanApplication application) {
+        Customer customer = application.getCustomer();
+        Occupation occupation = application.getOccupation();
+        IncomeSource incomeSource = application.getIncomeSource();
+        Bank bank = application.getDisbursementBank();
+        return new CustomerDetailResponse(
+                application.getLoanApplicationCode(),
+                customer.getCustomerCode(),
+                customer.getFullName(),
+                customer.getIdentityNumber(),
+                customer.getPhoneNumber(),
+                customer.getDateOfBirth(),
+                customer.getGender(),
+                customer.getEmail(),
+                customer.getMaritalStatus(),
+                occupation == null ? null : occupation.getCode(),
+                occupation == null ? null : occupation.getName(),
+                incomeSource == null ? null : incomeSource.getCode(),
+                incomeSource == null ? null : incomeSource.getName(),
+                application.getMonthlyIncomeAmount(),
+                bank == null ? null : bank.getCode(),
+                bank == null ? null : bank.getName(),
+                application.getDisbursementAccountNumber(),
+                application.getDisbursementAccountName(),
+                application.getWorkplaceName(),
+                application.getWorkplaceAddress(),
+                customer.getPermanentAddress(),
+                application.getCurrentAddress()
+        );
+    }
+
+    private ReferencePersonsResponse toReferencePersonsResponse(String applicationCode, List<LoanApplicationReferencePerson> persons) {
+        List<ReferencePersonResponse> items = persons.stream()
+                .map(item -> new ReferencePersonResponse(
+                        item.getFullName(),
+                        item.getPhoneNumber(),
+                        item.getRelationshipType(),
+                        item.getAddress(),
+                        item.getNote()
+                ))
+                .toList();
+        return new ReferencePersonsResponse(applicationCode, items.size(), items);
     }
 
     private Map<String, Object> toAssetSnapshot(Asset asset) {
@@ -382,6 +527,50 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
 
     private String normalizeText(String value) {
         return value == null ? null : value.trim();
+    }
+
+    private String normalizeNullableText(String value) {
+        String normalized = normalizeText(value);
+        return normalized == null || normalized.isBlank() ? null : normalized;
+    }
+
+    private String normalizeCode(String value) {
+        String normalized = normalizeText(value);
+        return normalized == null ? null : normalized.toUpperCase();
+    }
+
+    private String validateGender(String value) {
+        String gender = normalizeCode(value);
+        if (!SUPPORTED_GENDERS.contains(gender)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Gioi tinh khong hop le. Gia tri hop le: MALE, FEMALE");
+        }
+        return gender;
+    }
+
+    private String validateMaritalStatus(String value) {
+        String status = normalizeCode(value);
+        if (!SUPPORTED_MARITAL_STATUSES.contains(status)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Tinh trang hon nhan khong hop le. Gia tri hop le: SINGLE, MARRIED");
+        }
+        return status;
+    }
+
+    private String validateRelationshipType(String value) {
+        String relationshipType = normalizeCode(value);
+        if (!SUPPORTED_RELATIONSHIP_TYPES.contains(relationshipType)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Moi quan he nguoi tham chieu khong hop le");
+        }
+        return relationshipType;
+    }
+
+    private void validateReferencePhones(List<ReferencePersonRequest> referencePersons) {
+        Set<String> phones = new HashSet<>();
+        for (ReferencePersonRequest item : referencePersons) {
+            String phone = normalizeText(item.phoneNumber());
+            if (!phones.add(phone)) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "So dien thoai nguoi tham chieu bi trung trong ho so: " + phone);
+            }
+        }
     }
 
     private boolean isNotBlank(String value) {

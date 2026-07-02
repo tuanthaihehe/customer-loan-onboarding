@@ -8,8 +8,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.f88.loanonboarding.common.response.ApiResponse;
 import com.f88.loanonboarding.dto.request.asset.AssetLookupRequest;
+import com.f88.loanonboarding.dto.request.asset.SaveAssetLegalInfoRequest;
 import com.f88.loanonboarding.dto.request.asset.SaveAssetSnapshotRequest;
+import com.f88.loanonboarding.dto.request.asset.SaveVehicleRegistrationRequest;
 import com.f88.loanonboarding.dto.response.asset.AssetLookupResponse;
+import com.f88.loanonboarding.dto.response.asset.AssetLegalInfoResponse;
 import com.f88.loanonboarding.dto.response.asset.AssetSnapshotResponse;
 import com.f88.loanonboarding.service.AssetService;
 
@@ -40,5 +43,22 @@ public class AssetController {
             @Valid @RequestBody SaveAssetSnapshotRequest request
     ) {
         return ApiResponse.success("Lưu thông tin tài sản thành công", assetService.saveSnapshot(applicationCode, request));
+    }
+    @Operation(summary = "Luu thong tin phap ly xe")
+    @PatchMapping("/api/v1/loan-applications/{applicationCode}/asset-legal-info")
+    public ApiResponse<AssetLegalInfoResponse> saveLegalInfo(
+            @PathVariable String applicationCode,
+            @Valid @RequestBody SaveAssetLegalInfoRequest request
+    ) {
+        return ApiResponse.success("Luu thong tin phap ly xe thanh cong", assetService.saveLegalInfo(applicationCode, request));
+    }
+
+    @Operation(summary = "Luu thong tin giay to xe")
+    @PatchMapping("/api/v1/loan-applications/{applicationCode}/vehicle-registration")
+    public ApiResponse<AssetLegalInfoResponse> saveVehicleRegistration(
+            @PathVariable String applicationCode,
+            @Valid @RequestBody SaveVehicleRegistrationRequest request
+    ) {
+        return ApiResponse.success("Luu thong tin giay to xe thanh cong", assetService.saveVehicleRegistration(applicationCode, request));
     }
 }

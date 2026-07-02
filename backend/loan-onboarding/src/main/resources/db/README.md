@@ -4,8 +4,8 @@ Folder này giữ cùng cách đặt tên với tài liệu database do BA/DA b�
 
 ```text
 db/
-├── migration/   # DDL/schema migration, giữ V1..V17 theo database/migrations
-└── seed/        # Dữ liệu seed, giữ V1..V10 theo database/seed
+├── migration/   # DDL/schema migration, giữ V1..V20 theo database/migrations và cập nhật theo dataflow mới
+└── seed/        # Dữ liệu seed, giữ V1..V11 theo database/seed
 ```
 
 ## Cách chạy trong backend
@@ -38,6 +38,14 @@ Backend chạy Flyway theo chặng trong `DatabaseMigrationConfig`:
 | 20   | `seed`      |   `V9` | Seed mock score grade rule                                         |
 | 21   | `migration` |  `V17` | Thêm document_type và loan_application_document                    |
 | 22   | `seed`      |  `V10` | Seed document_type                                                 |
+| 23   | `migration` |  `V19` | Thêm kyc_profile, loan_product_id và income_source                 |
+| 24   | `seed`      |  `V11` | Seed income_source                                                 |
+| 25   | `migration` |  `V20` | Thêm số đăng ký xe vào asset theo dataflow bổ sung tài sản         |
+
+Ghi chú: hai file BA/DA `V13_add_additional_customer_info_and_additional_loan_info.sql`
+và `V14_add_extra_fields_customer_and_loan_application.sql` không đúng chuẩn tên Flyway
+versioned migration. Nội dung của chúng đã được chuẩn hóa vào
+`migration/V14__add_customer_bank_occupation_extra_fields.sql` để tránh trùng version.
 
 ## Schema history
 
