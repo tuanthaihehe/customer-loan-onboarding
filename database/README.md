@@ -12,7 +12,7 @@ Schema hiện tại tập trung vào:
 - quản lý danh mục mục đích vay, kỳ hạn vay và sản phẩm vay;
 - quản lý danh mục xe, tài sản xe gắn với hồ sơ vay;
 - định giá tài sản và các khoản giảm trừ;
-- lưu thông tin người tham chiếu, snapshot thông tin sơ bộ và chứng từ hồ sơ vay.
+- lưu thông tin người tham chiếu, snapshot thông tin sơ bộ, chứng từ hồ sơ vay và dữ liệu scoring mock.
 
 Theo cập nhật BA/DA mới nhất, database **không có Eligibility** nên backend không làm chức năng Eligibility.
 
@@ -58,16 +58,20 @@ Theo cập nhật BA/DA mới nhất, database **không có Eligibility** nên b
 
 | Bảng | Vai trò |
 |---|---|
-| `customer` | Lưu thông tin khách hàng cơ bản phục vụ tra cứu và tạo hồ sơ vay. |
-| `loan_application` | Lưu hồ sơ vay, bao gồm thông tin khoản vay, snapshot khách hàng sơ bộ, chi nhánh và tài sản được chọn. |
+| `customer` | Lưu thông tin khách hàng cơ bản và một số thông tin hồ sơ khách hàng. |
+| `loan_application` | Lưu hồ sơ vay, gồm thông tin khoản vay, snapshot khách hàng sơ bộ, chi nhánh, tài sản, nghề nghiệp, địa chỉ, nơi làm việc và thông tin giải ngân. |
 | `loan_purpose` | Danh mục mục đích vay cho dropdown/frontend. |
 | `loan_term` | Danh mục kỳ hạn vay cho dropdown/frontend. |
 | `loan_product` | Danh mục sản phẩm vay và điều kiện áp dụng. |
 | `score_grade` | Danh mục hạng điểm phục vụ rule/đề xuất sản phẩm vay. |
+| `mock_score_grade_rule` | Rule scoring mock theo thu nhập, số tiền vay và LTV. |
+| `bank` | Danh mục ngân hàng giải ngân. |
+| `occupation` | Danh mục nghề nghiệp. |
+| `loan_application_reference_person` | Người tham chiếu của hồ sơ vay. |
 | `loan_application_state` | Danh mục state hợp lệ của hồ sơ vay. |
 | `loan_application_state_transition` | Cấu hình state nào được phép chuyển sang state nào. |
 | `loan_application_state_history` | Nhật ký lifecycle của từng hồ sơ vay. |
-| `asset` | Lưu tài sản xe ở mức hồ sơ. |
+| `asset` | Lưu tài sản xe ở mức hồ sơ, gồm biển số, số khung, số máy và ngày cấp đăng ký nếu có. |
 | `asset_valuation` | Lưu kết quả định giá tài sản. |
 | `asset_valuation_deduction` | Lưu các yếu tố giảm trừ đã áp dụng trong một lần định giá. |
 | `document_type` | Danh mục loại chứng từ cần upload. |

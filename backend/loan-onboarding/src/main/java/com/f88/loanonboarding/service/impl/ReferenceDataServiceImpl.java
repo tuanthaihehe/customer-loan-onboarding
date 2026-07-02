@@ -13,6 +13,7 @@ import com.f88.loanonboarding.repository.AssetDeductionTypeRepository;
 import com.f88.loanonboarding.repository.LoanApplicationStateRepository;
 import com.f88.loanonboarding.repository.LoanPurposeRepository;
 import com.f88.loanonboarding.repository.LoanTermRepository;
+import com.f88.loanonboarding.repository.OccupationRepository;
 import com.f88.loanonboarding.repository.VehicleBrandRepository;
 import com.f88.loanonboarding.repository.VehicleColorRepository;
 import com.f88.loanonboarding.repository.VehicleModelRepository;
@@ -28,6 +29,7 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
     private final LoanApplicationStateRepository stateRepository;
     private final LoanPurposeRepository loanPurposeRepository;
     private final LoanTermRepository loanTermRepository;
+    private final OccupationRepository occupationRepository;
     private final VehicleTypeRepository vehicleTypeRepository;
     private final VehicleBrandRepository vehicleBrandRepository;
     private final VehicleModelRepository vehicleModelRepository;
@@ -41,6 +43,7 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
             LoanApplicationStateRepository stateRepository,
             LoanPurposeRepository loanPurposeRepository,
             LoanTermRepository loanTermRepository,
+            OccupationRepository occupationRepository,
             VehicleTypeRepository vehicleTypeRepository,
             VehicleBrandRepository vehicleBrandRepository,
             VehicleModelRepository vehicleModelRepository,
@@ -53,6 +56,7 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
         this.stateRepository = stateRepository;
         this.loanPurposeRepository = loanPurposeRepository;
         this.loanTermRepository = loanTermRepository;
+        this.occupationRepository = occupationRepository;
         this.vehicleTypeRepository = vehicleTypeRepository;
         this.vehicleBrandRepository = vehicleBrandRepository;
         this.vehicleModelRepository = vehicleModelRepository;
@@ -74,7 +78,10 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
 
     @Override
     public List<ReferenceDataItemResponse> getOccupations() {
-        return List.of();
+        return occupationRepository.findByActiveTrueOrderBySortOrderAsc()
+                .stream()
+                .map(item -> new ReferenceDataItemResponse(item.getCode(), item.getName(), item.getDescription()))
+                .toList();
     }
 
     @Override

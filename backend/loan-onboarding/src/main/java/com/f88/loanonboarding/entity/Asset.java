@@ -1,6 +1,7 @@
 package com.f88.loanonboarding.entity;
 
 import java.util.UUID;
+import java.time.LocalDate;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -35,4 +36,13 @@ public class Asset {
 
     @Column(name = "status", nullable = false, length = 30)
     private String status = "AVAILABLE";
+
+    @Column(name = "frame_number", unique = true, length = 100)
+    private String frameNumber;
+
+    @Column(name = "engine_number", unique = true, length = 100)
+    private String engineNumber;
+
+    @Column(name = "registration_issue_date")
+    private LocalDate registrationIssueDate;
 }
