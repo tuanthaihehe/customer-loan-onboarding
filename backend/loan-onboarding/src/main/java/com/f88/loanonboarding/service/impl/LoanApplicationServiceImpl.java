@@ -44,6 +44,7 @@ import com.f88.loanonboarding.exception.BusinessException;
 import com.f88.loanonboarding.repository.BankRepository;
 import com.f88.loanonboarding.repository.CustomerRepository;
 import com.f88.loanonboarding.repository.IncomeSourceRepository;
+import com.f88.loanonboarding.repository.AssetValuationRepository;
 import com.f88.loanonboarding.repository.LoanApplicationReferencePersonRepository;
 import com.f88.loanonboarding.repository.LoanApplicationRepository;
 import com.f88.loanonboarding.repository.LoanPurposeRepository;
@@ -86,6 +87,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     private final OccupationRepository occupationRepository;
     private final BankRepository bankRepository;
     private final IncomeSourceRepository incomeSourceRepository;
+    private final AssetValuationRepository assetValuationRepository;
     private final LoanApplicationReferencePersonRepository referencePersonRepository;
     private final LoanApplicationStateRepository stateRepository;
     private final LoanApplicationStateHistoryRepository historyRepository;
@@ -100,6 +102,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
             OccupationRepository occupationRepository,
             BankRepository bankRepository,
             IncomeSourceRepository incomeSourceRepository,
+            AssetValuationRepository assetValuationRepository,
             LoanApplicationReferencePersonRepository referencePersonRepository,
             LoanApplicationStateRepository stateRepository,
             LoanApplicationStateHistoryRepository historyRepository,
@@ -113,6 +116,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         this.occupationRepository = occupationRepository;
         this.bankRepository = bankRepository;
         this.incomeSourceRepository = incomeSourceRepository;
+        this.assetValuationRepository = assetValuationRepository;
         this.referencePersonRepository = referencePersonRepository;
         this.stateRepository = stateRepository;
         this.historyRepository = historyRepository;
@@ -198,7 +202,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     @Transactional
     public CustomerDetailResponse saveCustomerDetail(String applicationCode, SaveCustomerDetailRequest request) {
         LoanApplication application = findApplication(applicationCode);
-        ensureState(application.getCurrentState().getCode(), STATE_DRAFT, "Chi ho so nhap moi duoc luu thong tin chi tiet khach hang");
+        ensureState(application.getCurrentState().getCode(), STATE_DRAFT, "Chỉ hồ sơ nháp mới được lưu thông tin chi tiết khách hàng");
 
         Customer customer = application.getCustomer();
         customer.setGender(validateGender(request.gender()));
@@ -208,13 +212,13 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
 
         Occupation occupation = occupationRepository.findByCode(normalizeCode(request.occupationCode()))
                 .filter(Occupation::isActive)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Khong tim thay nghe nghiep dang hoat dong: " + request.occupationCode()));
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy nghề nghiệp đang hoạt động: " + request.occupationCode()));
         IncomeSource incomeSource = incomeSourceRepository.findByCode(normalizeCode(request.incomeSourceCode()))
                 .filter(IncomeSource::isActive)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Khong tim thay nguon thu nhap dang hoat dong: " + request.incomeSourceCode()));
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy nguồn thu nhập đang hoạt động: " + request.incomeSourceCode()));
         Bank bank = bankRepository.findByCode(normalizeCode(request.disbursementBankCode()))
                 .filter(Bank::isActive)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Khong tim thay ngan hang dang hoat dong: " + request.disbursementBankCode()));
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy ngân hàng đang hoạt động: " + request.disbursementBankCode()));
 
         application.setOccupation(occupation);
         application.setIncomeSource(incomeSource);
@@ -228,7 +232,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
 
         customerRepository.save(customer);
         LoanApplication saved = loanApplicationRepository.save(application);
-        historyRepository.save(history(saved, null, saved.getCurrentState(), "SAVE_CUSTOMER_DETAIL", "system", "Luu thong tin chi tiet khach hang"));
+        historyRepository.save(history(saved, null, saved.getCurrentState(), "SAVE_CUSTOMER_DETAIL", "system", "Lưu thông tin chi tiết khách hàng"));
         return toCustomerDetailResponse(saved);
     }
 
@@ -236,7 +240,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     @Transactional
     public ReferencePersonsResponse saveReferencePersons(String applicationCode, SaveReferencePersonsRequest request) {
         LoanApplication application = findApplication(applicationCode);
-        ensureState(application.getCurrentState().getCode(), STATE_DRAFT, "Chi ho so nhap moi duoc luu nguoi tham chieu");
+        ensureState(application.getCurrentState().getCode(), STATE_DRAFT, "Chỉ hồ sơ nháp mới được lưu người tham chiếu");
 
         validateReferencePhones(request.referencePersons());
         referencePersonRepository.deleteByLoanApplicationId(application.getId());
@@ -256,7 +260,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
             savedPersons.add(referencePersonRepository.save(referencePerson));
         }
 
-        historyRepository.save(history(application, null, application.getCurrentState(), "SAVE_REFERENCE_PERSONS", "system", "Luu nguoi tham chieu"));
+        historyRepository.save(history(application, null, application.getCurrentState(), "SAVE_REFERENCE_PERSONS", "system", "Lưu người tham chiếu"));
         return toReferencePersonsResponse(application.getLoanApplicationCode(), savedPersons);
     }
 
@@ -270,7 +274,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         LoanApplicationState previousState = application.getCurrentState();
         application.setCurrentState(cancelledState);
         LoanApplication saved = loanApplicationRepository.save(application);
-        historyRepository.save(history(saved, previousState, cancelledState, "CANCEL", null, request.note()));
+        historyRepository.save(history(saved, previousState, cancelledState, "CANCEL", null, cancellationNote(request)));
 
         return toDraftResponse(saved);
     }
@@ -296,6 +300,13 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     @Transactional
     public SubmitForApprovalResponse submitForApproval(String applicationCode) {
         LoanApplication application = findApplication(applicationCode);
+        List<String> validationErrors = validateReadyForSubmission(application);
+        if (!validationErrors.isEmpty()) {
+            throw new BusinessException(
+                    ErrorCode.BUSINESS_RULE_VIOLATION,
+                    "Hồ sơ chưa đủ điều kiện gửi phê duyệt: " + String.join("; ", validationErrors)
+            );
+        }
         ensureState(application.getCurrentState().getCode(), STATE_DRAFT, "Chỉ hồ sơ nháp mới được gửi phê duyệt");
         if (!hasCompletePreliminaryInfo(application)) {
             throw new BusinessException(ErrorCode.INVALID_REQUESTED_AMOUNT, "Hồ sơ chưa đủ thông tin sơ bộ khách hàng và nhu cầu vay để gửi phê duyệt");
@@ -307,6 +318,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         application.setCurrentState(submittedState);
         LoanApplication saved = loanApplicationRepository.save(application);
         LoanApplicationStateHistory history = history(saved, previousState, submittedState, "SUBMIT", null, "Submit for approval");
+        history.setChangedAt(LocalDateTime.now());
         historyRepository.save(history);
 
         return new SubmitForApprovalResponse(
@@ -315,8 +327,59 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 "APR-" + saved.getLoanApplicationCode(),
                 "LoanApplicationSubmittedForApproval",
                 history.getChangedAt(),
-                "Loan application submitted for approval"
+                "Hồ sơ vay đã được gửi phê duyệt"
         );
+    }
+
+    private List<String> validateReadyForSubmission(LoanApplication application) {
+        List<String> errors = new ArrayList<>();
+        if (!hasCompletePreliminaryInfo(application)) {
+            errors.add("thiếu thông tin sơ bộ khách hàng hoặc nhu cầu vay");
+        }
+        if (!hasCompleteCustomerDetail(application)) {
+            errors.add("thiếu thông tin chi tiết khách hàng");
+        }
+        if (referencePersonRepository.findByLoanApplicationId(application.getId()).size() < 3) {
+            errors.add("thiếu tối thiểu 3 người tham chiếu");
+        }
+        Asset asset = application.getAsset();
+        if (asset == null) {
+            errors.add("thiếu thông tin tài sản");
+        } else {
+            if (isBlank(asset.getFrameNumber()) || isBlank(asset.getEngineNumber())) {
+                errors.add("thiếu thông tin pháp lý xe");
+            }
+            if (isBlank(asset.getRegistrationNumber()) || asset.getRegistrationIssueDate() == null) {
+                errors.add("thiếu thông tin giấy tờ xe");
+            }
+            if (assetValuationRepository.findTopByAssetOrderByValuedAtDesc(asset).isEmpty()) {
+                errors.add("chưa lưu định giá tài sản");
+            }
+        }
+        if (application.getLoanProduct() == null) {
+            errors.add("chưa chọn gói vay cuối cùng");
+        }
+        return errors;
+    }
+
+    private boolean hasCompleteCustomerDetail(LoanApplication application) {
+        Customer customer = application.getCustomer();
+        return isNotBlank(customer.getGender())
+                && isNotBlank(customer.getMaritalStatus())
+                && isNotBlank(customer.getPermanentAddress())
+                && application.getOccupation() != null
+                && application.getIncomeSource() != null
+                && application.getMonthlyIncomeAmount() != null
+                && application.getDisbursementBank() != null
+                && isNotBlank(application.getDisbursementAccountNumber())
+                && isNotBlank(application.getDisbursementAccountName())
+                && isNotBlank(application.getCurrentAddress());
+    }
+
+    private String cancellationNote(CancelLoanApplicationRequest request) {
+        String reason = normalizeText(request.cancellationReasonCode());
+        String note = normalizeNullableText(request.note());
+        return note == null ? "Reason: " + reason : "Reason: " + reason + " - " + note;
     }
 
     private LoanApplication findApplication(String applicationCode) {
@@ -411,7 +474,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         customer.setGender(validateGender(request.gender()));
         application.setOccupation(occupationRepository.findByCode(normalizeCode(request.occupation()))
                 .filter(Occupation::isActive)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Khong tim thay nghe nghiep dang hoat dong: " + request.occupation())));
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy nghề nghiệp đang hoạt động: " + request.occupation())));
         application.setMonthlyIncomeAmount(request.monthlyIncome());
         customerRepository.save(customer);
     }
@@ -542,7 +605,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     private String validateGender(String value) {
         String gender = normalizeCode(value);
         if (!SUPPORTED_GENDERS.contains(gender)) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Gioi tinh khong hop le. Gia tri hop le: MALE, FEMALE");
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Giới tính không hợp lệ. Giá trị hợp lệ: MALE, FEMALE");
         }
         return gender;
     }
@@ -550,7 +613,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     private String validateMaritalStatus(String value) {
         String status = normalizeCode(value);
         if (!SUPPORTED_MARITAL_STATUSES.contains(status)) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Tinh trang hon nhan khong hop le. Gia tri hop le: SINGLE, MARRIED");
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Tình trạng hôn nhân không hợp lệ. Giá trị hợp lệ: SINGLE, MARRIED");
         }
         return status;
     }
@@ -558,7 +621,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     private String validateRelationshipType(String value) {
         String relationshipType = normalizeCode(value);
         if (!SUPPORTED_RELATIONSHIP_TYPES.contains(relationshipType)) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Moi quan he nguoi tham chieu khong hop le");
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Mối quan hệ người tham chiếu không hợp lệ");
         }
         return relationshipType;
     }
@@ -568,13 +631,17 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         for (ReferencePersonRequest item : referencePersons) {
             String phone = normalizeText(item.phoneNumber());
             if (!phones.add(phone)) {
-                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "So dien thoai nguoi tham chieu bi trung trong ho so: " + phone);
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Số điện thoại người tham chiếu bị trùng trong hồ sơ: " + phone);
             }
         }
     }
 
     private boolean isNotBlank(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private Object coalesce(Object first, Object fallback) {

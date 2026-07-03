@@ -98,8 +98,8 @@ public class AssetServiceImpl implements AssetService {
         Asset asset = requireAsset(application);
         String frameNumber = normalizeIdentifier(request.frameNumber());
         String engineNumber = normalizeIdentifier(request.engineNumber());
-        ensureUniqueIdentifier(asset, assetRepository.findByFrameNumber(frameNumber), "So khung da ton tai trong database");
-        ensureUniqueIdentifier(asset, assetRepository.findByEngineNumber(engineNumber), "So may da ton tai trong database");
+        ensureUniqueIdentifier(asset, assetRepository.findByFrameNumber(frameNumber), "Số khung đã tồn tại trong database");
+        ensureUniqueIdentifier(asset, assetRepository.findByEngineNumber(engineNumber), "Số máy đã tồn tại trong database");
         asset.setFrameNumber(frameNumber);
         asset.setEngineNumber(engineNumber);
         Asset saved = assetRepository.save(asset);
@@ -130,7 +130,7 @@ public class AssetServiceImpl implements AssetService {
         if (application.getAsset() == null) {
             throw new BusinessException(
                     ErrorCode.BUSINESS_RULE_VIOLATION,
-                    "Ho so chua co thong tin tai san. Hay luu thong tin so bo tai san truoc."
+                    "Hồ sơ chưa có thông tin tài sản. Hãy lưu thông tin sơ bộ tài sản trước."
             );
         }
         return application.getAsset();

@@ -61,25 +61,25 @@ public class LoanApplicationController {
         return ApiResponse.success("Lưu thông tin sơ bộ khách hàng thành công", loanApplicationService.saveDraft(applicationCode, request));
     }
 
-    @Operation(summary = "Luu thong tin chi tiet khach hang")
+    @Operation(summary = "Lưu thông tin chi tiết khách hàng")
     @PatchMapping("/{applicationCode}/customer-detail")
     public ApiResponse<CustomerDetailResponse> saveCustomerDetail(
             @PathVariable String applicationCode,
             @Valid @RequestBody SaveCustomerDetailRequest request
     ) {
-        return ApiResponse.success("Luu thong tin chi tiet khach hang thanh cong", loanApplicationService.saveCustomerDetail(applicationCode, request));
+        return ApiResponse.success("Lưu thông tin chi tiết khách hàng thành công", loanApplicationService.saveCustomerDetail(applicationCode, request));
     }
 
-    @Operation(summary = "Luu danh sach nguoi tham chieu")
+    @Operation(summary = "Lưu danh sách người tham chiếu")
     @PutMapping("/{applicationCode}/reference-persons")
     public ApiResponse<ReferencePersonsResponse> saveReferencePersons(
             @PathVariable String applicationCode,
             @Valid @RequestBody SaveReferencePersonsRequest request
     ) {
-        return ApiResponse.success("Luu nguoi tham chieu thanh cong", loanApplicationService.saveReferencePersons(applicationCode, request));
+        return ApiResponse.success("Lưu người tham chiếu thành công", loanApplicationService.saveReferencePersons(applicationCode, request));
     }
 
-    @Operation(summary = "Huy ho so vay")
+    @Operation(summary = "Hủy hồ sơ vay")
     @PostMapping("/{applicationCode}/cancel")
     public ApiResponse<LoanApplicationDraftResponse> cancel(
             @PathVariable String applicationCode,
@@ -105,5 +105,4 @@ public class LoanApplicationController {
                 loanApplicationService.submitForApproval(applicationCode)
         );
     }
-
 }

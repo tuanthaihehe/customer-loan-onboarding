@@ -8,42 +8,42 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 
 public record SaveCustomerDetailRequest(
-        @NotBlank(message = "Gioi tinh la bat buoc")
+        @NotBlank(message = "Giới tính là bắt buộc")
         String gender,
 
-        @Email(message = "Email khong dung dinh dang")
+        @Email(message = "Email không đúng định dạng")
         String email,
 
-        @NotBlank(message = "Tinh trang hon nhan la bat buoc")
+        @NotBlank(message = "Tình trạng hôn nhân là bắt buộc")
         String maritalStatus,
 
-        @NotBlank(message = "Ma nghe nghiep la bat buoc")
+        @NotBlank(message = "Mã nghề nghiệp là bắt buộc")
         String occupationCode,
 
-        @NotBlank(message = "Ma nguon thu nhap la bat buoc")
+        @NotBlank(message = "Mã nguồn thu nhập là bắt buộc")
         String incomeSourceCode,
 
-        @NotNull(message = "Thu nhap hang thang la bat buoc")
-        @PositiveOrZero(message = "Thu nhap hang thang khong duoc am")
+        @NotNull(message = "Thu nhập hàng tháng là bắt buộc")
+        @PositiveOrZero(message = "Thu nhập hàng tháng không được âm")
         BigDecimal monthlyIncomeAmount,
 
-        @NotBlank(message = "Ma ngan hang giai ngan la bat buoc")
+        @NotBlank(message = "Mã ngân hàng giải ngân là bắt buộc")
         String disbursementBankCode,
 
-        @NotBlank(message = "So tai khoan la bat buoc")
+        @NotBlank(message = "Số tài khoản là bắt buộc")
         String disbursementAccountNumber,
 
-        @NotBlank(message = "Chu tai khoan la bat buoc")
+        @NotBlank(message = "Chủ tài khoản là bắt buộc")
         String disbursementAccountName,
 
         String workplaceName,
 
         String workplaceAddress,
 
-        @NotBlank(message = "Dia chi thuong tru la bat buoc")
+        @NotBlank(message = "Địa chỉ thường trú là bắt buộc")
         String permanentAddress,
 
-        @NotBlank(message = "Dia chi hien tai la bat buoc")
+        @NotBlank(message = "Địa chỉ hiện tại là bắt buộc")
         String currentAddress
 ) {
 }

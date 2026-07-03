@@ -83,6 +83,23 @@ public class CustomerServiceImpl implements CustomerService {
         boolean eligible = STATUS_ACTIVE.equals(customer.getStatus());
         boolean restricted = "BLACKLIST".equals(customer.getStatus()) || "RESTRICTED".equals(customer.getStatus());
         boolean canCreateApplication = !restricted;
+        if (restricted) {
+            return new CustomerLookupResponse(
+                    true,
+                    customer.getCustomerCode(),
+                    customer.getStatus(),
+                    customer.getStatus(),
+                    "BLOCKED",
+                    new MatchedCustomerResponse(
+                            customer.getFullName(),
+                            customer.getDateOfBirth(),
+                            customer.getIdentityNumber(),
+                            customer.getPhoneNumber()
+                    ),
+                    "CUSTOMER_" + customer.getStatus()
+            );
+        }
+
         ruleEvaluationService.validateOrThrow(
                 RuleContext.customer(customer.getCustomerCode(), customer.getDateOfBirth(), restricted),
                 List.of(new CustomerBlacklistRule(), new CustomerAgeRule())

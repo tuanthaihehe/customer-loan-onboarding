@@ -32,31 +32,31 @@ public class ReferenceDataController {
         return ApiResponse.success(referenceDataService.getGenders());
     }
 
-    @Operation(summary = "Lay danh muc tinh trang hon nhan")
+    @Operation(summary = "Lấy danh mục tình trạng hôn nhân")
     @GetMapping("/marital-statuses")
     public ApiResponse<List<ReferenceDataItemResponse>> getMaritalStatuses() {
         return ApiResponse.success(referenceDataService.getMaritalStatuses());
     }
 
-    @Operation(summary = "Lay danh muc nghe nghiep")
+    @Operation(summary = "Lấy danh mục nghề nghiệp")
     @GetMapping("/occupations")
     public ApiResponse<List<ReferenceDataItemResponse>> getOccupations() {
         return ApiResponse.success(referenceDataService.getOccupations());
     }
 
-    @Operation(summary = "Lay danh muc nguon thu nhap")
+    @Operation(summary = "Lấy danh mục nguồn thu nhập")
     @GetMapping("/income-sources")
     public ApiResponse<List<ReferenceDataItemResponse>> getIncomeSources() {
         return ApiResponse.success(referenceDataService.getIncomeSources());
     }
 
-    @Operation(summary = "Lay danh muc ngan hang giai ngan")
+    @Operation(summary = "Lấy danh mục ngân hàng giải ngân")
     @GetMapping("/banks")
     public ApiResponse<List<ReferenceDataItemResponse>> getBanks() {
         return ApiResponse.success(referenceDataService.getBanks());
     }
 
-    @Operation(summary = "Lay danh muc moi quan he nguoi tham chieu")
+    @Operation(summary = "Lấy danh mục mối quan hệ người tham chiếu")
     @GetMapping("/reference-person-relationships")
     public ApiResponse<List<ReferenceDataItemResponse>> getReferencePersonRelationships() {
         return ApiResponse.success(referenceDataService.getReferencePersonRelationships());

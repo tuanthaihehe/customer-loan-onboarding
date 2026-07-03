@@ -47,10 +47,10 @@ public class CustomerController {
     }
 
     @Operation(
-            summary = "Nhận diện CCCD/CMT qua OCR — tự động điền thông tin định danh",
+            summary = "Nhận diện CCCD/CMT qua OCR - tự động điền thông tin định danh",
             description = "Upload ảnh mặt trước (bắt buộc) và mặt sau (không bắt buộc) của CCCD/CMT. "
-            + "Hệ thống gọi FPT AI để trích xuất: họ tên, ngày sinh, số giấy tờ. "
-            + "Số điện thoại không có trong OCR, Staff cần nhập thủ công."
+                    + "Hệ thống gọi FPT AI để trích xuất: họ tên, ngày sinh, số giấy tờ. "
+                    + "Số điện thoại không có trong OCR, Staff cần nhập thủ công."
     )
     @PostMapping(value = "/ocr/extract", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<OcrExtractResponse> extractOcr(
