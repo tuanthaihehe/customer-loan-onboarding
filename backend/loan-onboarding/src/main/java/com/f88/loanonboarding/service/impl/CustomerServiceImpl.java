@@ -21,17 +21,23 @@ public class CustomerServiceImpl implements CustomerService {
 
     private final CustomerRepository customerRepository;
     private final RuleEvaluationService ruleEvaluationService;
+    private final CustomerAgeRule customerAgeRule;
 
-    public CustomerServiceImpl(CustomerRepository customerRepository, RuleEvaluationService ruleEvaluationService) {
+    public CustomerServiceImpl(
+            CustomerRepository customerRepository,
+            RuleEvaluationService ruleEvaluationService,
+            CustomerAgeRule customerAgeRule
+    ) {
         this.customerRepository = customerRepository;
         this.ruleEvaluationService = ruleEvaluationService;
+        this.customerAgeRule = customerAgeRule;
     }
 
     @Override
     public CustomerLookupResponse lookup(CustomerLookupRequest request) {
         ruleEvaluationService.validateOrThrow(
                 RuleContext.customer(null, request.dateOfBirth(), false),
-                List.of(new CustomerBlacklistRule(), new CustomerAgeRule())
+                List.of(new CustomerBlacklistRule(), customerAgeRule)
         );
 
         return customerRepository
