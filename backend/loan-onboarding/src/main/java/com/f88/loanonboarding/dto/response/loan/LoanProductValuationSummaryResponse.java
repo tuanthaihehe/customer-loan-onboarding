@@ -7,6 +7,8 @@ public record LoanProductValuationSummaryResponse(
         BigDecimal marketValue,
         BigDecimal totalDeductionAmount,
         BigDecimal finalValue,
-        List<String> appliedDeductionTypes
+        BigDecimal loanableAmount,
+        List<String> appliedDeductionTypes,
+        List<AppliedDeductionResponse> appliedDeductions
 ) {
 }
