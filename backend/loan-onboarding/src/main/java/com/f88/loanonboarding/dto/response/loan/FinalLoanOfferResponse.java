@@ -6,6 +6,8 @@ import java.util.List;
 
 public record FinalLoanOfferResponse(
         String applicationCode,
+        FinalOfferCustomerSummaryResponse customer,
+        FinalOfferAssetSummaryResponse asset,
         BigDecimal requestedAmount,
         Integer loanTermMonths,
         String paymentMethod,
@@ -17,7 +19,11 @@ public record FinalLoanOfferResponse(
         String selectedProductCode,
         BigDecimal selectedLoanAmount,
         BigDecimal estimatedMonthlyPayment,
+        BigDecimal totalPrincipalAmount,
+        BigDecimal totalInterestAmount,
+        BigDecimal totalPaymentAmount,
         LocalDateTime selectedAt,
-        List<RecommendedLoanProductResponse> products
+        List<RecommendedLoanProductResponse> products,
+        List<RepaymentScheduleItemResponse> repaymentSchedule
 ) {
 }
