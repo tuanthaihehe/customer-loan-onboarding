@@ -44,21 +44,22 @@ public class AssetController {
     ) {
         return ApiResponse.success("Lưu thông tin tài sản thành công", assetService.saveSnapshot(applicationCode, request));
     }
-    @Operation(summary = "Luu thong tin phap ly xe")
+
+    @Operation(summary = "Lưu thông tin pháp lý xe")
     @PatchMapping("/api/v1/loan-applications/{applicationCode}/asset-legal-info")
     public ApiResponse<AssetLegalInfoResponse> saveLegalInfo(
             @PathVariable String applicationCode,
             @Valid @RequestBody SaveAssetLegalInfoRequest request
     ) {
-        return ApiResponse.success("Luu thong tin phap ly xe thanh cong", assetService.saveLegalInfo(applicationCode, request));
+        return ApiResponse.success("Lưu thông tin pháp lý xe thành công", assetService.saveLegalInfo(applicationCode, request));
     }
 
-    @Operation(summary = "Luu thong tin giay to xe")
+    @Operation(summary = "Lưu thông tin giấy tờ xe")
     @PatchMapping("/api/v1/loan-applications/{applicationCode}/vehicle-registration")
     public ApiResponse<AssetLegalInfoResponse> saveVehicleRegistration(
             @PathVariable String applicationCode,
             @Valid @RequestBody SaveVehicleRegistrationRequest request
     ) {
-        return ApiResponse.success("Luu thong tin giay to xe thanh cong", assetService.saveVehicleRegistration(applicationCode, request));
+        return ApiResponse.success("Lưu thông tin giấy tờ xe thành công", assetService.saveVehicleRegistration(applicationCode, request));
     }
 }

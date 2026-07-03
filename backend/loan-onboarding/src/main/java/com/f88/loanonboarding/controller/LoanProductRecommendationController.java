@@ -43,8 +43,8 @@ public class LoanProductRecommendationController {
     }
 
     @Operation(
-            summary = "Load va tinh man hinh de xuat goi vay cuoi cung",
-            description = "Dung cho buoc 5. Backend lay ho so, tai san, dinh gia gan nhat, tinh scoring mock, loc top san pham phu hop va tinh lich tra hang thang theo nhu cau vay co the dieu chinh."
+            summary = "Load và tính màn hình đề xuất gói vay cuối cùng",
+            description = "Dùng cho bước 5. Backend lấy hồ sơ, tài sản, định giá gần nhất, tính scoring mock, lọc top sản phẩm phù hợp và tính lịch trả hàng tháng theo nhu cầu vay có thể điều chỉnh."
     )
     @PostMapping("/api/v1/loan-applications/{applicationCode}/final-loan-offer/preview")
     public ApiResponse<FinalLoanOfferResponse> previewFinalOffer(
@@ -52,14 +52,14 @@ public class LoanProductRecommendationController {
             @Valid @RequestBody(required = false) FinalLoanOfferPreviewRequest request
     ) {
         return ApiResponse.success(
-                "Tinh de xuat goi vay cuoi cung thanh cong",
+                "Tính đề xuất gói vay cuối cùng thành công",
                 loanProductRecommendationService.previewFinalOffer(applicationCode, request)
         );
     }
 
     @Operation(
-            summary = "Luu goi vay cuoi cung duoc chon",
-            description = "Dung khi staff chon san pham vay cuoi cung. Backend validate san pham con phu hop, sau do luu loan_product_id vao ho so APP_DRAFT."
+            summary = "Lưu gói vay cuối cùng được chọn",
+            description = "Dùng khi staff chọn sản phẩm vay cuối cùng. Backend validate sản phẩm còn phù hợp, sau đó lưu loan_product_id vào hồ sơ APP_DRAFT."
     )
     @PostMapping("/api/v1/loan-applications/{applicationCode}/final-loan-offer/select")
     public ApiResponse<FinalLoanOfferResponse> selectFinalOffer(
@@ -67,7 +67,7 @@ public class LoanProductRecommendationController {
             @Valid @RequestBody SelectFinalLoanOfferRequest request
     ) {
         return ApiResponse.success(
-                "Luu goi vay cuoi cung thanh cong",
+                "Lưu gói vay cuối cùng thành công",
                 loanProductRecommendationService.selectFinalOffer(applicationCode, request)
         );
     }

@@ -88,7 +88,7 @@ public class AssetValuationServiceImpl implements AssetValuationService {
         if (asset == null) {
             throw new BusinessException(
                     ErrorCode.BUSINESS_RULE_VIOLATION,
-                    "Ho so chua gan tai san. Hay luu asset snapshot truoc khi luu dinh gia."
+                    "Hồ sơ chưa gắn tài sản. Hãy lưu asset snapshot trước khi lưu định giá."
             );
         }
 
@@ -123,7 +123,7 @@ public class AssetValuationServiceImpl implements AssetValuationService {
         if (variantCode == null || variantCode.isBlank()) {
             throw new BusinessException(
                     ErrorCode.BUSINESS_RULE_VIOLATION,
-                    "vehicleVariant la bat buoc de tinh gia thi truong."
+                    "vehicleVariant là bắt buộc để tính giá thị trường."
             );
         }
 
@@ -137,7 +137,7 @@ public class AssetValuationServiceImpl implements AssetValuationService {
         if (totalDeductionAmount.compareTo(marketPrice.getPriceAmount()) > 0) {
             throw new BusinessException(
                     ErrorCode.INVALID_VALUATION_VALUE,
-                    "Tong giam tru khong duoc lon hon gia thi truong."
+                    "Tổng giảm trừ không được lớn hơn giá thị trường."
             );
         }
         BigDecimal finalValue = marketPrice.getPriceAmount().subtract(totalDeductionAmount);
@@ -156,13 +156,13 @@ public class AssetValuationServiceImpl implements AssetValuationService {
         if (variantCode == null || variantCode.isBlank()) {
             throw new BusinessException(
                     ErrorCode.BUSINESS_RULE_VIOLATION,
-                    "vehicleVariant la bat buoc de tinh gia thi truong."
+                    "vehicleVariant là bắt buộc để tính giá thị trường."
             );
         }
         return vehicleVariantRepository.findByCode(variantCode)
                 .orElseThrow(() -> new BusinessException(
                         ErrorCode.RESOURCE_NOT_FOUND,
-                        "Khong tim thay vehicle variant: " + variantCode
+                        "Không tìm thấy vehicle variant: " + variantCode
                 ));
     }
 
@@ -173,7 +173,7 @@ public class AssetValuationServiceImpl implements AssetValuationService {
                 .findFirst()
                 .orElseThrow(() -> new BusinessException(
                         ErrorCode.RESOURCE_NOT_FOUND,
-                        "Khong tim thay gia thi truong hien hanh cho variant: " + variant.getCode()
+                        "Không tìm thấy giá thị trường hiện hành cho variant: " + variant.getCode()
                 ));
     }
 
@@ -186,7 +186,7 @@ public class AssetValuationServiceImpl implements AssetValuationService {
             AssetDeductionType deductionType = assetDeductionTypeRepository.findByCode(item.type())
                     .orElseThrow(() -> new BusinessException(
                             ErrorCode.RESOURCE_NOT_FOUND,
-                            "Khong tim thay deduction type: " + item.type()
+                            "Không tìm thấy deduction type: " + item.type()
                     ));
             result.add(deductionType);
         }

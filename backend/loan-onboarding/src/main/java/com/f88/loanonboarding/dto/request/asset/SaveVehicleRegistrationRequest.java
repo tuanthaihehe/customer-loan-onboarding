@@ -6,10 +6,10 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 public record SaveVehicleRegistrationRequest(
-        @NotBlank(message = "So dang ky xe la bat buoc")
+        @NotBlank(message = "Số đăng ký xe là bắt buộc")
         String registrationNumber,
 
-        @NotNull(message = "Ngay cap dang ky xe la bat buoc")
+        @NotNull(message = "Ngày cấp đăng ký xe là bắt buộc")
         LocalDate registrationIssueDate
 ) {
 }

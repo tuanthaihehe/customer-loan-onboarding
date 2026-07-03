@@ -8,8 +8,8 @@ import jakarta.validation.constraints.Size;
 
 public record SaveReferencePersonsRequest(
         @Valid
-        @NotEmpty(message = "Danh sach nguoi tham chieu la bat buoc")
-        @Size(min = 3, message = "Can toi thieu 3 nguoi tham chieu")
+        @NotEmpty(message = "Danh sách người tham chiếu là bắt buộc")
+        @Size(min = 3, message = "Cần tối thiểu 3 người tham chiếu")
         List<ReferencePersonRequest> referencePersons
 ) {
 }

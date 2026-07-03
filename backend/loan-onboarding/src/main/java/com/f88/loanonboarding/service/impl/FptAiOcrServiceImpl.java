@@ -18,17 +18,17 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.client.HttpStatusCodeException;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.f88.loanonboarding.common.error.ErrorCode;
 import com.f88.loanonboarding.dto.response.customer.OcrExtractResponse;
 import com.f88.loanonboarding.exception.BusinessException;
 import com.f88.loanonboarding.service.OcrService;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class FptAiOcrServiceImpl implements OcrService {
@@ -338,9 +338,7 @@ public class FptAiOcrServiceImpl implements OcrService {
     ) {
     }
 
-    // =========================================================
-    // Internal DTOs — dùng để parse response từ FPT AI
-    // =========================================================
+    // Internal DTOs - dùng để parse response từ FPT AI
     @JsonIgnoreProperties(ignoreUnknown = true)
     static class FptAiResponse {
 

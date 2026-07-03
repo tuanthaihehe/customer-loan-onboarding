@@ -192,7 +192,7 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
     @Override
     public List<ReferenceDataItemResponse> getManufactureYears(String modelCode, String versionCode) {
         if (modelCode == null || modelCode.isBlank() || versionCode == null || versionCode.isBlank()) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "modelCode va versionCode la bat buoc de lay nam san xuat.");
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "modelCode và versionCode là bắt buộc để lấy năm sản xuất.");
         }
         return vehicleYearRepository.findActiveManufactureYearsByModelCodeAndVersionCode(modelCode, versionCode)
                 .stream()
@@ -203,7 +203,7 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
     @Override
     public List<ReferenceDataItemResponse> getVehicleColors(String modelCode, String versionCode, Integer manufactureYear) {
         if (modelCode == null || modelCode.isBlank() || versionCode == null || versionCode.isBlank() || manufactureYear == null) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "modelCode, versionCode va manufactureYear la bat buoc de lay mau xe.");
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "modelCode, versionCode và manufactureYear là bắt buộc để lấy màu xe.");
         }
         return vehicleColorRepository.findActiveByModelCodeAndVersionCodeAndManufactureYear(modelCode, versionCode, manufactureYear)
                 .stream()
@@ -214,14 +214,14 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
     @Override
     public ReferenceDataItemResponse resolveVehicleVariant(String modelCode, String versionCode, Integer manufactureYear, String colorCode) {
         if (modelCode == null || modelCode.isBlank() || versionCode == null || versionCode.isBlank() || manufactureYear == null || colorCode == null || colorCode.isBlank()) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "modelCode, versionCode, manufactureYear va colorCode la bat buoc.");
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "modelCode, versionCode, manufactureYear và colorCode là bắt buộc.");
         }
         return vehicleVariantRepository
                 .findActiveByModelCodeAndVersionCodeAndManufactureYearAndColorCode(modelCode, versionCode, manufactureYear, colorCode)
                 .map(item -> new ReferenceDataItemResponse(item.getCode(), item.getName(), null))
                 .orElseThrow(() -> new BusinessException(
                         ErrorCode.RESOURCE_NOT_FOUND,
-                        "Khong tim thay vehicle variant phu hop voi version, nam san xuat va mau xe."
+                        "Không tìm thấy vehicle variant phù hợp với version, năm sản xuất và màu xe."
                 ));
     }
 

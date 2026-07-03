@@ -1,7 +1,6 @@
 package com.f88.loanonboarding.controller;
 
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -45,7 +44,7 @@ public class AssetValuationController {
     public ApiResponse<AssetValuationPreviewResponse> preview(
             @Valid @RequestBody AssetValuationPreviewRequest request
     ) {
-        return ApiResponse.success("Asset valuation preview calculated", assetValuationService.preview(request));
+        return ApiResponse.success("Tính thử định giá tài sản thành công", assetValuationService.preview(request));
     }
 
     @Operation(
@@ -57,6 +56,6 @@ public class AssetValuationController {
             @PathVariable String applicationCode,
             @Valid @RequestBody AssetValuationPreviewRequest request
     ) {
-        return ApiResponse.success("Asset valuation preview saved", assetValuationService.savePreview(applicationCode, request));
+        return ApiResponse.success("Lưu định giá tài sản thành công", assetValuationService.savePreview(applicationCode, request));
     }
 }

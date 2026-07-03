@@ -76,7 +76,7 @@ public class DatabaseMigrationConfig {
             statement.execute("""
                     ALTER TABLE customer
                     ADD CONSTRAINT chk_customer_status
-                    CHECK (status IN ('ACTIVE', 'INACTIVE', 'RESTRICTED', 'BLACKLIST'))
+                    CHECK (status IN ('ACTIVE', 'INACTIVE', 'RESTRICTED', 'BLACKLIST', 'LEAD'))
                     """);
         }
     }

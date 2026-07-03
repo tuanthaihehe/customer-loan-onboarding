@@ -35,6 +35,7 @@ import com.f88.loanonboarding.entity.VehicleType;
 import com.f88.loanonboarding.entity.VehicleVariant;
 import com.f88.loanonboarding.exception.BusinessException;
 import com.f88.loanonboarding.repository.AssetDeductionTypeRepository;
+import com.f88.loanonboarding.repository.AssetValuationDeductionRepository;
 import com.f88.loanonboarding.repository.AssetValuationRepository;
 import com.f88.loanonboarding.repository.LoanApplicationRepository;
 import com.f88.loanonboarding.repository.LoanProductRepository;
@@ -56,6 +57,7 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
     private final VehicleMarketPriceRepository vehicleMarketPriceRepository;
     private final AssetDeductionTypeRepository assetDeductionTypeRepository;
     private final AssetValuationRepository assetValuationRepository;
+    private final AssetValuationDeductionRepository assetValuationDeductionRepository;
     private final MockScoreGradeRuleRepository mockScoreGradeRuleRepository;
     private final LoanTermRepository loanTermRepository;
 
@@ -65,6 +67,7 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
             VehicleMarketPriceRepository vehicleMarketPriceRepository,
             AssetDeductionTypeRepository assetDeductionTypeRepository,
             AssetValuationRepository assetValuationRepository,
+            AssetValuationDeductionRepository assetValuationDeductionRepository,
             MockScoreGradeRuleRepository mockScoreGradeRuleRepository,
             LoanTermRepository loanTermRepository
     ) {
@@ -73,6 +76,7 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
         this.vehicleMarketPriceRepository = vehicleMarketPriceRepository;
         this.assetDeductionTypeRepository = assetDeductionTypeRepository;
         this.assetValuationRepository = assetValuationRepository;
+        this.assetValuationDeductionRepository = assetValuationDeductionRepository;
         this.mockScoreGradeRuleRepository = mockScoreGradeRuleRepository;
         this.loanTermRepository = loanTermRepository;
     }
@@ -170,11 +174,11 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
                 .findFirst()
                 .orElseThrow(() -> new BusinessException(
                         ErrorCode.BUSINESS_RULE_VIOLATION,
-                        "San pham vay da chon khong con phu hop voi nhu cau vay, scoring hoac gia tri tai san hien tai."
+                        "Sản phẩm vay đã chọn không còn phù hợp với nhu cầu vay, scoring hoặc giá trị tài sản hiện tại."
                 ));
         LoanProduct product = loanProductRepository.findByProductCode(productCode)
                 .filter(LoanProduct::isActive)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Khong tim thay san pham vay: " + productCode));
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy sản phẩm vay: " + productCode));
 
         application.setLoanProduct(product);
         application.setRequestedAmount(input.requestedAmount());
@@ -210,7 +214,7 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
         if (application.getCurrentState() == null || !STATE_DRAFT.equals(application.getCurrentState().getCode())) {
             throw new BusinessException(
                     ErrorCode.INVALID_LOAN_APPLICATION_STATE,
-                    "Chi ho so nhap moi duoc luu goi vay cuoi cung."
+                    "Chỉ hồ sơ nháp mới được lưu gói vay cuối cùng."
             );
         }
     }
@@ -223,10 +227,10 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
                 ? application.getLoanTermMonths()
                 : request.loanTermMonths();
         if (requestedAmount == null || requestedAmount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BusinessException(ErrorCode.INVALID_REQUESTED_AMOUNT, "So tien vay cuoi cung phai lon hon 0.");
+            throw new BusinessException(ErrorCode.INVALID_REQUESTED_AMOUNT, "Số tiền vay cuối cùng phải lớn hơn 0.");
         }
         if (loanTermMonths == null || loanTermMonths <= 0) {
-            throw new BusinessException(ErrorCode.INVALID_LOAN_TERM, "Ky han vay cuoi cung khong hop le.");
+            throw new BusinessException(ErrorCode.INVALID_LOAN_TERM, "Kỳ hạn vay cuối cùng không hợp lệ.");
         }
         String paymentMethod = normalizeNullableCode(request == null ? null : request.paymentMethod());
         Integer monthlyPaymentDay = request == null ? null : request.monthlyPaymentDay();
@@ -243,10 +247,10 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
                 ? application.getLoanTermMonths()
                 : request.loanTermMonths();
         if (requestedAmount == null || requestedAmount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BusinessException(ErrorCode.INVALID_REQUESTED_AMOUNT, "So tien vay cuoi cung phai lon hon 0.");
+            throw new BusinessException(ErrorCode.INVALID_REQUESTED_AMOUNT, "Số tiền vay cuối cùng phải lớn hơn 0.");
         }
         if (loanTermMonths == null || loanTermMonths <= 0) {
-            throw new BusinessException(ErrorCode.INVALID_LOAN_TERM, "Ky han vay cuoi cung khong hop le.");
+            throw new BusinessException(ErrorCode.INVALID_LOAN_TERM, "Kỳ hạn vay cuối cùng không hợp lệ.");
         }
         return new FinalOfferInput(
                 requestedAmount,
@@ -291,7 +295,7 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
                         valuation.marketValue(),
                         valuation.totalDeductionAmount(),
                         valuation.finalValue(),
-                        List.of()
+                        valuation.appliedDeductionTypes()
                 ),
                 recommendations.isEmpty() ? null : recommendations.getFirst().productCode(),
                 recommendations
@@ -303,14 +307,19 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
                 .map(valuation -> new ValuationSnapshot(
                         money(valuation.getMarketPriceAmount()),
                         money(valuation.getTotalDeductionAmount()),
-                        money(valuation.getFinalValueAmount())
+                        money(valuation.getFinalValueAmount()),
+                        assetValuationDeductionRepository.findByAssetValuationOrderByCreatedAtAsc(valuation)
+                                .stream()
+                                .map(deduction -> deduction.getDeductionType().getCode())
+                                .toList()
                 ))
                 .orElseGet(() -> {
                     VehicleMarketPrice marketPrice = resolveCurrentMarketPrice(variant);
                     return new ValuationSnapshot(
                             money(marketPrice.getPriceAmount()),
                             BigDecimal.ZERO,
-                            money(marketPrice.getPriceAmount())
+                            money(marketPrice.getPriceAmount()),
+                            List.of()
                     );
                 });
     }
@@ -557,7 +566,8 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
     private record ValuationSnapshot(
             BigDecimal marketValue,
             BigDecimal totalDeductionAmount,
-            BigDecimal finalValue
+            BigDecimal finalValue,
+            List<String> appliedDeductionTypes
     ) {
     }
 
