@@ -1,7 +1,6 @@
 package com.f88.loanonboarding.entity;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -51,30 +50,43 @@ public class LoanApplication {
     @JoinColumn(name = "loan_term_id")
     private LoanTerm loanTerm;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "occupation_id")
+    private Occupation occupation;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "disbursement_bank_id")
+    private Bank disbursementBank;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "loan_product_id")
+    private LoanProduct loanProduct;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "income_source_id")
+    private IncomeSource incomeSource;
+
     @Column(name = "loan_term_months")
     private Integer loanTermMonths;
 
     @Column(name = "branch")
     private String branch;
 
-    @Column(name = "applicant_full_name")
-    private String applicantFullName;
+    @Column(name = "disbursement_account_number", length = 50)
+    private String disbursementAccountNumber;
 
-    @Column(name = "applicant_identity_number", length = 20)
-    private String applicantIdentityNumber;
+    @Column(name = "disbursement_account_name")
+    private String disbursementAccountName;
 
-    @Column(name = "applicant_phone_number", length = 20)
-    private String applicantPhoneNumber;
+    @Column(name = "current_address")
+    private String currentAddress;
 
-    @Column(name = "applicant_date_of_birth")
-    private LocalDate applicantDateOfBirth;
+    @Column(name = "workplace_name")
+    private String workplaceName;
 
-    @Column(name = "applicant_gender", length = 30)
-    private String applicantGender;
+    @Column(name = "workplace_address")
+    private String workplaceAddress;
 
-    @Column(name = "applicant_occupation", length = 100)
-    private String applicantOccupation;
-
-    @Column(name = "applicant_monthly_income", precision = 18, scale = 2)
-    private BigDecimal applicantMonthlyIncome;
+    @Column(name = "monthly_income_amount", precision = 18, scale = 2)
+    private BigDecimal monthlyIncomeAmount;
 }

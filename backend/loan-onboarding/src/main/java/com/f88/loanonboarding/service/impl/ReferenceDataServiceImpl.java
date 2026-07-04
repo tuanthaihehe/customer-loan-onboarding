@@ -10,9 +10,12 @@ import com.f88.loanonboarding.dto.response.common.ReferenceDataItemResponse;
 import com.f88.loanonboarding.enums.AssetType;
 import com.f88.loanonboarding.exception.BusinessException;
 import com.f88.loanonboarding.repository.AssetDeductionTypeRepository;
+import com.f88.loanonboarding.repository.BankRepository;
+import com.f88.loanonboarding.repository.IncomeSourceRepository;
 import com.f88.loanonboarding.repository.LoanApplicationStateRepository;
 import com.f88.loanonboarding.repository.LoanPurposeRepository;
 import com.f88.loanonboarding.repository.LoanTermRepository;
+import com.f88.loanonboarding.repository.OccupationRepository;
 import com.f88.loanonboarding.repository.VehicleBrandRepository;
 import com.f88.loanonboarding.repository.VehicleColorRepository;
 import com.f88.loanonboarding.repository.VehicleModelRepository;
@@ -28,6 +31,9 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
     private final LoanApplicationStateRepository stateRepository;
     private final LoanPurposeRepository loanPurposeRepository;
     private final LoanTermRepository loanTermRepository;
+    private final OccupationRepository occupationRepository;
+    private final BankRepository bankRepository;
+    private final IncomeSourceRepository incomeSourceRepository;
     private final VehicleTypeRepository vehicleTypeRepository;
     private final VehicleBrandRepository vehicleBrandRepository;
     private final VehicleModelRepository vehicleModelRepository;
@@ -41,6 +47,9 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
             LoanApplicationStateRepository stateRepository,
             LoanPurposeRepository loanPurposeRepository,
             LoanTermRepository loanTermRepository,
+            OccupationRepository occupationRepository,
+            BankRepository bankRepository,
+            IncomeSourceRepository incomeSourceRepository,
             VehicleTypeRepository vehicleTypeRepository,
             VehicleBrandRepository vehicleBrandRepository,
             VehicleModelRepository vehicleModelRepository,
@@ -53,6 +62,9 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
         this.stateRepository = stateRepository;
         this.loanPurposeRepository = loanPurposeRepository;
         this.loanTermRepository = loanTermRepository;
+        this.occupationRepository = occupationRepository;
+        this.bankRepository = bankRepository;
+        this.incomeSourceRepository = incomeSourceRepository;
         this.vehicleTypeRepository = vehicleTypeRepository;
         this.vehicleBrandRepository = vehicleBrandRepository;
         this.vehicleModelRepository = vehicleModelRepository;
@@ -67,14 +79,54 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
     public List<ReferenceDataItemResponse> getGenders() {
         return List.of(
                 new ReferenceDataItemResponse("MALE", "Nam", null),
-                new ReferenceDataItemResponse("FEMALE", "Nu", null),
-                new ReferenceDataItemResponse("OTHER", "Khac", null)
+                new ReferenceDataItemResponse("FEMALE", "Nu", null)
+        );
+    }
+
+    @Override
+    public List<ReferenceDataItemResponse> getMaritalStatuses() {
+        return List.of(
+                new ReferenceDataItemResponse("SINGLE", "Doc than", null),
+                new ReferenceDataItemResponse("MARRIED", "Da ket hon", null)
         );
     }
 
     @Override
     public List<ReferenceDataItemResponse> getOccupations() {
-        return List.of();
+        return occupationRepository.findByActiveTrueOrderBySortOrderAsc()
+                .stream()
+                .map(item -> new ReferenceDataItemResponse(item.getCode(), item.getName(), item.getDescription()))
+                .toList();
+    }
+
+    @Override
+    public List<ReferenceDataItemResponse> getIncomeSources() {
+        return incomeSourceRepository.findByActiveTrueOrderBySortOrderAsc()
+                .stream()
+                .map(item -> new ReferenceDataItemResponse(item.getCode(), item.getName(), item.getDescription()))
+                .toList();
+    }
+
+    @Override
+    public List<ReferenceDataItemResponse> getBanks() {
+        return bankRepository.findByActiveTrueOrderBySortOrderAsc()
+                .stream()
+                .map(item -> new ReferenceDataItemResponse(item.getCode(), item.getName(), item.getShortName()))
+                .toList();
+    }
+
+    @Override
+    public List<ReferenceDataItemResponse> getReferencePersonRelationships() {
+        return List.of(
+                new ReferenceDataItemResponse("FATHER", "Bo", null),
+                new ReferenceDataItemResponse("MOTHER", "Me", null),
+                new ReferenceDataItemResponse("SPOUSE", "Vo/chong", null),
+                new ReferenceDataItemResponse("SIBLING", "Anh/chi/em", null),
+                new ReferenceDataItemResponse("RELATIVE", "Nguoi than", null),
+                new ReferenceDataItemResponse("FRIEND", "Ban be", null),
+                new ReferenceDataItemResponse("COLLEAGUE", "Dong nghiep", null),
+                new ReferenceDataItemResponse("OTHER", "Khac", null)
+        );
     }
 
     @Override
@@ -140,7 +192,7 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
     @Override
     public List<ReferenceDataItemResponse> getManufactureYears(String modelCode, String versionCode) {
         if (modelCode == null || modelCode.isBlank() || versionCode == null || versionCode.isBlank()) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "modelCode va versionCode la bat buoc de lay nam san xuat.");
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "modelCode và versionCode là bắt buộc để lấy năm sản xuất.");
         }
         return vehicleYearRepository.findActiveManufactureYearsByModelCodeAndVersionCode(modelCode, versionCode)
                 .stream()
@@ -151,7 +203,7 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
     @Override
     public List<ReferenceDataItemResponse> getVehicleColors(String modelCode, String versionCode, Integer manufactureYear) {
         if (modelCode == null || modelCode.isBlank() || versionCode == null || versionCode.isBlank() || manufactureYear == null) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "modelCode, versionCode va manufactureYear la bat buoc de lay mau xe.");
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "modelCode, versionCode và manufactureYear là bắt buộc để lấy màu xe.");
         }
         return vehicleColorRepository.findActiveByModelCodeAndVersionCodeAndManufactureYear(modelCode, versionCode, manufactureYear)
                 .stream()
@@ -162,14 +214,14 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
     @Override
     public ReferenceDataItemResponse resolveVehicleVariant(String modelCode, String versionCode, Integer manufactureYear, String colorCode) {
         if (modelCode == null || modelCode.isBlank() || versionCode == null || versionCode.isBlank() || manufactureYear == null || colorCode == null || colorCode.isBlank()) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "modelCode, versionCode, manufactureYear va colorCode la bat buoc.");
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "modelCode, versionCode, manufactureYear và colorCode là bắt buộc.");
         }
         return vehicleVariantRepository
                 .findActiveByModelCodeAndVersionCodeAndManufactureYearAndColorCode(modelCode, versionCode, manufactureYear, colorCode)
                 .map(item -> new ReferenceDataItemResponse(item.getCode(), item.getName(), null))
                 .orElseThrow(() -> new BusinessException(
                         ErrorCode.RESOURCE_NOT_FOUND,
-                        "Khong tim thay vehicle variant phu hop voi version, nam san xuat va mau xe."
+                        "Không tìm thấy vehicle variant phù hợp với version, năm sản xuất và màu xe."
                 ));
     }
 
