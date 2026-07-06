@@ -74,6 +74,12 @@ public class ReferenceDataController {
         return ApiResponse.success(referenceDataService.getLoanTerms());
     }
 
+    @Operation(summary = "Lấy danh mục bước tạo hồ sơ vay")
+    @GetMapping("/loan-application-steps")
+    public ApiResponse<List<ReferenceDataItemResponse>> getLoanApplicationSteps() {
+        return ApiResponse.success(referenceDataService.getLoanApplicationSteps());
+    }
+
     @Operation(summary = "Lấy danh mục loại tài sản")
     @GetMapping("/asset-types")
     public ApiResponse<List<ReferenceDataItemResponse>> getAssetTypes() {
@@ -100,7 +106,7 @@ public class ReferenceDataController {
 
     @Operation(
             summary = "Lấy năm sản xuất theo dòng xe và phiên bản xe",
-            description = "Trả các năm sản xuất có dữ liệu variant thật trong catalog theo modelCode và versionCode đã chọn. versionCode chỉ unique trong phạm vi model."
+            description = "Trả các năm sản xuất có dữ liệu variant thật trong catalog theo modelCode và versionCode đã chọn."
     )
     @GetMapping("/manufacture-years")
     public ApiResponse<List<ReferenceDataItemResponse>> getManufactureYears(
@@ -112,7 +118,7 @@ public class ReferenceDataController {
 
     @Operation(
             summary = "Lấy màu xe theo dòng xe, phiên bản và năm sản xuất",
-            description = "Không trả toàn bộ bảng màu master. API join vehicle_variant, vehicle_year và vehicle_color để chỉ trả các màu có thật cho modelCode, versionCode và manufactureYear đã chọn."
+            description = "API join vehicle_variant, vehicle_year và vehicle_color để chỉ trả các màu có thật cho lựa chọn đã chọn."
     )
     @GetMapping("/vehicle-colors")
     public ApiResponse<List<ReferenceDataItemResponse>> getVehicleColors(
@@ -125,7 +131,7 @@ public class ReferenceDataController {
 
     @Operation(
             summary = "Resolve biến thể xe cuối cùng theo dòng xe, phiên bản, năm và màu",
-            description = "Dùng sau khi user đã chọn modelCode, versionCode, manufactureYear và colorCode. API trả vehicleVariant duy nhất để lưu asset snapshot, preview valuation hoặc lấy market price."
+            description = "Dùng sau khi user đã chọn modelCode, versionCode, manufactureYear và colorCode."
     )
     @GetMapping("/vehicle-variant")
     public ApiResponse<ReferenceDataItemResponse> resolveVehicleVariant(

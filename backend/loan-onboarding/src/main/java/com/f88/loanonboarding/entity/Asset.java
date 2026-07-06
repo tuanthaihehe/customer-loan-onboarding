@@ -1,10 +1,14 @@
 package com.f88.loanonboarding.entity;
 
-import java.util.UUID;
 import java.time.LocalDate;
+import java.util.UUID;
+
+import com.f88.loanonboarding.enums.AssetStatus;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
@@ -34,8 +38,9 @@ public class Asset {
     @Column(name = "license_plate", nullable = false, unique = true, length = 20)
     private String licensePlate;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
-    private String status = "AVAILABLE";
+    private AssetStatus status = AssetStatus.AVAILABLE;
 
     @Column(name = "frame_number", unique = true, length = 100)
     private String frameNumber;

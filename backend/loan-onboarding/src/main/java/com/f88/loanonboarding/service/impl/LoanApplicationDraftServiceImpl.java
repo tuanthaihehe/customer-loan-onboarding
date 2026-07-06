@@ -409,7 +409,7 @@ public class LoanApplicationDraftServiceImpl implements LoanApplicationDraftServ
                 customer.getIdentityNumber(),
                 customer.getPhoneNumber(),
                 customer.getDateOfBirth(),
-                customer.getStatus()
+                customer.getStatus() == null ? null : customer.getStatus().name()
         );
     }
 
@@ -425,7 +425,7 @@ public class LoanApplicationDraftServiceImpl implements LoanApplicationDraftServ
         if (customer.getDateOfBirth() != null) {
             payload.put("date_of_birth", customer.getDateOfBirth().toString());
         }
-        payload.put("status", customer.getStatus());
+        payload.put("status", customer.getStatus() == null ? null : customer.getStatus().name());
         return payload;
     }
 

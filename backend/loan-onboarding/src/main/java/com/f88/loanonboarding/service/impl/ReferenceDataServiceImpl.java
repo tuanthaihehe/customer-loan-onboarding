@@ -13,6 +13,7 @@ import com.f88.loanonboarding.repository.AssetDeductionTypeRepository;
 import com.f88.loanonboarding.repository.BankRepository;
 import com.f88.loanonboarding.repository.IncomeSourceRepository;
 import com.f88.loanonboarding.repository.LoanApplicationStateRepository;
+import com.f88.loanonboarding.repository.LoanApplicationStepRepository;
 import com.f88.loanonboarding.repository.LoanPurposeRepository;
 import com.f88.loanonboarding.repository.LoanTermRepository;
 import com.f88.loanonboarding.repository.OccupationRepository;
@@ -31,6 +32,7 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
     private final LoanApplicationStateRepository stateRepository;
     private final LoanPurposeRepository loanPurposeRepository;
     private final LoanTermRepository loanTermRepository;
+    private final LoanApplicationStepRepository loanApplicationStepRepository;
     private final OccupationRepository occupationRepository;
     private final BankRepository bankRepository;
     private final IncomeSourceRepository incomeSourceRepository;
@@ -47,6 +49,7 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
             LoanApplicationStateRepository stateRepository,
             LoanPurposeRepository loanPurposeRepository,
             LoanTermRepository loanTermRepository,
+            LoanApplicationStepRepository loanApplicationStepRepository,
             OccupationRepository occupationRepository,
             BankRepository bankRepository,
             IncomeSourceRepository incomeSourceRepository,
@@ -62,6 +65,7 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
         this.stateRepository = stateRepository;
         this.loanPurposeRepository = loanPurposeRepository;
         this.loanTermRepository = loanTermRepository;
+        this.loanApplicationStepRepository = loanApplicationStepRepository;
         this.occupationRepository = occupationRepository;
         this.bankRepository = bankRepository;
         this.incomeSourceRepository = incomeSourceRepository;
@@ -79,15 +83,15 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
     public List<ReferenceDataItemResponse> getGenders() {
         return List.of(
                 new ReferenceDataItemResponse("MALE", "Nam", null),
-                new ReferenceDataItemResponse("FEMALE", "Nu", null)
+                new ReferenceDataItemResponse("FEMALE", "Nữ", null)
         );
     }
 
     @Override
     public List<ReferenceDataItemResponse> getMaritalStatuses() {
         return List.of(
-                new ReferenceDataItemResponse("SINGLE", "Doc than", null),
-                new ReferenceDataItemResponse("MARRIED", "Da ket hon", null)
+                new ReferenceDataItemResponse("SINGLE", "Độc thân", null),
+                new ReferenceDataItemResponse("MARRIED", "Đã kết hôn", null)
         );
     }
 
@@ -118,14 +122,14 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
     @Override
     public List<ReferenceDataItemResponse> getReferencePersonRelationships() {
         return List.of(
-                new ReferenceDataItemResponse("FATHER", "Bo", null),
-                new ReferenceDataItemResponse("MOTHER", "Me", null),
-                new ReferenceDataItemResponse("SPOUSE", "Vo/chong", null),
-                new ReferenceDataItemResponse("SIBLING", "Anh/chi/em", null),
-                new ReferenceDataItemResponse("RELATIVE", "Nguoi than", null),
-                new ReferenceDataItemResponse("FRIEND", "Ban be", null),
-                new ReferenceDataItemResponse("COLLEAGUE", "Dong nghiep", null),
-                new ReferenceDataItemResponse("OTHER", "Khac", null)
+                new ReferenceDataItemResponse("FATHER", "Bố", null),
+                new ReferenceDataItemResponse("MOTHER", "Mẹ", null),
+                new ReferenceDataItemResponse("SPOUSE", "Vợ/chồng", null),
+                new ReferenceDataItemResponse("SIBLING", "Anh/chị/em", null),
+                new ReferenceDataItemResponse("RELATIVE", "Người thân", null),
+                new ReferenceDataItemResponse("FRIEND", "Bạn bè", null),
+                new ReferenceDataItemResponse("COLLEAGUE", "Đồng nghiệp", null),
+                new ReferenceDataItemResponse("OTHER", "Khác", null)
         );
     }
 
@@ -146,6 +150,14 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
                         item.getName(),
                         item.getDescription()
                 ))
+                .toList();
+    }
+
+    @Override
+    public List<ReferenceDataItemResponse> getLoanApplicationSteps() {
+        return loanApplicationStepRepository.findByActiveTrueOrderByStepOrderAsc()
+                .stream()
+                .map(item -> new ReferenceDataItemResponse(item.getCode(), item.getName(), item.getDescription()))
                 .toList();
     }
 

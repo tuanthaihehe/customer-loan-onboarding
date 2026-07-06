@@ -1,14 +1,11 @@
 package com.f88.loanonboarding.entity;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import com.f88.loanonboarding.enums.ReferenceRelationshipType;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
@@ -22,35 +19,35 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "loan_application_reference_person")
-public class LoanApplicationReferencePerson {
+@Table(name = "kyc_profile")
+public class KycProfile {
 
     @Id
     private UUID id = UUID.randomUUID();
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "loan_application_id", nullable = false)
+    @JoinColumn(name = "customer_id", nullable = false)
+    private Customer customer;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "loan_application_id")
     private LoanApplication loanApplication;
 
-    @Column(name = "full_name", nullable = false)
-    private String fullName;
+    @Column(name = "face_match_score", precision = 5, scale = 2)
+    private BigDecimal faceMatchScore;
 
-    @Column(name = "phone_number", nullable = false, length = 20)
-    private String phoneNumber;
+    @Column(name = "liveness_detection_score", precision = 5, scale = 2)
+    private BigDecimal livenessDetectionScore;
 
-    @Column(name = "address")
-    private String address;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "relationship_type", nullable = false, length = 50)
-    private ReferenceRelationshipType relationshipType;
-
-    @Column(name = "note")
-    private String note;
+    @Column(name = "checked_at")
+    private LocalDateTime checkedAt;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    @Column(name = "note")
+    private String note;
 }

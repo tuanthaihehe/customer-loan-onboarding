@@ -12,8 +12,11 @@ public interface LoanApplicationDraftRepository extends JpaRepository<LoanApplic
 
     boolean existsByDraftCode(String draftCode);
 
+    Optional<LoanApplicationDraft> findByDraftCode(String draftCode);
+
     Optional<LoanApplicationDraft> findTopByDraftCodeStartingWithOrderByDraftCodeDesc(String prefix);
 
+    @Override
     @EntityGraph(attributePaths = {
             "customer",
             "currentStep"

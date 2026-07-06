@@ -3,14 +3,17 @@ package com.f88.loanonboarding.rule.customer;
 import java.time.LocalDate;
 import java.time.Period;
 
+import org.springframework.stereotype.Component;
+
 import com.f88.loanonboarding.rule.BusinessRule;
 import com.f88.loanonboarding.rule.RuleCode;
 import com.f88.loanonboarding.rule.RuleContext;
 import com.f88.loanonboarding.rule.RuleResult;
 
+@Component
 public class CustomerAgeRule implements BusinessRule {
 
-    private static final int MIN_AGE = 18;
+    private static final int MIN_CUSTOMER_AGE = 18;
 
     @Override
     public RuleResult evaluate(RuleContext context) {
@@ -19,8 +22,11 @@ public class CustomerAgeRule implements BusinessRule {
         }
 
         int age = Period.between(context.dateOfBirth(), LocalDate.now()).getYears();
-        if (age < MIN_AGE) {
-            return RuleResult.fail(RuleCode.CUSTOMER_AGE_CHECK, "Khách hàng phải đủ 18 tuổi trở lên");
+        if (age < MIN_CUSTOMER_AGE) {
+            return RuleResult.fail(
+                    RuleCode.CUSTOMER_AGE_CHECK,
+                    "Khách hàng chưa đủ 18 tuổi, không đủ điều kiện tạo hồ sơ vay"
+            );
         }
 
         return RuleResult.pass(RuleCode.CUSTOMER_AGE_CHECK);

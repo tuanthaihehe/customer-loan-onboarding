@@ -40,6 +40,9 @@ import com.f88.loanonboarding.entity.LoanPurpose;
 import com.f88.loanonboarding.entity.LoanTerm;
 import com.f88.loanonboarding.entity.Occupation;
 import com.f88.loanonboarding.enums.AssetType;
+import com.f88.loanonboarding.enums.Gender;
+import com.f88.loanonboarding.enums.MaritalStatus;
+import com.f88.loanonboarding.enums.ReferenceRelationshipType;
 import com.f88.loanonboarding.exception.BusinessException;
 import com.f88.loanonboarding.repository.BankRepository;
 import com.f88.loanonboarding.repository.CustomerRepository;
@@ -364,8 +367,8 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
 
     private boolean hasCompleteCustomerDetail(LoanApplication application) {
         Customer customer = application.getCustomer();
-        return isNotBlank(customer.getGender())
-                && isNotBlank(customer.getMaritalStatus())
+        return customer.getGender() != null
+                && customer.getMaritalStatus() != null
                 && isNotBlank(customer.getPermanentAddress())
                 && application.getOccupation() != null
                 && application.getIncomeSource() != null
@@ -464,7 +467,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 && isNotBlank(customer.getIdentityNumber())
                 && isNotBlank(customer.getPhoneNumber())
                 && customer.getDateOfBirth() != null
-                && isNotBlank(customer.getGender())
+                && customer.getGender() != null
                 && application.getOccupation() != null
                 && application.getMonthlyIncomeAmount() != null;
     }
@@ -486,7 +489,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 "dateOfBirth", customer.getDateOfBirth(),
                 "identifierNumber", customer.getIdentityNumber(),
                 "phoneNumber", customer.getPhoneNumber(),
-                "gender", customer.getGender(),
+                "gender", customer.getGender() == null ? null : customer.getGender().name(),
                 "occupation", application.getOccupation() == null ? null : application.getOccupation().getCode(),
                 "occupationName", application.getOccupation() == null ? null : application.getOccupation().getName(),
                 "monthlyIncome", application.getMonthlyIncomeAmount()
@@ -505,9 +508,9 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 customer.getIdentityNumber(),
                 customer.getPhoneNumber(),
                 customer.getDateOfBirth(),
-                customer.getGender(),
+                customer.getGender() == null ? null : customer.getGender().name(),
                 customer.getEmail(),
-                customer.getMaritalStatus(),
+                customer.getMaritalStatus() == null ? null : customer.getMaritalStatus().name(),
                 occupation == null ? null : occupation.getCode(),
                 occupation == null ? null : occupation.getName(),
                 incomeSource == null ? null : incomeSource.getCode(),
@@ -529,7 +532,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 .map(item -> new ReferencePersonResponse(
                         item.getFullName(),
                         item.getPhoneNumber(),
-                        item.getRelationshipType(),
+                        item.getRelationshipType() == null ? null : item.getRelationshipType().name(),
                         item.getAddress(),
                         item.getNote()
                 ))
@@ -602,28 +605,28 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         return normalized == null ? null : normalized.toUpperCase();
     }
 
-    private String validateGender(String value) {
+    private Gender validateGender(String value) {
         String gender = normalizeCode(value);
         if (!SUPPORTED_GENDERS.contains(gender)) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Giới tính không hợp lệ. Giá trị hợp lệ: MALE, FEMALE");
         }
-        return gender;
+        return Gender.valueOf(gender);
     }
 
-    private String validateMaritalStatus(String value) {
+    private MaritalStatus validateMaritalStatus(String value) {
         String status = normalizeCode(value);
         if (!SUPPORTED_MARITAL_STATUSES.contains(status)) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Tình trạng hôn nhân không hợp lệ. Giá trị hợp lệ: SINGLE, MARRIED");
         }
-        return status;
+        return MaritalStatus.valueOf(status);
     }
 
-    private String validateRelationshipType(String value) {
+    private ReferenceRelationshipType validateRelationshipType(String value) {
         String relationshipType = normalizeCode(value);
         if (!SUPPORTED_RELATIONSHIP_TYPES.contains(relationshipType)) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Mối quan hệ người tham chiếu không hợp lệ");
         }
-        return relationshipType;
+        return ReferenceRelationshipType.valueOf(relationshipType);
     }
 
     private void validateReferencePhones(List<ReferencePersonRequest> referencePersons) {
