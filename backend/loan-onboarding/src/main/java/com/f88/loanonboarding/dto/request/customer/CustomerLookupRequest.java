@@ -12,9 +12,6 @@ public record CustomerLookupRequest(
         @NotNull(message = "Ngày sinh là bắt buộc")
         LocalDate dateOfBirth,
 
-        @NotBlank(message = "Loại giấy tờ là bắt buộc")
-        String identifierType,
-
         @NotBlank(message = "Số giấy tờ là bắt buộc")
         String identifierNumber,
 
