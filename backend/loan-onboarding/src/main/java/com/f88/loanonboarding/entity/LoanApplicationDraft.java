@@ -47,12 +47,6 @@ public class LoanApplicationDraft {
     @Column(name = "expired_at")
     private LocalDateTime expiredAt;
 
-    @Column(name = "cancelled_at")
-    private LocalDateTime cancelledAt;
-
-    @Column(name = "converted_at")
-    private LocalDateTime convertedAt;
-
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

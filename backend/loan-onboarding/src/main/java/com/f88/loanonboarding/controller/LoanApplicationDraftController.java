@@ -22,7 +22,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
-@Tag(name = "Loan Application Draft", description = "API hồ sơ vay nháp theo từng step")
+@Tag(name = "Loan Application Draft", description = "API hồ sơ vay nháp theo từng bước")
 @RestController
 @RequestMapping("/api/v1/loan-application-drafts")
 public class LoanApplicationDraftController {
@@ -47,6 +47,18 @@ public class LoanApplicationDraftController {
         return ApiResponse.success(draftService.getOverview(draftId));
     }
 
+    @Operation(summary = "Lấy toàn bộ dữ liệu các bước của hồ sơ vay nháp")
+    @GetMapping("/{draftId}/data")
+    public ApiResponse<LoanApplicationDraftOverviewResponse> getAllData(@PathVariable UUID draftId) {
+        return ApiResponse.success(draftService.getOverview(draftId));
+    }
+
+    @Operation(summary = "Lấy payload của bước hiện tại trong hồ sơ vay nháp")
+    @GetMapping("/{draftId}/current-step")
+    public ApiResponse<LoanApplicationDraftStepPayloadResponse> getCurrentStepPayload(@PathVariable UUID draftId) {
+        return ApiResponse.success(draftService.getCurrentStepPayload(draftId));
+    }
+
     @Operation(summary = "Lấy payload của một step trong hồ sơ vay nháp")
     @GetMapping("/{draftId}/steps/{stepCode}")
     public ApiResponse<LoanApplicationDraftStepPayloadResponse> getStepPayload(
@@ -56,7 +68,7 @@ public class LoanApplicationDraftController {
         return ApiResponse.success(draftService.getStepPayload(draftId, stepCode));
     }
 
-    @Operation(summary = "Lưu step CUSTOMER_IDENTIFY hoặc PRELIMINARY_INFO")
+    @Operation(summary = "Lưu payload một bước của hồ sơ vay nháp")
     @PutMapping("/{draftId}/steps/{stepCode}")
     public ApiResponse<SaveLoanApplicationDraftStepResponse> saveStep(
             @PathVariable UUID draftId,

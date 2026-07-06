@@ -1,9 +1,9 @@
 package com.f88.loanonboarding.service.impl;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -15,9 +15,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.f88.loanonboarding.common.error.ErrorCode;
 import com.f88.loanonboarding.dto.request.draft.CreateLoanApplicationDraftRequest;
 import com.f88.loanonboarding.dto.request.draft.SaveLoanApplicationDraftStepRequest;
+import com.f88.loanonboarding.dto.response.draft.LoanApplicationDraftCustomerResponse;
 import com.f88.loanonboarding.dto.response.draft.LoanApplicationDraftOverviewResponse;
 import com.f88.loanonboarding.dto.response.draft.LoanApplicationDraftStepPayloadResponse;
 import com.f88.loanonboarding.dto.response.draft.LoanApplicationDraftStepResponse;
@@ -45,18 +47,19 @@ public class LoanApplicationDraftServiceImpl implements LoanApplicationDraftServ
     private static final String STATUS_NOT_STARTED = "NOT_STARTED";
     private static final String STATUS_IN_PROGRESS = "IN_PROGRESS";
     private static final String STATUS_COMPLETED = "COMPLETED";
+    private static final String DRAFT_STATUS_COMPLETED = "COMPLETED";
     private static final String STEP_CUSTOMER_IDENTIFY = "CUSTOMER_IDENTIFY";
     private static final String STEP_PRELIMINARY_INFO = "PRELIMINARY_INFO";
     private static final String STEP_CUSTOMER_DETAIL = "CUSTOMER_DETAIL";
+    private static final String STEP_UPLOAD_COMPLETE = "UPLOAD_COMPLETE";
     private static final List<String> REQUIRED_STEP_CODES = List.of(
             STEP_CUSTOMER_IDENTIFY,
             STEP_PRELIMINARY_INFO,
             STEP_CUSTOMER_DETAIL,
             "ASSET_DETAIL",
             "FINAL_LOAN_PROPOSAL",
-            "UPLOAD_COMPLETE"
+            STEP_UPLOAD_COMPLETE
     );
-    private static final Set<String> SUPPORTED_SAVE_STEPS = Set.of(STEP_CUSTOMER_IDENTIFY, STEP_PRELIMINARY_INFO);
 
     private final CustomerRepository customerRepository;
     private final LoanApplicationStepRepository stepRepository;
@@ -89,23 +92,36 @@ public class LoanApplicationDraftServiceImpl implements LoanApplicationDraftServ
                     .orElseThrow(() -> new BusinessException(ErrorCode.CUSTOMER_NOT_FOUND));
             List<LoanApplicationStep> steps = activeSteps();
             LoanApplicationStep firstStep = stepByCode(steps, STEP_CUSTOMER_IDENTIFY);
+            LoanApplicationStep preliminaryStep = stepByCode(steps, STEP_PRELIMINARY_INFO);
 
             LoanApplicationDraft draft = new LoanApplicationDraft();
             draft.setDraftCode(nextDraftCode());
             draft.setCustomer(customer);
-            draft.setCurrentStep(firstStep);
+            draft.setCurrentStep(preliminaryStep);
             draft.setStatus(DRAFT_STATUS);
+            draft.setExpiredAt(LocalDateTime.now().plus(30, ChronoUnit.DAYS));
 
             LoanApplicationDraft savedDraft = draftRepository.save(draft);
             for (LoanApplicationStep step : steps) {
                 LoanApplicationDraftStepData stepData = new LoanApplicationDraftStepData();
                 stepData.setDraft(savedDraft);
                 stepData.setStep(step);
-                stepData.setStatus(STEP_CUSTOMER_IDENTIFY.equals(step.getCode()) ? STATUS_IN_PROGRESS : STATUS_NOT_STARTED);
-                stepData.setPayload(emptyPayload());
+                if (STEP_CUSTOMER_IDENTIFY.equals(step.getCode())) {
+                    stepData.setStatus(STATUS_COMPLETED);
+                    stepData.setCompletedAt(LocalDateTime.now());
+                    stepData.setPayload(customerIdentifyPayload(customer));
+                } else if (STEP_PRELIMINARY_INFO.equals(step.getCode())) {
+                    stepData.setStatus(STATUS_IN_PROGRESS);
+                    stepData.setPayload(emptyPayload());
+                } else {
+                    stepData.setStatus(STATUS_NOT_STARTED);
+                    stepData.setPayload(emptyPayload());
+                }
                 stepDataRepository.save(stepData);
             }
-            historyRepository.save(history(savedDraft, firstStep, "CREATE_DRAFT", null, DRAFT_STATUS, "Create loan application draft"));
+            historyRepository.save(history(savedDraft, null, "CREATE_DRAFT", null, DRAFT_STATUS, "Tạo hồ sơ vay nháp"));
+            historyRepository.save(history(savedDraft, firstStep, "COMPLETE_STEP", STATUS_IN_PROGRESS, STATUS_COMPLETED, "Hoàn thành định danh khách hàng"));
+            historyRepository.save(history(savedDraft, preliminaryStep, "SAVE_STEP", STATUS_NOT_STARTED, STATUS_IN_PROGRESS, "Mở bước nhập thông tin sơ bộ"));
 
             return toOverview(savedDraft);
         } catch (BusinessException ex) {
@@ -121,6 +137,19 @@ public class LoanApplicationDraftServiceImpl implements LoanApplicationDraftServ
     public LoanApplicationDraftOverviewResponse getOverview(UUID draftId) {
         LoanApplicationDraft draft = findDraft(draftId);
         return toOverview(draft);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public LoanApplicationDraftStepPayloadResponse getCurrentStepPayload(UUID draftId) {
+        LoanApplicationDraft draft = findDraft(draftId);
+        LoanApplicationDraftStepData stepData = findStepData(draft, draft.getCurrentStep().getCode());
+        return new LoanApplicationDraftStepPayloadResponse(
+                draft.getId(),
+                stepData.getStep().getCode(),
+                stepData.getStatus(),
+                payloadOrEmpty(stepData.getPayload())
+        );
     }
 
     @Override
@@ -145,35 +174,61 @@ public class LoanApplicationDraftServiceImpl implements LoanApplicationDraftServ
     ) {
         try {
             String normalizedStepCode = normalizeStepCode(stepCode);
-            ensureSupportedSaveStep(normalizedStepCode);
             ensureObjectPayload(request.payload());
 
             LoanApplicationDraft draft = findDraft(draftId);
             ensureDraftStatus(draft);
+            List<LoanApplicationStep> steps = activeSteps();
 
             LoanApplicationDraftStepData currentStepData = findStepData(draft, normalizedStepCode);
             String oldStatus = currentStepData.getStatus();
+            if (STATUS_NOT_STARTED.equals(oldStatus)) {
+                throw new BusinessException(
+                        ErrorCode.INVALID_LOAN_APPLICATION_STATE,
+                        "Chưa thể lưu bước " + normalizedStepCode + " vì bước này chưa được mở."
+                );
+            }
             currentStepData.setPayload(request.payload());
             currentStepData.setStatus(STATUS_COMPLETED);
             currentStepData.setCompletedAt(LocalDateTime.now());
+            currentStepData.setRequiresReview(false);
+            currentStepData.setReviewedAt(LocalDateTime.now());
+            currentStepData.setInvalidatedAt(null);
+            currentStepData.setInvalidatedByStep(null);
             stepDataRepository.save(currentStepData);
+            markDownstreamForReview(draft, steps, currentStepData);
 
-            String nextStepCode = nextStepCode(normalizedStepCode);
-            LoanApplicationDraftStepData nextStepData = findStepData(draft, nextStepCode);
-            if (STATUS_NOT_STARTED.equals(nextStepData.getStatus())) {
-                nextStepData.setStatus(STATUS_IN_PROGRESS);
-                stepDataRepository.save(nextStepData);
+            LoanApplicationDraftStepData nextStepData = nextStepData(draft, steps, normalizedStepCode);
+            String nextStepCode = null;
+            if (nextStepData != null) {
+                nextStepCode = nextStepData.getStep().getCode();
+                String nextOldStatus = nextStepData.getStatus();
+                if (STATUS_NOT_STARTED.equals(nextOldStatus)) {
+                    nextStepData.setStatus(STATUS_IN_PROGRESS);
+                    stepDataRepository.save(nextStepData);
+                    historyRepository.save(history(
+                            draft,
+                            nextStepData.getStep(),
+                            "SAVE_STEP",
+                            nextOldStatus,
+                            STATUS_IN_PROGRESS,
+                            "Mở bước " + nextStepCode
+                    ));
+                }
+                draft.setCurrentStep(nextStepData.getStep());
+            } else {
+                draft.setCurrentStep(currentStepData.getStep());
+                draft.setStatus(DRAFT_STATUS_COMPLETED);
             }
 
-            draft.setCurrentStep(nextStepData.getStep());
             LoanApplicationDraft savedDraft = draftRepository.save(draft);
             historyRepository.save(history(
                     savedDraft,
                     currentStepData.getStep(),
-                    "SAVE_STEP",
+                    "COMPLETE_STEP",
                     oldStatus,
                     STATUS_COMPLETED,
-                    "Save draft step " + normalizedStepCode
+                    "Hoàn thành bước " + normalizedStepCode
             ));
 
             return new SaveLoanApplicationDraftStepResponse(
@@ -181,7 +236,7 @@ public class LoanApplicationDraftServiceImpl implements LoanApplicationDraftServ
                     currentStepData.getStep().getCode(),
                     currentStepData.getStatus(),
                     savedDraft.getCurrentStep().getCode(),
-                    nextStepData.getStep().getCode(),
+                    nextStepCode,
                     savedDraft.getStatus()
             );
         } catch (BusinessException ex) {
@@ -239,15 +294,6 @@ public class LoanApplicationDraftServiceImpl implements LoanApplicationDraftServ
         }
     }
 
-    private void ensureSupportedSaveStep(String stepCode) {
-        if (!SUPPORTED_SAVE_STEPS.contains(stepCode)) {
-            throw new BusinessException(
-                    ErrorCode.VALIDATION_ERROR,
-                    "This demo flow only supports CUSTOMER_IDENTIFY and PRELIMINARY_INFO"
-            );
-        }
-    }
-
     private void ensureObjectPayload(JsonNode payload) {
         if (payload == null || !payload.isObject()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "payload phải là JSON object");
@@ -256,17 +302,6 @@ public class LoanApplicationDraftServiceImpl implements LoanApplicationDraftServ
 
     private String normalizeStepCode(String stepCode) {
         return stepCode == null ? null : stepCode.trim().toUpperCase();
-    }
-
-    private String nextStepCode(String stepCode) {
-        return switch (stepCode) {
-            case STEP_CUSTOMER_IDENTIFY -> STEP_PRELIMINARY_INFO;
-            case STEP_PRELIMINARY_INFO -> STEP_CUSTOMER_DETAIL;
-            default -> throw new BusinessException(
-                    ErrorCode.VALIDATION_ERROR,
-                    "This demo flow only supports CUSTOMER_IDENTIFY and PRELIMINARY_INFO"
-            );
-        };
     }
 
     private LoanApplicationDraftOverviewResponse toOverview(LoanApplicationDraft draft) {
@@ -282,6 +317,7 @@ public class LoanApplicationDraftServiceImpl implements LoanApplicationDraftServ
                 draft.getId(),
                 draft.getDraftCode(),
                 draft.getCustomer().getId(),
+                toCustomerResponse(draft.getCustomer()),
                 draft.getStatus(),
                 draft.getCurrentStep().getCode(),
                 currentStepPayload,
@@ -300,6 +336,47 @@ public class LoanApplicationDraftServiceImpl implements LoanApplicationDraftServ
         );
     }
 
+    private LoanApplicationDraftStepData nextStepData(
+            LoanApplicationDraft draft,
+            List<LoanApplicationStep> steps,
+            String currentStepCode
+    ) {
+        for (int i = 0; i < steps.size(); i++) {
+            if (currentStepCode.equals(steps.get(i).getCode()) && i + 1 < steps.size()) {
+                return findStepData(draft, steps.get(i + 1).getCode());
+            }
+        }
+        return null;
+    }
+
+    private void markDownstreamForReview(
+            LoanApplicationDraft draft,
+            List<LoanApplicationStep> steps,
+            LoanApplicationDraftStepData changedStepData
+    ) {
+        int changedOrder = changedStepData.getStep().getStepOrder();
+        for (LoanApplicationStep step : steps) {
+            if (step.getStepOrder() <= changedOrder) {
+                continue;
+            }
+            LoanApplicationDraftStepData downstream = findStepData(draft, step.getCode());
+            if (STATUS_COMPLETED.equals(downstream.getStatus())) {
+                downstream.setRequiresReview(true);
+                downstream.setInvalidatedByStep(changedStepData.getStep());
+                downstream.setInvalidatedAt(LocalDateTime.now());
+                stepDataRepository.save(downstream);
+                historyRepository.save(history(
+                        draft,
+                        downstream.getStep(),
+                        "INVALIDATE_STEP",
+                        downstream.getStatus(),
+                        downstream.getStatus(),
+                        "Cần rà soát lại do bước " + changedStepData.getStep().getCode() + " thay đổi"
+                ));
+            }
+        }
+    }
+
     private LoanApplicationDraftHistory history(
             LoanApplicationDraft draft,
             LoanApplicationStep step,
@@ -315,7 +392,41 @@ public class LoanApplicationDraftServiceImpl implements LoanApplicationDraftServ
         history.setOldStatus(oldStatus);
         history.setNewStatus(newStatus);
         history.setNote(note);
+        ObjectNode metadata = objectMapper.createObjectNode();
+        if (step != null) {
+            metadata.put("stepCode", step.getCode());
+        }
+        metadata.put("action", action);
+        history.setMetadata(metadata);
         return history;
+    }
+
+    private LoanApplicationDraftCustomerResponse toCustomerResponse(Customer customer) {
+        return new LoanApplicationDraftCustomerResponse(
+                customer.getId(),
+                customer.getCustomerCode(),
+                customer.getFullName(),
+                customer.getIdentityNumber(),
+                customer.getPhoneNumber(),
+                customer.getDateOfBirth(),
+                customer.getStatus()
+        );
+    }
+
+    private JsonNode customerIdentifyPayload(Customer customer) {
+        ObjectNode payload = objectMapper.createObjectNode();
+        payload.put("initialized", true);
+        payload.put("identity_verified", true);
+        payload.put("customer_id", customer.getId().toString());
+        payload.put("customer_code", customer.getCustomerCode());
+        payload.put("full_name", customer.getFullName());
+        payload.put("identity_number", customer.getIdentityNumber());
+        payload.put("phone_number", customer.getPhoneNumber());
+        if (customer.getDateOfBirth() != null) {
+            payload.put("date_of_birth", customer.getDateOfBirth().toString());
+        }
+        payload.put("status", customer.getStatus());
+        return payload;
     }
 
     private JsonNode emptyPayload() {

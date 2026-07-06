@@ -55,6 +55,16 @@ public class LoanApplicationDraftStepData {
     @Column(name = "invalidated_reason")
     private String invalidatedReason;
 
+    @Column(name = "requires_review", nullable = false)
+    private boolean requiresReview = false;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "invalidated_by_step_code")
+    private LoanApplicationStep invalidatedByStep;
+
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
