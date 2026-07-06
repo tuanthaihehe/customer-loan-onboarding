@@ -41,30 +41,38 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Override
     public CustomerLookupResponse lookup(CustomerLookupRequest request) {
-        List<Customer> customers = customerRepository.lookup(
-                request.identifierNumber(),
-                request.phoneNumber(),
-                request.fullName(),
+        String identityNumber = normalizeText(request.identifierNumber());
+        String phoneNumber = normalizeText(request.phoneNumber());
+        String fullName = normalizeText(request.fullName());
+
+        List<Customer> exactMatches = customerRepository.lookupExact(
+                identityNumber,
+                phoneNumber,
+                fullName,
                 request.dateOfBirth()
         );
-
-        if (customers.isEmpty()) {
-            ruleEvaluationService.validateOrThrow(
-                    RuleContext.customer(null, request.dateOfBirth(), false),
-                    List.of(new CustomerBlacklistRule(), customerAgeRule)
-            );
-            return new CustomerLookupResponse(
-                    false,
-                    null,
-                    null,
-                    "NOT_FOUND",
-                    "NEED_CREATE_CUSTOMER",
-                    null,
-                    "CUSTOMER_NOT_FOUND"
-            );
+        if (!exactMatches.isEmpty()) {
+            return toLookupResponse(exactMatches.get(0));
         }
 
-        return toLookupResponse(customers.get(0));
+        List<Customer> conflictCandidates = customerRepository.findIdentityConflictCandidates(identityNumber, phoneNumber);
+        if (!conflictCandidates.isEmpty()) {
+            return identityMismatchResponse(conflictCandidates.get(0), identityNumber, phoneNumber);
+        }
+
+        ruleEvaluationService.validateOrThrow(
+                RuleContext.customer(null, request.dateOfBirth(), false),
+                List.of(new CustomerBlacklistRule(), customerAgeRule)
+        );
+        return new CustomerLookupResponse(
+                false,
+                null,
+                null,
+                "NOT_FOUND",
+                "NEED_CREATE_CUSTOMER",
+                null,
+                "CUSTOMER_NOT_FOUND"
+        );
     }
 
     @Override
@@ -96,12 +104,7 @@ public class CustomerServiceImpl implements CustomerService {
                     status.name(),
                     status.name(),
                     "BLOCKED",
-                    new MatchedCustomerResponse(
-                            customer.getFullName(),
-                            customer.getDateOfBirth(),
-                            customer.getIdentityNumber(),
-                            customer.getPhoneNumber()
-                    ),
+                    matchedCustomer(customer),
                     "CUSTOMER_" + status.name()
             );
         }
@@ -116,13 +119,41 @@ public class CustomerServiceImpl implements CustomerService {
                 status.name(),
                 eligible ? "ELIGIBLE" : status.name(),
                 canCreateApplication ? "ALLOW_CREATE_APPLICATION" : "BLOCKED",
-                new MatchedCustomerResponse(
-                        customer.getFullName(),
-                        customer.getDateOfBirth(),
-                        customer.getIdentityNumber(),
-                        customer.getPhoneNumber()
-                ),
+                matchedCustomer(customer),
                 canCreateApplication ? null : "CUSTOMER_" + status.name()
+        );
+    }
+
+    private CustomerLookupResponse identityMismatchResponse(Customer customer, String identityNumber, String phoneNumber) {
+        return new CustomerLookupResponse(
+                false,
+                null,
+                null,
+                "IDENTITY_MISMATCH",
+                "BLOCKED",
+                null,
+                mismatchReasonCode(customer, identityNumber, phoneNumber)
+        );
+    }
+
+    private String mismatchReasonCode(Customer customer, String identityNumber, String phoneNumber) {
+        boolean identityMatched = identityNumber != null && identityNumber.equals(customer.getIdentityNumber());
+        boolean phoneMatched = phoneNumber != null && phoneNumber.equals(customer.getPhoneNumber());
+        if (identityMatched && phoneMatched) {
+            return "CUSTOMER_IDENTITY_INFO_MISMATCH";
+        }
+        if (identityMatched) {
+            return "CUSTOMER_IDENTITY_NUMBER_MISMATCH";
+        }
+        return "CUSTOMER_PHONE_NUMBER_MISMATCH";
+    }
+
+    private MatchedCustomerResponse matchedCustomer(Customer customer) {
+        return new MatchedCustomerResponse(
+                customer.getFullName(),
+                customer.getDateOfBirth(),
+                customer.getIdentityNumber(),
+                customer.getPhoneNumber()
         );
     }
 

@@ -35,7 +35,6 @@ Content-Type: application/json
 {
   "fullName": "Nguyễn Văn An",
   "dateOfBirth": "1995-01-15",
-  "identifierType": "CCCD",
   "identifierNumber": "001201000001",
   "phoneNumber": "0901000001"
 }
