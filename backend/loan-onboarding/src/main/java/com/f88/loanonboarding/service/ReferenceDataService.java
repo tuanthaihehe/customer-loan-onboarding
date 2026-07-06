@@ -23,6 +23,8 @@ public interface ReferenceDataService {
 
     List<ReferenceDataItemResponse> getLoanTerms();
 
+    List<ReferenceDataItemResponse> getLoanApplicationSteps();
+
     List<ReferenceDataItemResponse> getAssetTypes();
 
     List<ReferenceDataItemResponse> getVehicleBrands(AssetType assetType);

@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +18,14 @@ import com.f88.loanonboarding.dto.response.loanproduct.LoanProductRecommendation
 import com.f88.loanonboarding.entity.LoanProduct;
 import com.f88.loanonboarding.exception.BusinessException;
 import com.f88.loanonboarding.repository.LoanProductRepository;
+import com.f88.loanonboarding.rule.BusinessRule;
+import com.f88.loanonboarding.rule.RuleContext;
+import com.f88.loanonboarding.rule.RuleEvaluationService;
+import com.f88.loanonboarding.rule.loanproduct.LoanProductAssetTypeRule;
+import com.f88.loanonboarding.rule.loanproduct.LoanProductMinimumAmountRule;
+import com.f88.loanonboarding.rule.loanproduct.LoanProductPurposeRule;
+import com.f88.loanonboarding.rule.loanproduct.LoanProductScoreGradeRule;
+import com.f88.loanonboarding.rule.loanproduct.LoanProductTenorRule;
 import com.f88.loanonboarding.service.LoanProductService;
 
 @Service
@@ -23,11 +33,23 @@ public class LoanProductServiceImpl implements LoanProductService {
 
     private static final BigDecimal ONE_HUNDRED = BigDecimal.valueOf(100);
     private static final int TOP_RECOMMENDATION_LIMIT = 3;
+    private static final List<BusinessRule> PRODUCT_RECOMMENDATION_RULES = List.of(
+            new LoanProductPurposeRule(),
+            new LoanProductAssetTypeRule(),
+            new LoanProductTenorRule(),
+            new LoanProductScoreGradeRule(),
+            new LoanProductMinimumAmountRule()
+    );
 
     private final LoanProductRepository loanProductRepository;
+    private final RuleEvaluationService ruleEvaluationService;
 
-    public LoanProductServiceImpl(LoanProductRepository loanProductRepository) {
+    public LoanProductServiceImpl(
+            LoanProductRepository loanProductRepository,
+            RuleEvaluationService ruleEvaluationService
+    ) {
         this.loanProductRepository = loanProductRepository;
+        this.ruleEvaluationService = ruleEvaluationService;
     }
 
     @Override
@@ -35,12 +57,9 @@ public class LoanProductServiceImpl implements LoanProductService {
     public LoanProductRecommendationResponse recommend(LoanProductRecommendationRequest request) {
         List<LoanProductQuoteResponse> products = loanProductRepository.findByActiveTrueOrderBySortOrderAsc()
                 .stream()
-                .filter(product -> matchesLoanPurpose(product, request.selectedLoanPurpose()))
-                .filter(product -> matchesAssetType(product, request.selectedAssetType().code()))
-                .filter(product -> matchesTenor(product, request.selectedTenor()))
-                .filter(product -> matchesScoreGrade(product, request.scoreGrade()))
-                .map(product -> calculateQuote(product, request))
-                .filter(quote -> quote.effectiveMaxLoanAmount().compareTo(quote.minLoanAmount()) >= 0)
+                .map(product -> new ProductQuote(product, calculateQuote(product, request)))
+                .filter(item -> passesProductRules(item.product(), item.quote(), request))
+                .map(ProductQuote::quote)
                 .sorted(quoteComparator())
                 .limit(TOP_RECOMMENDATION_LIMIT)
                 .toList();
@@ -73,14 +92,8 @@ public class LoanProductServiceImpl implements LoanProductService {
     @Transactional(readOnly = true)
     public LoanProductQuoteResponse quote(String productCode, LoanProductRecommendationRequest request) {
         LoanProduct product = findProduct(productCode);
-        validateProductEligibility(product, request);
         LoanProductQuoteResponse quote = calculateQuote(product, request);
-        if (quote.effectiveMaxLoanAmount().compareTo(quote.minLoanAmount()) < 0) {
-            throw new BusinessException(
-                    ErrorCode.BUSINESS_RULE_VIOLATION,
-                    "Sản phẩm không đạt số tiền vay tối thiểu với giá trị tài sản hiện tại."
-            );
-        }
+        validateProductRules(product, quote, request);
         return withRankAndRecommended(quote, 1, true);
     }
 
@@ -91,41 +104,6 @@ public class LoanProductServiceImpl implements LoanProductService {
                         ErrorCode.RESOURCE_NOT_FOUND,
                         "Loan product is not configured or inactive: " + productCode
                 ));
-    }
-
-    private void validateProductEligibility(LoanProduct product, LoanProductRecommendationRequest request) {
-        if (!matchesLoanPurpose(product, request.selectedLoanPurpose())) {
-            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Sản phẩm không áp dụng cho mục đích vay đã chọn.");
-        }
-        if (!matchesAssetType(product, request.selectedAssetType().code())) {
-            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Sản phẩm không áp dụng cho loại tài sản đã chọn.");
-        }
-        if (!matchesTenor(product, request.selectedTenor())) {
-            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Sản phẩm không hỗ trợ kỳ hạn vay đã chọn.");
-        }
-        if (!matchesScoreGrade(product, request.scoreGrade())) {
-            throw new BusinessException(ErrorCode.BUSINESS_RULE_VIOLATION, "Sản phẩm không áp dụng cho hạng điểm đã chọn.");
-        }
-    }
-
-    private boolean matchesLoanPurpose(LoanProduct product, String selectedLoanPurpose) {
-        return product.isAppliesToAllLoanPurposes()
-                || product.getLoanPurposes().stream().anyMatch(item -> item.getCode().equals(selectedLoanPurpose));
-    }
-
-    private boolean matchesAssetType(LoanProduct product, String selectedAssetType) {
-        return product.getVehicleTypes().stream().anyMatch(item -> item.getCode().equals(selectedAssetType));
-    }
-
-    private boolean matchesTenor(LoanProduct product, Integer selectedTenor) {
-        return product.getLoanTerms().stream().anyMatch(item -> item.getTermMonths().equals(selectedTenor));
-    }
-
-    private boolean matchesScoreGrade(LoanProduct product, String scoreGrade) {
-        if (scoreGrade == null || scoreGrade.isBlank()) {
-            return true;
-        }
-        return product.getScoreGrades().stream().anyMatch(item -> item.getCode().equals(scoreGrade));
     }
 
     private LoanProductQuoteResponse calculateQuote(LoanProduct product, LoanProductRecommendationRequest request) {
@@ -150,6 +128,7 @@ public class LoanProductServiceImpl implements LoanProductService {
                 null,
                 product.getProductCode(),
                 product.getProductName(),
+                product.getLoanTerms().stream().map(item -> item.getTermMonths()).sorted().toList(),
                 product.getMinLoanAmount(),
                 product.getMaxLoanAmount(),
                 product.getMaxLtvPercent(),
@@ -162,6 +141,44 @@ public class LoanProductServiceImpl implements LoanProductService {
                 interestPerMonth,
                 estimatedMonthlyPayment,
                 false
+        );
+    }
+
+    private boolean passesProductRules(
+            LoanProduct product,
+            LoanProductQuoteResponse quote,
+            LoanProductRecommendationRequest request
+    ) {
+        return ruleEvaluationService.evaluate(productRuleContext(product, quote, request), PRODUCT_RECOMMENDATION_RULES)
+                .stream()
+                .allMatch(result -> result.passed());
+    }
+
+    private void validateProductRules(
+            LoanProduct product,
+            LoanProductQuoteResponse quote,
+            LoanProductRecommendationRequest request
+    ) {
+        ruleEvaluationService.validateOrThrow(productRuleContext(product, quote, request), PRODUCT_RECOMMENDATION_RULES);
+    }
+
+    private RuleContext productRuleContext(
+            LoanProduct product,
+            LoanProductQuoteResponse quote,
+            LoanProductRecommendationRequest request
+    ) {
+        return RuleContext.loanProduct(
+                request.selectedLoanPurpose(),
+                request.selectedAssetType(),
+                request.selectedTenor(),
+                request.scoreGrade(),
+                product.isAppliesToAllLoanPurposes(),
+                product.getLoanPurposes().stream().map(item -> item.getCode()).collect(Collectors.toSet()),
+                product.getVehicleTypes().stream().map(item -> item.getCode()).collect(Collectors.toSet()),
+                Set.copyOf(quote.allowedTenors()),
+                product.getScoreGrades().stream().map(item -> item.getCode()).collect(Collectors.toSet()),
+                quote.minLoanAmount(),
+                quote.effectiveMaxLoanAmount()
         );
     }
 
@@ -180,6 +197,12 @@ public class LoanProductServiceImpl implements LoanProductService {
         return ranked;
     }
 
+    private record ProductQuote(
+            LoanProduct product,
+            LoanProductQuoteResponse quote
+    ) {
+    }
+
     private LoanProductQuoteResponse withRankAndRecommended(
             LoanProductQuoteResponse source,
             int rank,
@@ -189,8 +212,9 @@ public class LoanProductServiceImpl implements LoanProductService {
                 rank,
                 source.productCode(),
                 source.productName(),
+                source.allowedTenors(),
                 source.minLoanAmount(),
-                source.productMaxLoanAmount(),
+                source.maxLoanAmount(),
                 source.maxLtvPercent(),
                 source.maxLoanByLtv(),
                 source.effectiveMaxLoanAmount(),

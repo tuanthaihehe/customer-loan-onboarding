@@ -476,7 +476,7 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
                 customer.getIdentityNumber(),
                 customer.getPhoneNumber(),
                 customer.getDateOfBirth(),
-                customer.getStatus()
+                customer.getStatus() == null ? null : customer.getStatus().name()
         );
     }
 
@@ -505,7 +505,7 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
                 vehicleYear.getManufactureYear(),
                 vehicleColor.getCode(),
                 vehicleColor.getName(),
-                asset.getStatus()
+                asset.getStatus() == null ? null : asset.getStatus().name()
         );
     }
 

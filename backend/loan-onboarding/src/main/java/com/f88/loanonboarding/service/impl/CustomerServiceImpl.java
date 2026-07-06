@@ -13,6 +13,7 @@ import com.f88.loanonboarding.dto.response.customer.CreatedCustomerResponse;
 import com.f88.loanonboarding.dto.response.customer.CustomerLookupResponse;
 import com.f88.loanonboarding.dto.response.customer.MatchedCustomerResponse;
 import com.f88.loanonboarding.entity.Customer;
+import com.f88.loanonboarding.enums.CustomerStatus;
 import com.f88.loanonboarding.exception.BusinessException;
 import com.f88.loanonboarding.repository.CustomerRepository;
 import com.f88.loanonboarding.rule.RuleContext;
@@ -24,15 +25,18 @@ import com.f88.loanonboarding.service.CustomerService;
 @Service
 public class CustomerServiceImpl implements CustomerService {
 
-    private static final String STATUS_ACTIVE = "ACTIVE";
-    private static final String STATUS_LEAD = "LEAD";
-
     private final CustomerRepository customerRepository;
     private final RuleEvaluationService ruleEvaluationService;
+    private final CustomerAgeRule customerAgeRule;
 
-    public CustomerServiceImpl(CustomerRepository customerRepository, RuleEvaluationService ruleEvaluationService) {
+    public CustomerServiceImpl(
+            CustomerRepository customerRepository,
+            RuleEvaluationService ruleEvaluationService,
+            CustomerAgeRule customerAgeRule
+    ) {
         this.customerRepository = customerRepository;
         this.ruleEvaluationService = ruleEvaluationService;
+        this.customerAgeRule = customerAgeRule;
     }
 
     @Override
@@ -47,16 +51,16 @@ public class CustomerServiceImpl implements CustomerService {
         if (customers.isEmpty()) {
             ruleEvaluationService.validateOrThrow(
                     RuleContext.customer(null, request.dateOfBirth(), false),
-                    List.of(new CustomerBlacklistRule(), new CustomerAgeRule())
+                    List.of(new CustomerBlacklistRule(), customerAgeRule)
             );
             return new CustomerLookupResponse(
-                        false,
-                        null,
-                        null,
-                        "NOT_FOUND",
-                        "NEED_CREATE_CUSTOMER",
-                        null,
-                        "CUSTOMER_NOT_FOUND"
+                    false,
+                    null,
+                    null,
+                    "NOT_FOUND",
+                    "NEED_CREATE_CUSTOMER",
+                    null,
+                    "CUSTOMER_NOT_FOUND"
             );
         }
 
@@ -74,21 +78,23 @@ public class CustomerServiceImpl implements CustomerService {
         customer.setIdentityNumber(normalizeText(request.identifierNumber()));
         customer.setPhoneNumber(normalizeText(request.phoneNumber()));
         customer.setDateOfBirth(request.dateOfBirth());
-        customer.setStatus(STATUS_LEAD);
+        customer.setStatus(CustomerStatus.LEAD);
 
         return toCreatedResponse(customerRepository.save(customer));
     }
 
     private CustomerLookupResponse toLookupResponse(Customer customer) {
-        boolean eligible = STATUS_ACTIVE.equals(customer.getStatus());
-        boolean restricted = "BLACKLIST".equals(customer.getStatus()) || "RESTRICTED".equals(customer.getStatus());
+        CustomerStatus status = customer.getStatus();
+        boolean eligible = CustomerStatus.ACTIVE.equals(status);
+        boolean restricted = CustomerStatus.BLACKLIST.equals(status);
         boolean canCreateApplication = !restricted;
+
         if (restricted) {
             return new CustomerLookupResponse(
                     true,
                     customer.getCustomerCode(),
-                    customer.getStatus(),
-                    customer.getStatus(),
+                    status.name(),
+                    status.name(),
                     "BLOCKED",
                     new MatchedCustomerResponse(
                             customer.getFullName(),
@@ -96,19 +102,19 @@ public class CustomerServiceImpl implements CustomerService {
                             customer.getIdentityNumber(),
                             customer.getPhoneNumber()
                     ),
-                    "CUSTOMER_" + customer.getStatus()
+                    "CUSTOMER_" + status.name()
             );
         }
 
         ruleEvaluationService.validateOrThrow(
                 RuleContext.customer(customer.getCustomerCode(), customer.getDateOfBirth(), restricted),
-                List.of(new CustomerBlacklistRule(), new CustomerAgeRule())
+                List.of(new CustomerBlacklistRule(), customerAgeRule)
         );
         return new CustomerLookupResponse(
                 true,
                 customer.getCustomerCode(),
-                customer.getStatus(),
-                eligible ? "ELIGIBLE" : customer.getStatus(),
+                status.name(),
+                eligible ? "ELIGIBLE" : status.name(),
                 canCreateApplication ? "ALLOW_CREATE_APPLICATION" : "BLOCKED",
                 new MatchedCustomerResponse(
                         customer.getFullName(),
@@ -116,14 +122,14 @@ public class CustomerServiceImpl implements CustomerService {
                         customer.getIdentityNumber(),
                         customer.getPhoneNumber()
                 ),
-                canCreateApplication ? null : "CUSTOMER_" + customer.getStatus()
+                canCreateApplication ? null : "CUSTOMER_" + status.name()
         );
     }
 
     private void validateCreatable(CreateCustomerRequest request) {
         ruleEvaluationService.validateOrThrow(
                 RuleContext.customer(null, request.dateOfBirth(), false),
-                List.of(new CustomerBlacklistRule(), new CustomerAgeRule())
+                List.of(new CustomerBlacklistRule(), customerAgeRule)
         );
 
         String identityNumber = normalizeText(request.identifierNumber());
@@ -170,7 +176,7 @@ public class CustomerServiceImpl implements CustomerService {
                 customer.getIdentityNumber(),
                 customer.getPhoneNumber(),
                 customer.getDateOfBirth(),
-                customer.getStatus()
+                customer.getStatus().name()
         );
     }
 }

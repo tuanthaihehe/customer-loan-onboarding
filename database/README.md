@@ -12,7 +12,8 @@ Schema hiện tại tập trung vào:
 - quản lý danh mục mục đích vay, kỳ hạn vay và sản phẩm vay;
 - quản lý danh mục xe, tài sản xe gắn với hồ sơ vay;
 - định giá tài sản và các khoản giảm trừ;
-- lưu thông tin người tham chiếu, snapshot thông tin sơ bộ, chứng từ hồ sơ vay và dữ liệu scoring mock.
+- lưu thông tin người tham chiếu, snapshot thông tin sơ bộ, chứng từ hồ sơ vay và dữ liệu scoring mock;
+- lưu hồ sơ vay nháp theo từng step trước khi convert sang hồ sơ vay thật.
 
 Theo cập nhật BA/DA mới nhất, database **không có Eligibility** nên backend không làm chức năng Eligibility.
 
@@ -40,7 +41,11 @@ Theo cập nhật BA/DA mới nhất, database **không có Eligibility** nên b
 │   ├── V14__add_customer_bank_occupation_extra_fields.sql
 │   ├── V15__add_vehicle_identifier_fields_to_asset.sql
 │   ├── V16__add_mock_score_grade_rule.sql
-│   └── V17__add_loan_application_document.sql
+│   ├── V17__add_loan_application_document.sql
+│   ├── V18__add_kyc_profile.sql
+│   ├── V19__update_loan_application_product_and_income_source.sql
+│   ├── V20__add_registration_certificate_number_to_asset.sql
+│   └── V21__add_loan_application_draft_step_flow.sql
 └── seed
     ├── V1__seed_reference_data.sql
     ├── V2__seed_demo_business_data.sql
@@ -51,7 +56,9 @@ Theo cập nhật BA/DA mới nhất, database **không có Eligibility** nên b
     ├── V7__seed_loan_product.sql
     ├── V8__seed_bank_and_occupation.sql
     ├── V9__seed_mock_score_grade_rule.sql
-    └── V10__seed_document_type.sql
+    ├── V10__seed_document_type.sql
+    ├── V11__seed_income_source.sql
+    └── V12__seed_loan_application_step.sql
 ```
 
 ## Bảng Chính
@@ -76,6 +83,10 @@ Theo cập nhật BA/DA mới nhất, database **không có Eligibility** nên b
 | `asset_valuation_deduction` | Lưu các yếu tố giảm trừ đã áp dụng trong một lần định giá. |
 | `document_type` | Danh mục loại chứng từ cần upload. |
 | `loan_application_document` | Lưu chứng từ của hồ sơ vay. |
+| `loan_application_step` | Danh mục các step nhập hồ sơ vay nháp. |
+| `loan_application_draft` | Header hồ sơ vay nháp gắn với khách hàng trước khi tạo `loan_application` thật. |
+| `loan_application_draft_step_data` | Payload JSONB và trạng thái riêng của từng step trong một draft. |
+| `loan_application_draft_history` | Nhật ký hành động chính trên draft và step draft. |
 
 ## Ghi Chú Thiết Kế
 
@@ -84,6 +95,8 @@ Theo cập nhật BA/DA mới nhất, database **không có Eligibility** nên b
 - Các trường `loan_application.applicant_*` lưu snapshot thông tin sơ bộ tại thời điểm nhân viên lưu hồ sơ.
 - Các mốc thời gian lifecycle được ghi nhận trong `loan_application_state_history.changed_at`.
 - `loan_application.asset_id` nullable để tạo hồ sơ trước, chọn tài sản sau.
+- `loan_application_draft` tách khỏi `loan_application` để khách hàng có thể bắt đầu nhập hồ sơ mà chưa tạo hồ sơ vay thật.
+- Dữ liệu draft được chia theo step trong `loan_application_draft_step_data.payload`, không gom thành một JSONB lớn trên header, để backend đọc/lưu/invalidate từng step độc lập.
 - `vehicle_market_price` lưu giá theo `vehicle_variant` và ngày hiệu lực.
 - `asset_valuation.final_value_amount` bằng `market_price_amount - total_deduction_amount`.
 - `V2__seed_demo_business_data.sql` chỉ dùng để tạo dữ liệu demo cho việc kiểm tra backend và database.
