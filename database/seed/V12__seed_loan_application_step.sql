@@ -3,10 +3,23 @@
 -- Version: V12 seed
 --
 -- Scope:
--- - Seed the ordered step catalog used by loan_application_draft_step_data.
+-- - Reset and seed the ordered step catalog used by loan_application_draft_step_data.
+-- - Current draft flow has 4 steps:
+--   1. Customer identification
+--   2. Preliminary information
+--   3. Customer detail + asset detail + selected loan proposal
+--   4. Documents/upload completion
 --
--- This file is idempotent and can be run multiple times safely.
+-- This file is idempotent for dev/demo data.
 -- It must be run after V21__add_loan_application_draft_step_flow.sql.
+
+TRUNCATE TABLE
+    loan_application_draft_history,
+    loan_application_draft_step_data,
+    loan_application_draft
+RESTART IDENTITY CASCADE;
+
+DELETE FROM loan_application_step;
 
 INSERT INTO loan_application_step (
     code,
@@ -27,41 +40,20 @@ VALUES
         'PRELIMINARY_INFO',
         'Thông tin sơ bộ',
         2,
-        'Ghi nhận nhu cầu vay, thông tin khoản vay sơ bộ và các lựa chọn ban đầu.',
+        'Ghi nhận thông tin khách hàng sơ bộ, tài sản sơ bộ, giảm trừ sơ bộ và nhu cầu vay ban đầu.',
         TRUE
     ),
     (
-        'CUSTOMER_DETAIL',
-        'Chi tiết khách hàng',
+        'CUSTOMER_ASSET_LOAN_PROPOSAL',
+        'Thông tin khách hàng, tài sản và gói vay',
         3,
-        'Bổ sung thông tin cá nhân, nghề nghiệp, thu nhập, địa chỉ và thông tin giải ngân.',
-        TRUE
-    ),
-    (
-        'ASSET_DETAIL',
-        'Chi tiết tài sản',
-        4,
-        'Ghi nhận thông tin tài sản, giấy đăng ký, định giá và các yếu tố giảm trừ.',
-        TRUE
-    ),
-    (
-        'FINAL_LOAN_PROPOSAL',
-        'Đề xuất gói vay cuối cùng',
-        5,
-        'Chốt sản phẩm vay, số tiền, kỳ hạn, lãi suất và đề xuất cuối cùng trước khi hoàn tất.',
+        'Bổ sung thông tin khách hàng chi tiết, thông tin tài sản chi tiết, xác nhận giảm trừ và chọn gói vay.',
         TRUE
     ),
     (
         'UPLOAD_COMPLETE',
-        'Upload hồ sơ và hoàn tất',
-        6,
+        'Chứng từ và hoàn tất',
+        4,
         'Upload chứng từ, kiểm tra dữ liệu toàn bộ draft và đánh dấu hồ sơ sẵn sàng convert.',
         TRUE
-    )
-ON CONFLICT (code) DO UPDATE
-SET
-    name = EXCLUDED.name,
-    step_order = EXCLUDED.step_order,
-    description = EXCLUDED.description,
-    is_active = EXCLUDED.is_active,
-    updated_at = CURRENT_TIMESTAMP;
+    );

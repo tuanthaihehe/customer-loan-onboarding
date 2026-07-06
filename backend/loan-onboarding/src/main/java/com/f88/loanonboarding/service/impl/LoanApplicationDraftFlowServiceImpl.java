@@ -435,10 +435,15 @@ public class LoanApplicationDraftFlowServiceImpl implements LoanApplicationDraft
         List<LoanApplicationDraftStepData> steps = stepDataRepository.findByDraft_DraftCodeOrderByStep_StepOrderAsc(draftCode);
         JsonNode preliminary = payloadByStep(steps, "PRELIMINARY_INFO");
         JsonNode finalProposal = payloadByStep(steps, "FINAL_LOAN_PROPOSAL");
+        JsonNode mergedProposal = payloadByStep(steps, "CUSTOMER_ASSET_LOAN_PROPOSAL");
 
         BigDecimal requestedAmount = firstNumber(
+                at(mergedProposal, "selected_loan_offer", "final_requested_amount"),
+                at(mergedProposal, "selectedLoanOffer", "finalRequestedAmount"),
                 at(finalProposal, "proposal", "approvedAmount"),
                 at(finalProposal, "approvedAmount"),
+                at(preliminary, "preliminary_loan_package", "requested_amount"),
+                at(preliminary, "preliminaryLoanPackage", "requestedAmount"),
                 at(preliminary, "loanRequest", "requestedAmount"),
                 at(preliminary, "requestedAmount")
         );
@@ -447,6 +452,10 @@ public class LoanApplicationDraftFlowServiceImpl implements LoanApplicationDraft
         }
 
         String purposeCode = firstText(
+                at(mergedProposal, "selected_loan_offer", "loan_purpose_code"),
+                at(mergedProposal, "selectedLoanOffer", "loanPurposeCode"),
+                at(preliminary, "preliminary_loan_package", "loan_purpose_code"),
+                at(preliminary, "preliminaryLoanPackage", "loanPurposeCode"),
                 at(preliminary, "loanRequest", "loanPurposeCode"),
                 at(preliminary, "loanPurposeCode"),
                 at(preliminary, "loanPurpose")
@@ -458,8 +467,12 @@ public class LoanApplicationDraftFlowServiceImpl implements LoanApplicationDraft
         }
 
         Integer termMonths = firstInteger(
+                at(mergedProposal, "selected_loan_offer", "final_loan_term_months"),
+                at(mergedProposal, "selectedLoanOffer", "finalLoanTermMonths"),
                 at(finalProposal, "proposal", "termMonths"),
                 at(finalProposal, "termMonths"),
+                at(preliminary, "preliminary_loan_package", "loan_term_months"),
+                at(preliminary, "preliminaryLoanPackage", "loanTermMonths"),
                 at(preliminary, "loanRequest", "termMonths"),
                 at(preliminary, "loanRequest", "requestedTenure"),
                 at(preliminary, "loanTermMonths"),
@@ -473,6 +486,10 @@ public class LoanApplicationDraftFlowServiceImpl implements LoanApplicationDraft
         }
 
         String productCode = firstText(
+                at(mergedProposal, "selected_loan_offer", "loan_product_code"),
+                at(mergedProposal, "selected_loan_offer", "loan_product_id"),
+                at(mergedProposal, "selectedLoanOffer", "loanProductCode"),
+                at(mergedProposal, "selectedLoanOffer", "loanProductId"),
                 at(finalProposal, "proposal", "selectedProductCode"),
                 at(finalProposal, "selectedProductCode"),
                 at(finalProposal, "loanProductCode")

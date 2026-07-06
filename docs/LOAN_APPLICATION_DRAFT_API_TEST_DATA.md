@@ -99,13 +99,13 @@ Kỳ vọng:
 
 ```text
 - PRELIMINARY_INFO = COMPLETED.
-- currentStepCode = CUSTOMER_DETAIL.
+- currentStepCode = CUSTOMER_ASSET_LOAN_PROPOSAL.
 ```
 
-## 4. Hoàn thành bước chi tiết khách hàng
+## 4. Hoàn thành bước gộp khách hàng, tài sản và gói vay
 
 ```http
-POST /api/v1/loan-application-drafts/{draftCode}/steps/CUSTOMER_DETAIL/complete
+POST /api/v1/loan-application-drafts/{draftCode}/steps/CUSTOMER_ASSET_LOAN_PROPOSAL/complete
 ```
 
 Request:
@@ -113,24 +113,33 @@ Request:
 ```json
 {
   "payload": {
-    "customerProfile": {
-      "gender": "MALE",
-      "email": "an.nguyen.demo@example.com",
-      "maritalStatus": "MARRIED",
-      "permanentAddress": "24 Tran Duy Hung, Cau Giay, Ha Noi",
-      "currentAddress": "24 Tran Duy Hung, Cau Giay, Ha Noi"
+    "customer_detail": {
+      "full_name": "Nguyen Van An",
+      "phone_number": "0901000001",
+      "identity_number": "001201000001",
+      "date_of_birth": "1995-01-15",
+      "address": "Ha Noi",
+      "employment_type": "SALARIED",
+      "monthly_income": 25000000
     },
-    "employment": {
-      "occupationCode": "OFFICE_WORKER",
-      "incomeSourceCode": "SALARY",
-      "monthlyIncomeAmount": 25000000,
-      "workplaceName": "F88 Demo",
-      "workplaceAddress": "Ha Noi"
+    "collateral_detail": {
+      "collateral_type": "MOTORBIKE",
+      "brand": "Yamaha",
+      "model": "Jupiter",
+      "vehicle_variant_code": "YAMAHA_JUPITER_PREMIUM_2022_SILVER",
+      "license_plate": "29A12346",
+      "registration_certificate_number": "DKX-TEST-000001",
+      "manufacture_year": 2022
     },
-    "disbursement": {
-      "bankCode": "VCB",
-      "accountNumber": "0011000888999",
-      "accountName": "NGUYEN VAN AN"
+    "confirmed_deductions": [],
+    "confirmed_total_deduction_amount": 0,
+    "selected_loan_offer": {
+      "loan_product_code": "XM_HIGH_LIMIT",
+      "product_name": "Xe máy hạn mức cao",
+      "final_requested_amount": 30000000,
+      "final_loan_term_months": 12,
+      "interest_rate": 4.2,
+      "estimated_monthly_payment": 2850000
     }
   }
 }
@@ -139,76 +148,11 @@ Request:
 Kỳ vọng:
 
 ```text
-- CUSTOMER_DETAIL = COMPLETED.
-- currentStepCode = ASSET_DETAIL.
-```
-
-## 5. Hoàn thành bước tài sản
-
-```http
-POST /api/v1/loan-application-drafts/{draftCode}/steps/ASSET_DETAIL/complete
-```
-
-Request:
-
-```json
-{
-  "payload": {
-    "asset": {
-      "assetType": "MOTORBIKE",
-      "vehicleVariantCode": "YAMAHA_JUPITER_PREMIUM_2022_SILVER",
-      "vehicleName": "Yamaha Jupiter Premium 2022 Bac",
-      "licensePlate": "29A12346",
-      "registrationCertificateNumber": "DKX-TEST-000001"
-    },
-    "valuation": {
-      "marketValue": 28000000,
-      "totalDeductionAmount": 0,
-      "finalValue": 28000000
-    }
-  }
-}
-```
-
-Kỳ vọng:
-
-```text
-- ASSET_DETAIL = COMPLETED.
-- currentStepCode = FINAL_LOAN_PROPOSAL.
-```
-
-## 6. Hoàn thành bước đề xuất gói vay cuối
-
-```http
-POST /api/v1/loan-application-drafts/{draftCode}/steps/FINAL_LOAN_PROPOSAL/complete
-```
-
-Request:
-
-```json
-{
-  "payload": {
-    "proposal": {
-      "selectedProductCode": "XM_STANDARD",
-      "requestedAmount": 30000000,
-      "approvedAmount": 30000000,
-      "termMonths": 12,
-      "ltvPercent": 60.0
-    }
-  }
-}
-```
-
-Kỳ vọng:
-
-```text
-- FINAL_LOAN_PROPOSAL = COMPLETED.
+- CUSTOMER_ASSET_LOAN_PROPOSAL = COMPLETED.
 - currentStepCode = UPLOAD_COMPLETE.
 ```
 
-Nếu môi trường không có product code `XM_STANDARD`, submit vẫn tạo hồ sơ vay thật nhưng bỏ qua `loanProduct`.
-
-## 7. Hoàn thành bước upload hồ sơ
+## 5. Hoàn thành bước upload hồ sơ
 
 ```http
 POST /api/v1/loan-application-drafts/{draftCode}/steps/UPLOAD_COMPLETE/complete
@@ -248,7 +192,7 @@ Kỳ vọng:
 - Draft sẵn sàng submit.
 ```
 
-## 8. Load lại hồ sơ nháp để fill UI
+## 6. Load lại hồ sơ nháp để fill UI
 
 ```http
 GET /api/v1/loan-application-drafts/{draftCode}
@@ -264,7 +208,7 @@ steps[].status để hiển thị trạng thái từng bước.
 steps[].requiresReview để biết step cần kiểm tra lại sau khi bước trước bị sửa.
 ```
 
-## 9. Lấy danh sách hồ sơ nháp
+## 7. Lấy danh sách hồ sơ nháp
 
 ```http
 GET /api/v1/loan-application-drafts?status=DRAFT
@@ -274,7 +218,7 @@ GET /api/v1/loan-application-drafts?status=CONVERTED
 
 Nếu bỏ `status`, API trả tất cả draft.
 
-## 10. Submit thành hồ sơ vay thật
+## 8. Submit thành hồ sơ vay thật
 
 ```http
 POST /api/v1/loan-application-drafts/{draftCode}/submit
@@ -298,7 +242,7 @@ Kỳ vọng:
 - draft.converted_loan_application_id trỏ tới loan_application vừa tạo.
 ```
 
-## 11. Hủy hồ sơ nháp
+## 9. Hủy hồ sơ nháp
 
 ```http
 POST /api/v1/loan-application-drafts/{draftCode}/cancel
@@ -319,11 +263,11 @@ Kỳ vọng:
 - Không cho lưu/complete/submit draft này nữa.
 ```
 
-## 12. Case cần test thêm
+## 10. Case cần test thêm
 
 ### Sửa bước trước sau khi đã nhập bước sau
 
-Ví dụ đã hoàn thành `ASSET_DETAIL`, sau đó sửa lại `PRELIMINARY_INFO`:
+Ví dụ đã hoàn thành `CUSTOMER_ASSET_LOAN_PROPOSAL`, sau đó sửa lại `PRELIMINARY_INFO`:
 
 ```http
 PUT /api/v1/loan-application-drafts/{draftCode}/steps/PRELIMINARY_INFO
