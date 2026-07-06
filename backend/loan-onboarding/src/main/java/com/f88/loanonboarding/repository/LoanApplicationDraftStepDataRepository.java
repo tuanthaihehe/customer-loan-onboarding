@@ -13,4 +13,9 @@ public interface LoanApplicationDraftStepDataRepository extends JpaRepository<Lo
     List<LoanApplicationDraftStepData> findByDraft_DraftCodeOrderByStep_StepOrderAsc(String draftCode);
 
     Optional<LoanApplicationDraftStepData> findByDraft_DraftCodeAndStep_Code(String draftCode, String stepCode);
+
+    List<LoanApplicationDraftStepData> findByDraftAndStep_StepOrderGreaterThan(
+            com.f88.loanonboarding.entity.LoanApplicationDraft draft,
+            int stepOrder
+    );
 }
