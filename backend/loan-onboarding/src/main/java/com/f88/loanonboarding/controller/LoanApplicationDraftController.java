@@ -27,6 +27,9 @@ import jakarta.validation.Valid;
 @RequestMapping("/api/v1/loan-application-drafts")
 public class LoanApplicationDraftController {
 
+    private static final String STEP_PRELIMINARY_INFO = "PRELIMINARY_INFO";
+    private static final String STEP_CUSTOMER_ASSET_LOAN_PROPOSAL = "CUSTOMER_ASSET_LOAN_PROPOSAL";
+
     private final LoanApplicationDraftService draftService;
 
     public LoanApplicationDraftController(LoanApplicationDraftService draftService) {
@@ -76,5 +79,29 @@ public class LoanApplicationDraftController {
             @Valid @RequestBody SaveLoanApplicationDraftStepRequest request
     ) {
         return ApiResponse.success("Lưu step hồ sơ vay nháp thành công", draftService.saveStep(draftId, stepCode, request));
+    }
+
+    @Operation(summary = "Lưu màn 2 - Thông tin sơ bộ và gói vay")
+    @PutMapping("/{draftId}/preliminary-info")
+    public ApiResponse<SaveLoanApplicationDraftStepResponse> savePreliminaryInfo(
+            @PathVariable UUID draftId,
+            @Valid @RequestBody SaveLoanApplicationDraftStepRequest request
+    ) {
+        return ApiResponse.success(
+                "Lưu màn thông tin sơ bộ và gói vay thành công",
+                draftService.saveStep(draftId, STEP_PRELIMINARY_INFO, request)
+        );
+    }
+
+    @Operation(summary = "Lưu màn 3 - Thông tin chi tiết khách hàng, tài sản và gói vay")
+    @PutMapping("/{draftId}/customer-asset-loan-proposal")
+    public ApiResponse<SaveLoanApplicationDraftStepResponse> saveCustomerAssetLoanProposal(
+            @PathVariable UUID draftId,
+            @Valid @RequestBody SaveLoanApplicationDraftStepRequest request
+    ) {
+        return ApiResponse.success(
+                "Lưu màn thông tin chi tiết khách hàng, tài sản và gói vay thành công",
+                draftService.saveStep(draftId, STEP_CUSTOMER_ASSET_LOAN_PROPOSAL, request)
+        );
     }
 }

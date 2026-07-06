@@ -50,14 +50,12 @@ public class LoanApplicationDraftServiceImpl implements LoanApplicationDraftServ
     private static final String DRAFT_STATUS_COMPLETED = "COMPLETED";
     private static final String STEP_CUSTOMER_IDENTIFY = "CUSTOMER_IDENTIFY";
     private static final String STEP_PRELIMINARY_INFO = "PRELIMINARY_INFO";
-    private static final String STEP_CUSTOMER_DETAIL = "CUSTOMER_DETAIL";
+    private static final String STEP_CUSTOMER_ASSET_LOAN_PROPOSAL = "CUSTOMER_ASSET_LOAN_PROPOSAL";
     private static final String STEP_UPLOAD_COMPLETE = "UPLOAD_COMPLETE";
     private static final List<String> REQUIRED_STEP_CODES = List.of(
             STEP_CUSTOMER_IDENTIFY,
             STEP_PRELIMINARY_INFO,
-            STEP_CUSTOMER_DETAIL,
-            "ASSET_DETAIL",
-            "FINAL_LOAN_PROPOSAL",
+            STEP_CUSTOMER_ASSET_LOAN_PROPOSAL,
             STEP_UPLOAD_COMPLETE
     );
 
@@ -88,8 +86,7 @@ public class LoanApplicationDraftServiceImpl implements LoanApplicationDraftServ
     @Transactional
     public LoanApplicationDraftOverviewResponse createDraft(CreateLoanApplicationDraftRequest request) {
         try {
-            Customer customer = customerRepository.findById(request.customerId())
-                    .orElseThrow(() -> new BusinessException(ErrorCode.CUSTOMER_NOT_FOUND));
+            Customer customer = resolveCustomer(request.customerId());
             List<LoanApplicationStep> steps = activeSteps();
             LoanApplicationStep firstStep = stepByCode(steps, STEP_CUSTOMER_IDENTIFY);
             LoanApplicationStep preliminaryStep = stepByCode(steps, STEP_PRELIMINARY_INFO);
@@ -129,6 +126,17 @@ public class LoanApplicationDraftServiceImpl implements LoanApplicationDraftServ
         } catch (Exception ex) {
             log.error("Failed to create loan application draft for customerId={}", request.customerId(), ex);
             throw ex;
+        }
+    }
+
+    private Customer resolveCustomer(String customerIdOrCode) {
+        String value = customerIdOrCode == null ? "" : customerIdOrCode.trim();
+        try {
+            return customerRepository.findById(UUID.fromString(value))
+                    .orElseThrow(() -> new BusinessException(ErrorCode.CUSTOMER_NOT_FOUND));
+        } catch (IllegalArgumentException ex) {
+            return customerRepository.findByCustomerCode(value)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.CUSTOMER_NOT_FOUND));
         }
     }
 
