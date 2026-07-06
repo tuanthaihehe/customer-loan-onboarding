@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+        id="Definitions_RequestedAmountLimit"
+        name="Requested Amount Limit"
+        namespace="https://f88.com.vn/loan-onboarding/dmn/loan">
+    <decision id="requestedAmountLimit" name="Requested Amount Limit">
+        <decisionTable id="DecisionTable_RequestedAmountLimit" hitPolicy="FIRST">
+            <input id="Input_RequestedAmount" label="Requested amount">
+                <inputExpression id="InputExpression_RequestedAmount" typeRef="number">
+                    <text>requestedAmount</text>
+                </inputExpression>
+            </input>
+            <output id="Output_Passed" label="Passed" name="passed" typeRef="boolean"/>
+            <output id="Output_ReasonCode" label="Reason Code" name="reasonCode" typeRef="string"/>
+            <output id="Output_ReasonMessage" label="Reason Message" name="reasonMessage" typeRef="string"/>
+            <rule id="Rule_RequestedAmountNull">
+                <inputEntry id="InputEntry_RequestedAmountNull"><text>null</text></inputEntry>
+                <outputEntry id="OutputEntry_RequestedAmountNullPassed"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_RequestedAmountNullReasonCode"><text>"REQUESTED_AMOUNT_LIMIT"</text></outputEntry>
+                <outputEntry id="OutputEntry_RequestedAmountNullReasonMessage"><text>"Requested amount is required"</text></outputEntry>
+            </rule>
+            <rule id="Rule_RequestedAmountTooLow">
+                <inputEntry id="InputEntry_RequestedAmountTooLow"><text>&lt; 1000000</text></inputEntry>
+                <outputEntry id="OutputEntry_RequestedAmountTooLowPassed"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_RequestedAmountTooLowReasonCode"><text>"REQUESTED_AMOUNT_LIMIT"</text></outputEntry>
+                <outputEntry id="OutputEntry_RequestedAmountTooLowReasonMessage"><text>"Requested amount must be at least 1000000"</text></outputEntry>
+            </rule>
+            <rule id="Rule_RequestedAmountTooHigh">
+                <inputEntry id="InputEntry_RequestedAmountTooHigh"><text>&gt; 100000000</text></inputEntry>
+                <outputEntry id="OutputEntry_RequestedAmountTooHighPassed"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_RequestedAmountTooHighReasonCode"><text>"REQUESTED_AMOUNT_LIMIT"</text></outputEntry>
+                <outputEntry id="OutputEntry_RequestedAmountTooHighReasonMessage"><text>"Requested amount must not exceed 100000000"</text></outputEntry>
+            </rule>
+            <rule id="Rule_RequestedAmountAllowed">
+                <inputEntry id="InputEntry_RequestedAmountAllowed"><text>-</text></inputEntry>
+                <outputEntry id="OutputEntry_RequestedAmountAllowedPassed"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_RequestedAmountAllowedReasonCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_RequestedAmountAllowedReasonMessage"><text>null</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+</definitions>

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+        id="Definitions_LoanableAmountCheck"
+        name="Loanable Amount Check"
+        namespace="https://f88.com.vn/loan-onboarding/dmn/valuation">
+    <decision id="loanableAmountCheck" name="Loanable Amount Check">
+        <decisionTable id="DecisionTable_LoanableAmountCheck" hitPolicy="FIRST">
+            <input id="Input_AssetFinalValue" label="Asset final value">
+                <inputExpression id="InputExpression_AssetFinalValue" typeRef="number">
+                    <text>assetFinalValue</text>
+                </inputExpression>
+            </input>
+            <input id="Input_LoanableAmount" label="Loanable amount">
+                <inputExpression id="InputExpression_LoanableAmount" typeRef="number">
+                    <text>loanableAmount</text>
+                </inputExpression>
+            </input>
+            <output id="Output_Passed" label="Passed" name="passed" typeRef="boolean"/>
+            <output id="Output_ReasonCode" label="Reason Code" name="reasonCode" typeRef="string"/>
+            <output id="Output_ReasonMessage" label="Reason Message" name="reasonMessage" typeRef="string"/>
+            <rule id="Rule_AssetFinalValueNull">
+                <inputEntry id="InputEntry_AssetFinalValueNull"><text>null</text></inputEntry>
+                <inputEntry id="InputEntry_AssetFinalValueNullLoanable"><text>-</text></inputEntry>
+                <outputEntry id="OutputEntry_AssetFinalValueNullPassed"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_AssetFinalValueNullReasonCode"><text>"LOANABLE_AMOUNT_CHECK"</text></outputEntry>
+                <outputEntry id="OutputEntry_AssetFinalValueNullReasonMessage"><text>"Asset final value and loanable amount are required"</text></outputEntry>
+            </rule>
+            <rule id="Rule_LoanableAmountNull">
+                <inputEntry id="InputEntry_LoanableAmountNullAsset"><text>-</text></inputEntry>
+                <inputEntry id="InputEntry_LoanableAmountNull"><text>null</text></inputEntry>
+                <outputEntry id="OutputEntry_LoanableAmountNullPassed"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_LoanableAmountNullReasonCode"><text>"LOANABLE_AMOUNT_CHECK"</text></outputEntry>
+                <outputEntry id="OutputEntry_LoanableAmountNullReasonMessage"><text>"Asset final value and loanable amount are required"</text></outputEntry>
+            </rule>
+            <rule id="Rule_AssetFinalValueNotPositive">
+                <inputEntry id="InputEntry_AssetFinalValueNotPositive"><text>&lt;= 0</text></inputEntry>
+                <inputEntry id="InputEntry_AssetFinalValueNotPositiveLoanable"><text>-</text></inputEntry>
+                <outputEntry id="OutputEntry_AssetFinalValueNotPositivePassed"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_AssetFinalValueNotPositiveReasonCode"><text>"LOANABLE_AMOUNT_CHECK"</text></outputEntry>
+                <outputEntry id="OutputEntry_AssetFinalValueNotPositiveReasonMessage"><text>"Asset final value must be greater than zero"</text></outputEntry>
+            </rule>
+            <rule id="Rule_LoanableAmountGreaterThanAsset">
+                <inputEntry id="InputEntry_LoanableAmountGreaterThanAssetAsset"><text>-</text></inputEntry>
+                <inputEntry id="InputEntry_LoanableAmountGreaterThanAsset"><text>&gt; assetFinalValue</text></inputEntry>
+                <outputEntry id="OutputEntry_LoanableAmountGreaterThanAssetPassed"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_LoanableAmountGreaterThanAssetReasonCode"><text>"LOANABLE_AMOUNT_CHECK"</text></outputEntry>
+                <outputEntry id="OutputEntry_LoanableAmountGreaterThanAssetReasonMessage"><text>"Loanable amount must not exceed asset final value"</text></outputEntry>
+            </rule>
+            <rule id="Rule_LoanableAmountPassed">
+                <inputEntry id="InputEntry_LoanableAmountPassedAsset"><text>-</text></inputEntry>
+                <inputEntry id="InputEntry_LoanableAmountPassedLoanable"><text>-</text></inputEntry>
+                <outputEntry id="OutputEntry_LoanableAmountPassed"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_LoanableAmountReasonCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_LoanableAmountReasonMessage"><text>null</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+</definitions>

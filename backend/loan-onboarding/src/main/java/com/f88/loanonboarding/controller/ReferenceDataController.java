@@ -38,6 +38,12 @@ public class ReferenceDataController {
         return ApiResponse.success(referenceDataService.getOccupations());
     }
 
+    @Operation(summary = "Lấy danh mục nguồn thu nhập")
+    @GetMapping("/income-sources")
+    public ApiResponse<List<ReferenceDataItemResponse>> getIncomeSources() {
+        return ApiResponse.success(referenceDataService.getIncomeSources());
+    }
+
     @Operation(summary = "Lấy danh mục mục đích vay")
     @GetMapping("/loan-purposes")
     public ApiResponse<List<ReferenceDataItemResponse>> getLoanPurposes() {
@@ -48,6 +54,12 @@ public class ReferenceDataController {
     @GetMapping("/loan-terms")
     public ApiResponse<List<ReferenceDataItemResponse>> getLoanTerms() {
         return ApiResponse.success(referenceDataService.getLoanTerms());
+    }
+
+    @Operation(summary = "Lấy danh mục bước tạo hồ sơ vay")
+    @GetMapping("/loan-application-steps")
+    public ApiResponse<List<ReferenceDataItemResponse>> getLoanApplicationSteps() {
+        return ApiResponse.success(referenceDataService.getLoanApplicationSteps());
     }
 
     @Operation(summary = "Lấy danh mục loại tài sản")

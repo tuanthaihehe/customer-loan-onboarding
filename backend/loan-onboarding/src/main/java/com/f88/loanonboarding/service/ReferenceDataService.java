@@ -11,9 +11,13 @@ public interface ReferenceDataService {
 
     List<ReferenceDataItemResponse> getOccupations();
 
+    List<ReferenceDataItemResponse> getIncomeSources();
+
     List<ReferenceDataItemResponse> getLoanPurposes();
 
     List<ReferenceDataItemResponse> getLoanTerms();
+
+    List<ReferenceDataItemResponse> getLoanApplicationSteps();
 
     List<ReferenceDataItemResponse> getAssetTypes();
 

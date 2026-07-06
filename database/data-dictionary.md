@@ -1,546 +1,571 @@
 # Data Dictionary - Customer Loan Onboarding
 
-## 1. Phạm vi thiết kế
+Tài liệu này được cập nhật theo các migration trong `database/migrations` đến `V20__add_registration_certificate_number_to_asset.sql`.
 
-Tài liệu này mô tả các bảng dữ liệu hiện tại của module Customer Loan Onboarding.
+Mục tiêu của tài liệu là mô tả nhanh vai trò bảng, các cột chính và quan hệ dữ liệu. Phần index được bỏ để tài liệu tập trung vào mô hình nghiệp vụ và foreign key.
 
-Phạm vi hiện tại gồm:
+## Quy ước chung
 
-- Lưu trữ và tra cứu khách hàng.
-- Tạo và quản lý hồ sơ vay.
-- Quản lý lifecycle của hồ sơ vay bằng state, transition và history.
-- Quản lý danh mục mục đích vay để frontend hiển thị dropdown.
-- Quản lý danh mục xe phục vụ chọn dropdown trên giao diện.
-- Lưu tài sản là xe ở mức tối giản và gắn tài sản vào hồ sơ vay.
-- Lưu giá thị trường theo từng biến thể xe và thời điểm hiệu lực.
-- Lưu kết quả định giá tài sản theo dạng snapshot.
-- Lưu các yếu tố giảm trừ cố định được áp dụng trong một lần định giá.
+- `id`: khóa kỹ thuật dạng `UUID`, mặc định `gen_random_uuid()`.
+- Các cột `code`, `*_code`, `product_code`: mã nghiệp vụ dùng để tra cứu, hiển thị hoặc đồng bộ.
+- Các bảng danh mục thường có `is_active` và `sort_order` để frontend lọc/hiển thị dropdown.
+- Các cột tiền tệ dùng `NUMERIC(18,2)`, mặc định đơn vị tiền là `VND` nếu có `currency_code`.
+- Các bảng upload/chứng từ chỉ lưu metadata hoặc URL file, không lưu binary file.
 
-Quy ước chung:
+## Tổng quan quan hệ
 
-- `id` là khóa kỹ thuật dùng để liên kết giữa các bảng.
-- Các trường dạng `*_code` là mã nghiệp vụ dùng cho hiển thị, tra cứu và đối soát.
-- Không dùng `*_code` làm foreign key.
-- Các bảng danh mục dùng `is_active` để ẩn/hiện dữ liệu trên dropdown mà không cần xóa dữ liệu.
-- Các giá trị snapshot trong bảng định giá không bị thay đổi khi bảng danh mục hoặc giá thị trường thay đổi sau này.
-
----
-
-## 2. Bảng `customer`
-
-### Mục đích
-
-Lưu thông tin cơ bản của khách hàng phục vụ tra cứu và tạo hồ sơ vay. Bảng này không quản lý lifecycle chi tiết của khách hàng.
-
-### Cấu trúc trường
-
-| Column | Type | Required | Constraint | Ý nghĩa |
-|---|---|---:|---|---|
-| `id` | `uuid` | Yes | Primary key | Khóa kỹ thuật của khách hàng. |
-| `customer_code` | `varchar(50)` | Yes | Unique | Mã nghiệp vụ của khách hàng. Dùng để hiển thị và tra cứu. |
-| `full_name` | `varchar(255)` | Yes | Index | Họ tên khách hàng. |
-| `phone_number` | `varchar(20)` | No | Unique | Số điện thoại khách hàng. |
-| `identity_number` | `varchar(20)` | No | Unique | Số CCCD/CMND hoặc giấy tờ định danh tương đương. |
-| `date_of_birth` | `date` | No | Index | Ngày sinh của khách hàng. |
-| `status` | `varchar(30)` | Yes | Check enum | Trạng thái khách hàng ở mức đơn giản. |
-
-### Giá trị hợp lệ của `customer.status`
-
-| Value | Ý nghĩa |
+| Nhóm | Bảng |
 |---|---|
-| `ACTIVE` | Khách hàng đang có 1 khoản vay trong hệ thống. |
-| `INACTIVE` | Khách hàng cũ nhưng không có khoản vay nào, khách hàng tái vay, hoặc khách hàng cũ đã trả xong khoản vay trước đó. |
-| `BLACKLIST` | Khách hàng thuộc danh sách blacklist. |
-| `LEAD` | Khách hàng tiềm năng/khách hàng mới, chưa có khoản vay nào. |
-
----
-
-## 3. Bảng `loan_purpose`
-
-### Mục đích
-
-Lưu danh mục mục đích vay để frontend hiển thị cho nhân viên chọn khi tạo hoặc cập nhật hồ sơ vay.
-
-Bảng này thay thế cột `loan_application.loan_purpose` dạng text/check enum trước đó. `loan_application` sẽ tham chiếu đến bảng này bằng `loan_purpose_id`.
-
-### Cấu trúc trường
-
-| Column | Type | Required | Constraint | Ý nghĩa |
-|---|---|---:|---|---|
-| `id` | `uuid` | Yes | Primary key | Khóa kỹ thuật của mục đích vay. |
-| `code` | `varchar(50)` | Yes | Unique | Mã mục đích vay dùng cho xử lý nghiệp vụ. |
-| `name` | `varchar(100)` | Yes |  | Tên hiển thị trên giao diện. |
-| `description` | `text` | No |  | Mô tả mục đích vay. |
-| `is_active` | `boolean` | Yes | Default `true` | Có hiển thị cho frontend chọn hay không. |
-| `sort_order` | `int` | Yes | Default `0` | Thứ tự hiển thị. |
-
-### Dữ liệu seed hiện tại
-
-| Code | Name | Ý nghĩa |
-|---|---|---|
-| `BUSINESS` | Kinh doanh | Vay phục vụ hoạt động kinh doanh. |
-| `PERSONAL_CONSUMPTION` | Tiêu dùng cá nhân | Vay phục vụ nhu cầu tiêu dùng cá nhân. |
-| `VEHICLE_REPAIR` | Sửa chữa xe | Vay phục vụ sửa chữa, bảo dưỡng phương tiện. |
-| `MEDICAL` | Y tế | Vay phục vụ chi phí khám chữa bệnh hoặc nhu cầu y tế. |
-| `EDUCATION` | Giáo dục | Vay phục vụ chi phí học tập hoặc giáo dục. |
-| `HOME_REPAIR` | Sửa chữa nhà | Vay phục vụ sửa chữa hoặc cải tạo nhà cửa. |
-| `DEBT_REPAYMENT` | Thanh toán nợ | Vay để thanh toán khoản nợ khác. |
-| `OTHER` | Khác | Mục đích vay khác. |
-
----
-
-## 4. Bảng `loan_application`
-
-### Mục đích
-
-Lưu hồ sơ vay chính của module. Một hồ sơ vay luôn thuộc về một khách hàng. Tài sản và mục đích vay có thể được gắn sau khi hồ sơ vay nháp đã được tạo.
-
-### Cấu trúc trường
-
-| Column | Type | Required | Constraint | Ý nghĩa |
-|---|---|---:|---|---|
-| `id` | `uuid` | Yes | Primary key | Khóa kỹ thuật của hồ sơ vay. |
-| `loan_application_code` | `varchar(50)` | Yes | Unique | Mã nghiệp vụ của hồ sơ vay. Format đề xuất: `APP-YYYY-NNNNNN`. |
-| `customer_id` | `uuid` | Yes | FK → `customer.id` | Khách hàng đứng tên hồ sơ vay. |
-| `current_state_id` | `uuid` | Yes | FK → `loan_application_state.id` | State hiện tại của hồ sơ vay. |
-| `asset_id` | `uuid` | No | FK → `asset.id` | Tài sản được gắn với hồ sơ vay. Nullable vì hồ sơ nháp có thể tạo trước khi chọn tài sản. |
-| `loan_purpose_id` | `uuid` | No | FK → `loan_purpose.id` | Mục đích vay. Nullable vì hồ sơ nháp có thể tạo trước khi chọn mục đích vay. |
-| `requested_amount` | `numeric(18,2)` | No | Check > 0 nếu có giá trị | Số tiền khách hàng muốn vay. Nullable ở giai đoạn nháp. |
-| `loan_term_months` | `int` | No | Check > 0 nếu có giá trị | Kỳ hạn vay theo tháng. Nullable ở giai đoạn nháp. |
-
-### Ghi chú thiết kế
-
-- `asset_id` không bắt buộc khi tạo hồ sơ nháp.
-- `loan_purpose_id` không bắt buộc khi tạo hồ sơ nháp.
-- Mục đích vay được quản lý bằng bảng `loan_purpose`, không còn lưu trực tiếp bằng text/check enum trong `loan_application`.
-- Bảng `loan_application` chỉ giữ state hiện tại qua `current_state_id`.
-- Lịch sử chuyển state được lưu trong `loan_application_state_history`.
-
----
-
-## 5. Bảng `loan_application_state`
-
-### Mục đích
-
-Lưu danh sách state hợp lệ của hồ sơ vay.
-
-### Cấu trúc trường
-
-| Column | Type | Required | Constraint | Ý nghĩa |
-|---|---|---:|---|---|
-| `id` | `uuid` | Yes | Primary key | Khóa kỹ thuật của state. |
-| `code` | `varchar(50)` | Yes | Unique | Mã state dùng trong hệ thống. |
-| `name` | `varchar(100)` | Yes |  | Tên hiển thị của state. |
-| `description` | `text` | No |  | Mô tả nghiệp vụ của state. |
-| `is_initial` | `boolean` | Yes | Unique partial index khi true | Đánh dấu state khởi tạo. |
-| `is_terminal` | `boolean` | Yes |  | Đánh dấu state kết thúc lifecycle. |
-| `sort_order` | `int` | Yes |  | Thứ tự hiển thị. |
-
-### State hiện tại
-
-| Code | Ý nghĩa | Initial | Terminal |
-|---|---|---:|---:|
-| `APP_DRAFT` | Hồ sơ nháp | Yes | No |
-| `APP_SUBMITTED` | Đã nộp hồ sơ | No | No |
-| `APP_NEEDS_SUPPLEMENT` | Cần bổ sung hồ sơ | No | No |
-| `APP_IN_REVIEW` | Đang thẩm định/phê duyệt | No | No |
-| `APP_READY_FOR_CONTRACT` | Sẵn sàng lập hợp đồng | No | No |
-| `APP_CONTRACTED` | Đã có hợp đồng | No | Yes |
-| `APP_CANCELLED` | Hồ sơ bị hủy | No | Yes |
-
----
-
-## 6. Bảng `loan_application_state_transition`
-
-### Mục đích
-
-Định nghĩa các đường chuyển state hợp lệ của hồ sơ vay.
-
-Bảng này là dữ liệu cấu hình. Khi một hành động chuyển state được yêu cầu, backend kiểm tra trong bảng này để biết chuyển đổi đó có hợp lệ hay không.
-
-### Cấu trúc trường
-
-| Column | Type | Required | Constraint | Ý nghĩa |
-|---|---|---:|---|---|
-| `id` | `uuid` | Yes | Primary key | Khóa kỹ thuật của transition. |
-| `from_state_id` | `uuid` | Yes | FK → `loan_application_state.id` | State nguồn. |
-| `to_state_id` | `uuid` | Yes | FK → `loan_application_state.id` | State đích. |
-| `action_code` | `varchar(50)` | Yes | Unique cùng `from_state_id`, `to_state_id` | Mã hành động chuyển state. |
-| `action_name` | `varchar(100)` | Yes |  | Tên hành động hiển thị. |
-| `description` | `text` | No |  | Mô tả hành động. |
-
----
-
-## 7. Bảng `loan_application_state_history`
-
-### Mục đích
-
-Lưu lịch sử lifecycle của từng hồ sơ vay.
-
-Bảng này ghi lại hồ sơ đã chuyển từ state nào sang state nào, vào lúc nào, bởi ai và ghi chú gì. Đây là bảng audit cho lifecycle, không phải audit toàn bộ thay đổi dữ liệu field.
-
-### Cấu trúc trường
-
-| Column | Type | Required | Constraint | Ý nghĩa |
-|---|---|---:|---|---|
-| `id` | `uuid` | Yes | Primary key | Khóa kỹ thuật của history record. |
-| `loan_application_id` | `uuid` | Yes | FK → `loan_application.id` | Hồ sơ vay được ghi lịch sử. |
-| `from_state_id` | `uuid` | No | FK → `loan_application_state.id` | State trước khi chuyển. `NULL` với sự kiện tạo mới. |
-| `to_state_id` | `uuid` | Yes | FK → `loan_application_state.id` | State sau khi chuyển. |
-| `action_code` | `varchar(50)` | Yes |  | Hành động gây ra chuyển state. |
-| `changed_at` | `timestamp` | Yes | Default `CURRENT_TIMESTAMP` | Thời điểm ghi nhận sự kiện lifecycle. |
-| `changed_by` | `varchar(100)` | No |  | Người hoặc hệ thống thực hiện hành động. |
-| `note` | `text` | No |  | Ghi chú nghiệp vụ. |
-
----
-
-## 8. Bảng `vehicle_type`
-
-### Mục đích
-
-Lưu loại xe phục vụ dropdown đầu tiên trên giao diện chọn tài sản.
-
-Ví dụ: xe máy, ô tô.
-
-| Column | Type | Required | Constraint | Ý nghĩa |
-|---|---|---:|---|---|
-| `id` | `uuid` | Yes | Primary key | Khóa kỹ thuật của loại xe. |
-| `code` | `varchar(50)` | Yes | Unique | Mã loại xe. |
-| `name` | `varchar(100)` | Yes |  | Tên hiển thị. |
-| `description` | `text` | No |  | Mô tả nếu cần. |
-| `is_active` | `boolean` | Yes | Default true | Có hiển thị trên dropdown hay không. |
-| `sort_order` | `int` | Yes | Default 0 | Thứ tự hiển thị. |
-
----
-
-## 9. Bảng `vehicle_brand`
-
-### Mục đích
-
-Lưu hãng xe theo từng loại xe.
-
-Quan hệ: `vehicle_type 1 - N vehicle_brand`.
-
-| Column | Type | Required | Constraint | Ý nghĩa |
-|---|---|---:|---|---|
-| `id` | `uuid` | Yes | Primary key | Khóa kỹ thuật của hãng xe. |
-| `vehicle_type_id` | `uuid` | Yes | FK → `vehicle_type.id` | Loại xe chứa hãng này. |
-| `code` | `varchar(50)` | Yes | Unique theo `vehicle_type_id` | Mã hãng xe. |
-| `name` | `varchar(100)` | Yes |  | Tên hãng xe. |
-| `is_active` | `boolean` | Yes | Default true | Có hiển thị hay không. |
-| `sort_order` | `int` | Yes | Default 0 | Thứ tự hiển thị. |
-
----
-
-## 10. Bảng `vehicle_model`
-
-### Mục đích
-
-Lưu dòng xe/model theo từng hãng xe.
-
-Quan hệ: `vehicle_brand 1 - N vehicle_model`.
-
-| Column | Type | Required | Constraint | Ý nghĩa |
-|---|---|---:|---|---|
-| `id` | `uuid` | Yes | Primary key | Khóa kỹ thuật của dòng xe. |
-| `vehicle_brand_id` | `uuid` | Yes | FK → `vehicle_brand.id` | Hãng xe chứa dòng xe này. |
-| `code` | `varchar(50)` | Yes | Unique theo `vehicle_brand_id` | Mã dòng xe. |
-| `name` | `varchar(100)` | Yes |  | Tên dòng xe. |
-| `is_active` | `boolean` | Yes | Default true | Có hiển thị hay không. |
-| `sort_order` | `int` | Yes | Default 0 | Thứ tự hiển thị. |
-
----
-
-## 11. Bảng `vehicle_version`
-
-### Mục đích
-
-Lưu phiên bản xe theo từng dòng xe.
-
-Quan hệ: `vehicle_model 1 - N vehicle_version`.
-
-| Column | Type | Required | Constraint | Ý nghĩa |
-|---|---|---:|---|---|
-| `id` | `uuid` | Yes | Primary key | Khóa kỹ thuật của phiên bản xe. |
-| `vehicle_model_id` | `uuid` | Yes | FK → `vehicle_model.id` | Dòng xe chứa phiên bản này. |
-| `code` | `varchar(50)` | Yes | Unique theo `vehicle_model_id` | Mã phiên bản. |
-| `name` | `varchar(100)` | Yes |  | Tên phiên bản. |
-| `is_active` | `boolean` | Yes | Default true | Có hiển thị hay không. |
-| `sort_order` | `int` | Yes | Default 0 | Thứ tự hiển thị. |
-
----
-
-## 12. Bảng `vehicle_year`
-
-### Mục đích
-
-Lưu năm sản xuất hợp lệ theo từng phiên bản xe.
-
-Quan hệ: `vehicle_version 1 - N vehicle_year`.
-
-| Column | Type | Required | Constraint | Ý nghĩa |
-|---|---|---:|---|---|
-| `id` | `uuid` | Yes | Primary key | Khóa kỹ thuật của năm sản xuất. |
-| `vehicle_version_id` | `uuid` | Yes | FK → `vehicle_version.id` | Phiên bản xe tương ứng. |
-| `manufacture_year` | `int` | Yes | Check 1980-2100 | Năm sản xuất. |
-| `is_active` | `boolean` | Yes | Default true | Có hiển thị hay không. |
-| `sort_order` | `int` | Yes | Default 0 | Thứ tự hiển thị. |
-
----
-
-## 13. Bảng `vehicle_color`
-
-### Mục đích
-
-Lưu danh mục màu xe.
-
-| Column | Type | Required | Constraint | Ý nghĩa |
-|---|---|---:|---|---|
-| `id` | `uuid` | Yes | Primary key | Khóa kỹ thuật của màu xe. |
-| `code` | `varchar(50)` | Yes | Unique | Mã màu. |
-| `name` | `varchar(100)` | Yes |  | Tên màu hiển thị. |
-| `is_active` | `boolean` | Yes | Default true | Có hiển thị hay không. |
-| `sort_order` | `int` | Yes | Default 0 | Thứ tự hiển thị. |
-
----
-
-## 14. Bảng `vehicle_variant`
-
-### Mục đích
-
-Đại diện cho tổ hợp xe có thể định giá, được tạo từ `vehicle_year` và `vehicle_color`.
-
-Ví dụ: Yamaha Exciter 155 ABS 2023 màu xanh.
+| Khách hàng | `customer`, `kyc_profile` |
+| Hồ sơ vay | `loan_application`, `loan_application_state`, `loan_application_state_transition`, `loan_application_state_history` |
+| Thông tin hồ sơ phụ | `loan_application_reference_person`, `loan_application_document`, `document_type` |
+| Danh mục tài chính | `loan_purpose`, `loan_term`, `loan_product`, `income_source`, `occupation`, `bank`, `score_grade` |
+| Mapping sản phẩm vay | `loan_product_purpose`, `loan_product_vehicle_type`, `loan_product_term`, `loan_product_score_grade` |
+| Tài sản xe | `vehicle_type`, `vehicle_brand`, `vehicle_model`, `vehicle_version`, `vehicle_year`, `vehicle_color`, `vehicle_variant`, `vehicle_market_price`, `asset` |
+| Định giá | `asset_deduction_type`, `asset_valuation`, `asset_valuation_deduction` |
+| Demo scoring | `mock_score_grade_rule` |
+
+## `customer`
+
+Lưu thông tin định danh ổn định của khách hàng.
+
+| Column | Type | Required | Ý nghĩa |
+|---|---|---:|---|
+| `id` | `UUID` | Yes | Khóa kỹ thuật. |
+| `customer_code` | `VARCHAR(50)` | Yes | Mã khách hàng, unique. |
+| `full_name` | `VARCHAR(255)` | Yes | Họ tên khách hàng. |
+| `phone_number` | `VARCHAR(20)` | No | Số điện thoại, unique khi có giá trị. |
+| `identity_number` | `VARCHAR(20)` | No | Số CCCD/CMND/giấy tờ định danh, unique khi có giá trị. |
+| `date_of_birth` | `DATE` | No | Ngày sinh. |
+| `status` | `VARCHAR(30)` | Yes | `ACTIVE`, `INACTIVE`, `BLACKLIST`, `LEAD`. |
+| `gender` | `VARCHAR(20)` | No | `MALE`, `FEMALE`. |
+| `email` | `VARCHAR(255)` | No | Email, unique khi có giá trị. |
+| `marital_status` | `VARCHAR(30)` | No | `SINGLE`, `MARRIED`. |
+| `permanent_address` | `TEXT` | No | Địa chỉ thường trú. |
 
 Quan hệ:
 
-- `vehicle_year 1 - N vehicle_variant`
-- `vehicle_color 1 - N vehicle_variant`
+- `customer 1 - N loan_application`
+- `customer 1 - N kyc_profile`
 
-| Column | Type | Required | Constraint | Ý nghĩa |
-|---|---|---:|---|---|
-| `id` | `uuid` | Yes | Primary key | Khóa kỹ thuật của biến thể xe. |
-| `vehicle_year_id` | `uuid` | Yes | FK → `vehicle_year.id` | Phiên bản + năm sản xuất. |
-| `vehicle_color_id` | `uuid` | Yes | FK → `vehicle_color.id` | Màu xe. |
-| `code` | `varchar(100)` | Yes | Unique | Mã biến thể xe. |
-| `name` | `varchar(255)` | Yes |  | Tên biến thể hiển thị. |
-| `is_active` | `boolean` | Yes | Default true | Có cho phép chọn hay không. |
-| `sort_order` | `int` | Yes | Default 0 | Thứ tự hiển thị. |
+## `loan_application_state`
 
----
+Danh mục state hợp lệ của hồ sơ vay.
 
-## 15. Bảng `vehicle_market_price`
+| Column | Type | Required | Ý nghĩa |
+|---|---|---:|---|
+| `id` | `UUID` | Yes | Khóa kỹ thuật. |
+| `code` | `VARCHAR(50)` | Yes | Mã state, unique. |
+| `name` | `VARCHAR(100)` | Yes | Tên state. |
+| `description` | `TEXT` | No | Mô tả state. |
+| `is_initial` | `BOOLEAN` | Yes | Đánh dấu state khởi tạo. |
+| `is_terminal` | `BOOLEAN` | Yes | Đánh dấu state kết thúc. |
+| `sort_order` | `INT` | Yes | Thứ tự hiển thị. |
 
-### Mục đích
+Quan hệ:
 
-Lưu giá thị trường theo từng biến thể xe và thời điểm hiệu lực.
+- Được tham chiếu bởi `loan_application.current_state_id`.
+- Được tham chiếu bởi `loan_application_state_transition`.
+- Được tham chiếu bởi `loan_application_state_history`.
 
-Màu xe có ảnh hưởng đến giá, vì vậy giá được gắn với `vehicle_variant` thay vì chỉ gắn với model hoặc năm sản xuất.
+## `loan_application_state_transition`
 
-| Column | Type | Required | Constraint | Ý nghĩa |
-|---|---|---:|---|---|
-| `id` | `uuid` | Yes | Primary key | Khóa kỹ thuật của giá thị trường. |
-| `vehicle_variant_id` | `uuid` | Yes | FK → `vehicle_variant.id` | Biến thể xe được định giá. |
-| `price_amount` | `numeric(18,2)` | Yes | Check > 0 | Giá thị trường. |
-| `currency_code` | `varchar(3)` | Yes | Default `VND` | Đơn vị tiền tệ. |
-| `price_source` | `varchar(100)` | No |  | Nguồn giá: import, pricing service, manual... |
-| `effective_from` | `date` | Yes |  | Ngày bắt đầu hiệu lực của giá. |
-| `effective_to` | `date` | No | Check >= `effective_from` nếu có | Ngày kết thúc hiệu lực. `NULL` nghĩa là còn hiệu lực. |
-| `note` | `text` | No |  | Ghi chú. |
+Cấu hình các đường chuyển state hợp lệ.
 
----
+| Column | Type | Required | Ý nghĩa |
+|---|---|---:|---|
+| `id` | `UUID` | Yes | Khóa kỹ thuật. |
+| `from_state_id` | `UUID` | Yes | FK đến state nguồn. |
+| `to_state_id` | `UUID` | Yes | FK đến state đích. |
+| `action_code` | `VARCHAR(50)` | Yes | Mã hành động chuyển state. |
+| `action_name` | `VARCHAR(100)` | Yes | Tên hành động. |
+| `description` | `TEXT` | No | Mô tả hành động. |
 
-## 16. Bảng `asset`
+Quan hệ:
 
-### Mục đích
+- `loan_application_state 1 - N loan_application_state_transition` qua `from_state_id`.
+- `loan_application_state 1 - N loan_application_state_transition` qua `to_state_id`.
 
-Lưu tài sản là xe ở mức tối giản. Tài sản được gắn vào hồ sơ vay qua `loan_application.asset_id`.
+## `loan_purpose`
 
-Bảng `asset` không chứa `customer_id`. Khách hàng của tài sản được xác định qua hồ sơ vay:
+Danh mục mục đích vay.
 
-`asset -> loan_application -> customer`.
+| Column | Type | Required | Ý nghĩa |
+|---|---|---:|---|
+| `id` | `UUID` | Yes | Khóa kỹ thuật. |
+| `code` | `VARCHAR(50)` | Yes | Mã mục đích vay, unique. |
+| `name` | `VARCHAR(100)` | Yes | Tên hiển thị. |
+| `description` | `TEXT` | No | Mô tả. |
+| `is_active` | `BOOLEAN` | Yes | Có còn dùng để chọn hay không. |
+| `sort_order` | `INT` | Yes | Thứ tự hiển thị. |
 
-### Cấu trúc trường
+Quan hệ:
 
-| Column | Type | Required | Constraint | Ý nghĩa |
-|---|---|---:|---|---|
-| `id` | `uuid` | Yes | Primary key | Khóa kỹ thuật của tài sản. |
-| `asset_code` | `varchar(50)` | Yes | Unique | Mã nghiệp vụ của tài sản. Format đề xuất: `AST-YYYY-NNNNNN`. |
-| `vehicle_variant_id` | `uuid` | Yes | FK → `vehicle_variant.id` | Biến thể xe của tài sản. |
-| `license_plate` | `varchar(20)` | No | Unique | Biển số xe. |
-| `status` | `varchar(30)` | Yes | Check enum | Trạng thái tài sản trong nghiệp vụ cầm cố. |
+- `loan_purpose 1 - N loan_application`.
+- `loan_purpose N - N loan_product` qua `loan_product_purpose`.
 
-### Giá trị hợp lệ của `asset.status`
+## `loan_term`
 
-| Value | Ý nghĩa |
-|---|---|
-| `AVAILABLE` | Tài sản sẵn sàng, chưa bị gắn vào khoản cầm cố đang xử lý. |
-| `PLEDGED` | Tài sản đang được cầm cố. |
-| `RELEASED` | Tài sản đã được giải chấp/giải phóng. |
-| `SETTLED` | Tài sản liên quan khoản vay đã tất toán/thanh toán xong. |
+Danh mục kỳ hạn vay.
 
----
+| Column | Type | Required | Ý nghĩa |
+|---|---|---:|---|
+| `id` | `UUID` | Yes | Khóa kỹ thuật. |
+| `code` | `VARCHAR(50)` | Yes | Mã kỳ hạn, unique. |
+| `term_months` | `INT` | Yes | Số tháng, unique và lớn hơn 0. |
+| `name` | `VARCHAR(100)` | Yes | Tên hiển thị. |
+| `description` | `TEXT` | No | Mô tả. |
+| `is_active` | `BOOLEAN` | Yes | Có còn dùng để chọn hay không. |
+| `sort_order` | `INT` | Yes | Thứ tự hiển thị. |
 
-## 17. Bảng `asset_deduction_type`
+Quan hệ:
 
-### Mục đích
+- `loan_term 1 - N loan_application`.
+- `loan_term N - N loan_product` qua `loan_product_term`.
 
-Lưu danh mục các yếu tố giảm trừ dùng trong định giá tài sản.
+## `bank`
 
-Mỗi loại giảm trừ có một số tiền giảm trừ cố định. Khi định giá, hệ thống sẽ copy số tiền này sang `asset_valuation_deduction.deduction_amount_snapshot` để giữ snapshot.
+Danh mục ngân hàng giải ngân.
 
-### Cấu trúc trường
+| Column | Type | Required | Ý nghĩa |
+|---|---|---:|---|
+| `id` | `UUID` | Yes | Khóa kỹ thuật. |
+| `code` | `VARCHAR(50)` | Yes | Mã ngân hàng, unique. |
+| `name` | `VARCHAR(255)` | Yes | Tên đầy đủ. |
+| `short_name` | `VARCHAR(100)` | No | Tên viết tắt. |
+| `is_active` | `BOOLEAN` | Yes | Có còn dùng để chọn hay không. |
+| `sort_order` | `INT` | Yes | Thứ tự hiển thị. |
 
-| Column | Type | Required | Constraint | Ý nghĩa |
-|---|---|---:|---|---|
-| `id` | `uuid` | Yes | Primary key | Khóa kỹ thuật của loại giảm trừ. |
-| `code` | `varchar(50)` | Yes | Unique | Mã loại giảm trừ dùng trong hệ thống. |
-| `name` | `varchar(100)` | Yes |  | Tên hiển thị của loại giảm trừ. |
-| `description` | `text` | No |  | Mô tả loại giảm trừ. |
-| `deduction_amount` | `numeric(18,2)` | Yes | Check >= 0 | Số tiền giảm trừ cố định của loại này. |
-| `is_active` | `boolean` | Yes | Default `true` | Có hiển thị cho nhân viên chọn hay không. |
-| `sort_order` | `int` | Yes | Default `0` | Thứ tự hiển thị. |
+Quan hệ:
 
-### Dữ liệu seed hiện tại
+- `bank 1 - N loan_application` qua `disbursement_bank_id`.
 
-| Code | Ý nghĩa |
-|---|---|
-| `OLD_VEHICLE` | Xe cũ hoặc đời xe thấp hơn mặt bằng định giá. |
-| `PHYSICAL_DAMAGE` | Hư hỏng ngoại thất, trầy xước, móp méo, va chạm. |
-| `ENGINE_ISSUE` | Lỗi động cơ hoặc dấu hiệu đã sửa chữa lớn. |
-| `MISSING_DOCUMENT` | Thiếu giấy tờ liên quan. |
-| `HIGH_MILEAGE` | Số km sử dụng cao. |
-| `LOW_LIQUIDITY_COLOR` | Màu xe khó thanh khoản. |
-| `MODIFIED_VEHICLE` | Xe đã độ hoặc chỉnh sửa. |
-| `OTHER` | Yếu tố giảm trừ khác. |
+## `occupation`
 
----
+Danh mục nghề nghiệp.
 
-## 18. Bảng `asset_valuation`
-
-### Mục đích
-
-Lưu kết quả tổng của một lần định giá tài sản.
-
-Bảng này là snapshot. Nếu giá thị trường hoặc giá trị giảm trừ thay đổi sau này, record định giá cũ vẫn giữ nguyên.
-
-### Cấu trúc trường
-
-| Column | Type | Required | Constraint | Ý nghĩa |
-|---|---|---:|---|---|
-| `id` | `uuid` | Yes | Primary key | Khóa kỹ thuật của lần định giá. |
-| `asset_id` | `uuid` | Yes | FK → `asset.id` | Tài sản được định giá. |
-| `market_price_amount` | `numeric(18,2)` | Yes | Check > 0 | Giá thị trường tại thời điểm định giá. |
-| `total_deduction_amount` | `numeric(18,2)` | Yes | Check >= 0 | Tổng số tiền giảm trừ đã áp dụng. |
-| `final_value_amount` | `numeric(18,2)` | Yes | Check >= 0 | Giá trị cuối cùng sau giảm trừ. |
-| `currency_code` | `varchar(3)` | Yes | Default `VND` | Đơn vị tiền tệ. |
-| `valuation_source` | `varchar(100)` | No |  | Nguồn định giá, ví dụ `MANUAL` hoặc `PRICING_SERVICE`. |
-| `valued_at` | `timestamp` | Yes | Default `CURRENT_TIMESTAMP` | Thời điểm định giá. |
-| `valued_by` | `varchar(100)` | No |  | Nhân viên hoặc hệ thống thực hiện định giá. |
-| `note` | `text` | No |  | Ghi chú định giá. |
-
-### Ghi chú tính toán
-
-```text
-final_value_amount = market_price_amount - total_deduction_amount
-```
-
-Backend tính đủ trước khi insert `asset_valuation`, nên không cần tạo record tạm rồi update lại.
-
----
-
-## 19. Bảng `asset_valuation_deduction`
-
-### Mục đích
-
-Lưu các yếu tố giảm trừ đã được áp dụng trong một lần định giá.
-
-Mỗi record tương ứng với một loại giảm trừ được chọn trong lần định giá đó.
-
-### Cấu trúc trường
-
-| Column | Type | Required | Constraint | Ý nghĩa |
-|---|---|---:|---|---|
-| `id` | `uuid` | Yes | Primary key | Khóa kỹ thuật của dòng giảm trừ. |
-| `asset_valuation_id` | `uuid` | Yes | FK → `asset_valuation.id` | Lần định giá áp dụng giảm trừ. |
-| `deduction_type_id` | `uuid` | Yes | FK → `asset_deduction_type.id` | Loại giảm trừ được chọn. |
-| `deduction_amount_snapshot` | `numeric(18,2)` | Yes | Check >= 0 | Số tiền giảm trừ được copy từ `asset_deduction_type` tại thời điểm định giá. |
-| `note` | `text` | No |  | Ghi chú riêng cho dòng giảm trừ nếu cần. |
-| `created_at` | `timestamp` | Yes | Default `CURRENT_TIMESTAMP` | Thời điểm tạo dòng giảm trừ. |
-
-### Ghi chú thiết kế
-
-- Không dùng `deduction_method`, `deduction_value`, `deduction_amount` theo kiểu linh hoạt nữa.
-- Hiện tại giảm trừ là số tiền cố định theo từng `asset_deduction_type`.
-- Unique theo `(asset_valuation_id, deduction_type_id)` để một lần định giá không chọn trùng một loại giảm trừ.
-
----
-
-## 20. Luồng dropdown chọn xe
-
-Giao diện chọn xe nên dùng thứ tự sau:
-
-1. Chọn `vehicle_type`.
-2. Từ `vehicle_type_id`, lấy danh sách `vehicle_brand`.
-3. Từ `vehicle_brand_id`, lấy danh sách `vehicle_model`.
-4. Từ `vehicle_model_id`, lấy danh sách `vehicle_version`.
-5. Từ `vehicle_version_id`, lấy danh sách `vehicle_year`.
-6. Từ `vehicle_year_id`, lấy danh sách màu hợp lệ thông qua `vehicle_variant`.
-7. Từ `vehicle_year_id` + `vehicle_color_id`, xác định `vehicle_variant`.
-8. Từ `vehicle_variant_id`, lấy giá thị trường hiện hành trong `vehicle_market_price`.
-
----
-
-## 21. Luồng chọn mục đích vay
-
-Frontend lấy danh sách mục đích vay từ bảng `loan_purpose`:
-
-```sql
-SELECT
-    id,
-    code,
-    name,
-    description
-FROM loan_purpose
-WHERE is_active = TRUE
-ORDER BY sort_order, name;
-```
-
-Khi tạo hoặc cập nhật hồ sơ vay, frontend gửi `loan_purpose_id`. Backend lưu vào `loan_application.loan_purpose_id`.
-
----
-
-## 22. Luồng định giá tài sản và chọn giảm trừ
-
-### Preview
-
-Khi nhân viên chọn các yếu tố giảm trừ trên frontend, backend có thể tính preview bằng cách đọc:
-
-- `asset`
-- `vehicle_market_price`
-- `asset_deduction_type`
-
-Preview không tạo record trong database.
-
-### Save
-
-Khi nhân viên bấm lưu định giá, backend chạy trong một transaction:
-
-1. Đọc `asset` để biết tài sản đang định giá.
-2. Đọc `vehicle_market_price` để lấy giá thị trường hiện hành.
-3. Đọc `asset_deduction_type` để lấy số tiền của các giảm trừ đã chọn.
-4. Tính `total_deduction_amount`.
-5. Tính `final_value_amount`.
-6. Insert 1 record vào `asset_valuation`.
-7. Insert N record vào `asset_valuation_deduction`, tương ứng N yếu tố giảm trừ được chọn.
-8. Commit transaction.
-
-Không cần update `asset_valuation` lần hai vì backend đã tính đủ trước khi insert.
-
----
-
-## 23. Ghi chú về audit
-
-`loan_application_state_history` audit lifecycle event của hồ sơ vay. Bảng này không audit mọi thay đổi field như `requested_amount`, `loan_purpose_id`, `loan_term_months` hoặc `asset_id`.
-
-Nếu sau này cần audit chi tiết mọi thay đổi dữ liệu, cần thiết kế thêm bảng audit riêng hoặc cơ chế event log.
+| Column | Type | Required | Ý nghĩa |
+|---|---|---:|---|
+| `id` | `UUID` | Yes | Khóa kỹ thuật. |
+| `code` | `VARCHAR(50)` | Yes | Mã nghề nghiệp, unique. |
+| `name` | `VARCHAR(255)` | Yes | Tên nghề nghiệp. |
+| `description` | `TEXT` | No | Mô tả. |
+| `is_active` | `BOOLEAN` | Yes | Có còn dùng để chọn hay không. |
+| `sort_order` | `INT` | Yes | Thứ tự hiển thị. |
+
+Quan hệ:
+
+- `occupation 1 - N loan_application` qua `occupation_id`.
+
+## `income_source`
+
+Danh mục nguồn thu nhập khai báo của người vay.
+
+| Column | Type | Required | Ý nghĩa |
+|---|---|---:|---|
+| `id` | `UUID` | Yes | Khóa kỹ thuật. |
+| `code` | `VARCHAR(50)` | Yes | Mã nguồn thu nhập, unique. |
+| `name` | `VARCHAR(255)` | Yes | Tên nguồn thu nhập. |
+| `description` | `TEXT` | No | Mô tả. |
+| `is_active` | `BOOLEAN` | Yes | Có còn dùng để chọn hay không. |
+| `sort_order` | `INT` | Yes | Thứ tự hiển thị. |
+
+Seed hiện tại gồm: `SALARY`, `BUSINESS`, `SELF_EMPLOYED`, `COMMISSION`, `DRIVER_INCOME`, `RENTAL`, `FAMILY_SUPPORT`, `PENSION`, `AGRICULTURE`, `OTHER`.
+
+Quan hệ:
+
+- `income_source 1 - N loan_application` qua `income_source_id`.
+
+## `score_grade`
+
+Danh mục hạng điểm phục vụ rule/demo scoring và lọc sản phẩm vay.
+
+| Column | Type | Required | Ý nghĩa |
+|---|---|---:|---|
+| `id` | `UUID` | Yes | Khóa kỹ thuật. |
+| `code` | `VARCHAR(10)` | Yes | Mã hạng điểm, unique. |
+| `name` | `VARCHAR(100)` | Yes | Tên hạng điểm. |
+| `description` | `TEXT` | No | Mô tả. |
+| `is_active` | `BOOLEAN` | Yes | Có còn dùng hay không. |
+| `sort_order` | `INT` | Yes | Thứ tự ưu tiên/hiển thị. |
+
+Quan hệ:
+
+- `score_grade N - N loan_product` qua `loan_product_score_grade`.
+- `score_grade 1 - N mock_score_grade_rule`.
+
+## `loan_product`
+
+Danh mục sản phẩm vay.
+
+| Column | Type | Required | Ý nghĩa |
+|---|---|---:|---|
+| `id` | `UUID` | Yes | Khóa kỹ thuật. |
+| `product_code` | `VARCHAR(50)` | Yes | Mã sản phẩm, unique. |
+| `product_name` | `VARCHAR(255)` | Yes | Tên sản phẩm. |
+| `applies_to_all_loan_purposes` | `BOOLEAN` | Yes | Có áp dụng cho mọi mục đích vay hay không. |
+| `min_loan_amount` | `NUMERIC(18,2)` | Yes | Số tiền vay tối thiểu. |
+| `max_loan_amount` | `NUMERIC(18,2)` | Yes | Số tiền vay tối đa. |
+| `max_ltv_percent` | `NUMERIC(5,2)` | Yes | Tỷ lệ LTV tối đa. |
+| `monthly_interest_rate_percent` | `NUMERIC(5,2)` | Yes | Lãi suất tháng. |
+| `is_active` | `BOOLEAN` | Yes | Có còn dùng hay không. |
+| `sort_order` | `INT` | Yes | Thứ tự hiển thị. |
+
+Quan hệ:
+
+- `loan_product 1 - N loan_application` qua `loan_product_id`.
+- `loan_product N - N loan_purpose` qua `loan_product_purpose`.
+- `loan_product N - N vehicle_type` qua `loan_product_vehicle_type`.
+- `loan_product N - N loan_term` qua `loan_product_term`.
+- `loan_product N - N score_grade` qua `loan_product_score_grade`.
+
+## Mapping sản phẩm vay
+
+Các bảng mapping dùng để cấu hình sản phẩm vay áp dụng cho mục đích vay, loại xe, kỳ hạn và hạng điểm nào.
+
+| Table | Column | Type | Required | Quan hệ |
+|---|---|---|---:|---|
+| `loan_product_purpose` | `loan_product_id` | `UUID` | Yes | FK đến `loan_product.id`. |
+| `loan_product_purpose` | `loan_purpose_id` | `UUID` | Yes | FK đến `loan_purpose.id`. |
+| `loan_product_vehicle_type` | `loan_product_id` | `UUID` | Yes | FK đến `loan_product.id`. |
+| `loan_product_vehicle_type` | `vehicle_type_id` | `UUID` | Yes | FK đến `vehicle_type.id`. |
+| `loan_product_term` | `loan_product_id` | `UUID` | Yes | FK đến `loan_product.id`. |
+| `loan_product_term` | `loan_term_id` | `UUID` | Yes | FK đến `loan_term.id`. |
+| `loan_product_score_grade` | `loan_product_id` | `UUID` | Yes | FK đến `loan_product.id`. |
+| `loan_product_score_grade` | `score_grade_id` | `UUID` | Yes | FK đến `score_grade.id`. |
+
+## `loan_application`
+
+Bảng hồ sơ vay chính.
+
+| Column | Type | Required | Ý nghĩa |
+|---|---|---:|---|
+| `id` | `UUID` | Yes | Khóa kỹ thuật. |
+| `loan_application_code` | `VARCHAR(50)` | Yes | Mã hồ sơ vay, unique. |
+| `customer_id` | `UUID` | Yes | FK đến khách hàng. |
+| `current_state_id` | `UUID` | Yes | FK đến state hiện tại. |
+| `requested_amount` | `NUMERIC(18,2)` | No | Số tiền khách hàng muốn vay. |
+| `loan_term_months` | `INT` | No | Snapshot số tháng vay, hiện cho phép `3, 6, 9, 12, 18, 24`. |
+| `asset_id` | `UUID` | No | FK đến tài sản đã chọn. |
+| `loan_purpose_id` | `UUID` | No | FK đến mục đích vay. |
+| `loan_term_id` | `UUID` | No | FK đến kỳ hạn vay. |
+| `occupation_id` | `UUID` | No | FK đến nghề nghiệp. |
+| `disbursement_bank_id` | `UUID` | No | FK đến ngân hàng giải ngân. |
+| `disbursement_account_number` | `VARCHAR(50)` | No | Số tài khoản nhận giải ngân. |
+| `disbursement_account_name` | `VARCHAR(255)` | No | Tên tài khoản nhận giải ngân. |
+| `current_address` | `TEXT` | No | Địa chỉ hiện tại. |
+| `workplace_name` | `VARCHAR(255)` | No | Tên nơi làm việc/cơ sở kinh doanh. |
+| `workplace_address` | `TEXT` | No | Địa chỉ nơi làm việc/cơ sở kinh doanh. |
+| `monthly_income_amount` | `NUMERIC(18,2)` | No | Thu nhập hàng tháng. |
+| `loan_product_id` | `UUID` | No | FK đến sản phẩm vay đã chọn. |
+| `income_source_id` | `UUID` | No | FK đến nguồn thu nhập. |
+
+Quan hệ:
+
+- Thuộc về một `customer`.
+- Có một state hiện tại trong `loan_application_state`.
+- Có thể gắn một `asset`, `loan_purpose`, `loan_term`, `occupation`, `bank`, `loan_product`, `income_source`.
+- Có nhiều `loan_application_state_history`.
+- Có nhiều `loan_application_reference_person`.
+- Có nhiều `loan_application_document`.
+- Có tối đa một `kyc_profile` do `kyc_profile.loan_application_id` unique.
+
+## `loan_application_state_history`
+
+Lịch sử chuyển state của hồ sơ vay.
+
+| Column | Type | Required | Ý nghĩa |
+|---|---|---:|---|
+| `id` | `UUID` | Yes | Khóa kỹ thuật. |
+| `loan_application_id` | `UUID` | Yes | FK đến hồ sơ vay. |
+| `from_state_id` | `UUID` | No | State trước khi chuyển, `NULL` cho sự kiện tạo mới. |
+| `to_state_id` | `UUID` | Yes | State sau khi chuyển. |
+| `action_code` | `VARCHAR(50)` | Yes | Mã hành động. |
+| `changed_at` | `TIMESTAMP` | Yes | Thời điểm chuyển state. |
+| `changed_by` | `VARCHAR(100)` | No | Người/hệ thống thực hiện. |
+| `note` | `TEXT` | No | Ghi chú. |
+
+## `loan_application_reference_person`
+
+Người tham chiếu của hồ sơ vay.
+
+| Column | Type | Required | Ý nghĩa |
+|---|---|---:|---|
+| `id` | `UUID` | Yes | Khóa kỹ thuật. |
+| `loan_application_id` | `UUID` | Yes | FK đến hồ sơ vay. |
+| `full_name` | `VARCHAR(255)` | Yes | Họ tên người tham chiếu. |
+| `phone_number` | `VARCHAR(20)` | Yes | Số điện thoại người tham chiếu. |
+| `address` | `TEXT` | No | Địa chỉ. |
+| `relationship_type` | `VARCHAR(50)` | Yes | `FATHER`, `MOTHER`, `SPOUSE`, `SIBLING`, `RELATIVE`, `FRIEND`, `COLLEAGUE`, `OTHER`. |
+| `note` | `TEXT` | No | Ghi chú. |
+| `created_at` | `TIMESTAMP` | Yes | Thời điểm tạo. |
+| `updated_at` | `TIMESTAMP` | Yes | Thời điểm cập nhật. |
+
+Quan hệ:
+
+- `loan_application 1 - N loan_application_reference_person`.
+
+## `document_type`
+
+Danh mục loại chứng từ.
+
+| Column | Type | Required | Ý nghĩa |
+|---|---|---:|---|
+| `id` | `UUID` | Yes | Khóa kỹ thuật. |
+| `code` | `VARCHAR(50)` | Yes | Mã loại chứng từ, unique. |
+| `name` | `VARCHAR(255)` | Yes | Tên loại chứng từ. |
+| `description` | `TEXT` | No | Mô tả. |
+| `is_required` | `BOOLEAN` | Yes | Có bắt buộc hay không. |
+| `is_active` | `BOOLEAN` | Yes | Có còn dùng hay không. |
+| `sort_order` | `INT` | Yes | Thứ tự hiển thị. |
+
+Quan hệ:
+
+- `document_type 1 - N loan_application_document`.
+
+## `loan_application_document`
+
+Chứng từ/file upload gắn với hồ sơ vay.
+
+| Column | Type | Required | Ý nghĩa |
+|---|---|---:|---|
+| `id` | `UUID` | Yes | Khóa kỹ thuật. |
+| `loan_application_id` | `UUID` | Yes | FK đến hồ sơ vay. |
+| `document_type_id` | `UUID` | Yes | FK đến loại chứng từ. |
+| `file_url` | `TEXT` | Yes | URL hoặc path file đã upload. |
+| `file_name` | `VARCHAR(255)` | No | Tên file gốc/hiển thị. |
+| `uploaded_at` | `TIMESTAMP` | Yes | Thời điểm upload. |
+| `uploaded_by` | `VARCHAR(100)` | No | Người upload. |
+| `note` | `TEXT` | No | Ghi chú. |
+
+Quan hệ:
+
+- `loan_application 1 - N loan_application_document`.
+- `document_type 1 - N loan_application_document`.
+
+## `kyc_profile`
+
+Thông tin KYC/eKYC và các tín hiệu tin cậy của khách hàng trong quá trình onboarding.
+
+| Column | Type | Required | Ý nghĩa |
+|---|---|---:|---|
+| `id` | `UUID` | Yes | Khóa kỹ thuật. |
+| `customer_id` | `UUID` | Yes | FK đến khách hàng. |
+| `loan_application_id` | `UUID` | No | FK đến hồ sơ vay, unique khi có giá trị. |
+| `blacklist_check_result` | `BOOLEAN` | No | Kết quả kiểm tra blacklist. |
+| `phone_otp_verification_result` | `BOOLEAN` | No | Kết quả xác thực OTP điện thoại. |
+| `face_match_score` | `NUMERIC(5,2)` | No | Điểm khớp khuôn mặt, 0-100. |
+| `liveness_detection_score` | `NUMERIC(5,2)` | No | Điểm liveness, 0-100. |
+| `face_authenticity_score` | `NUMERIC(5,2)` | No | Điểm xác thực khuôn mặt, 0-100. |
+| `checked_at` | `TIMESTAMP` | No | Thời điểm kiểm tra. |
+| `created_at` | `TIMESTAMP` | Yes | Thời điểm tạo. |
+| `updated_at` | `TIMESTAMP` | Yes | Thời điểm cập nhật. |
+| `note` | `TEXT` | No | Ghi chú. |
+
+Quan hệ:
+
+- `customer 1 - N kyc_profile`.
+- `loan_application 0/1 - 1 kyc_profile`.
+
+## Nhóm bảng xe
+
+Các bảng xe tạo thành chuỗi dropdown/lookup:
+
+`vehicle_type -> vehicle_brand -> vehicle_model -> vehicle_version -> vehicle_year -> vehicle_variant`
+
+### `vehicle_type`
+
+| Column | Type | Required | Ý nghĩa |
+|---|---|---:|---|
+| `id` | `UUID` | Yes | Khóa kỹ thuật. |
+| `code` | `VARCHAR(50)` | Yes | Mã loại xe, unique. |
+| `name` | `VARCHAR(100)` | Yes | Tên loại xe. |
+| `description` | `TEXT` | No | Mô tả. |
+| `is_active` | `BOOLEAN` | Yes | Có còn dùng hay không. |
+| `sort_order` | `INT` | Yes | Thứ tự hiển thị. |
+
+### `vehicle_brand`
+
+| Column | Type | Required | Ý nghĩa |
+|---|---|---:|---|
+| `id` | `UUID` | Yes | Khóa kỹ thuật. |
+| `vehicle_type_id` | `UUID` | Yes | FK đến loại xe. |
+| `code` | `VARCHAR(50)` | Yes | Mã hãng xe. |
+| `name` | `VARCHAR(100)` | Yes | Tên hãng xe. |
+| `is_active` | `BOOLEAN` | Yes | Có còn dùng hay không. |
+| `sort_order` | `INT` | Yes | Thứ tự hiển thị. |
+
+### `vehicle_model`
+
+| Column | Type | Required | Ý nghĩa |
+|---|---|---:|---|
+| `id` | `UUID` | Yes | Khóa kỹ thuật. |
+| `vehicle_brand_id` | `UUID` | Yes | FK đến hãng xe. |
+| `code` | `VARCHAR(50)` | Yes | Mã dòng xe. |
+| `name` | `VARCHAR(100)` | Yes | Tên dòng xe. |
+| `is_active` | `BOOLEAN` | Yes | Có còn dùng hay không. |
+| `sort_order` | `INT` | Yes | Thứ tự hiển thị. |
+
+### `vehicle_version`
+
+| Column | Type | Required | Ý nghĩa |
+|---|---|---:|---|
+| `id` | `UUID` | Yes | Khóa kỹ thuật. |
+| `vehicle_model_id` | `UUID` | Yes | FK đến dòng xe. |
+| `code` | `VARCHAR(50)` | Yes | Mã phiên bản. |
+| `name` | `VARCHAR(100)` | Yes | Tên phiên bản. |
+| `is_active` | `BOOLEAN` | Yes | Có còn dùng hay không. |
+| `sort_order` | `INT` | Yes | Thứ tự hiển thị. |
+
+### `vehicle_year`
+
+| Column | Type | Required | Ý nghĩa |
+|---|---|---:|---|
+| `id` | `UUID` | Yes | Khóa kỹ thuật. |
+| `vehicle_version_id` | `UUID` | Yes | FK đến phiên bản. |
+| `manufacture_year` | `INT` | Yes | Năm sản xuất, 1980-2100. |
+| `is_active` | `BOOLEAN` | Yes | Có còn dùng hay không. |
+| `sort_order` | `INT` | Yes | Thứ tự hiển thị. |
+
+### `vehicle_color`
+
+| Column | Type | Required | Ý nghĩa |
+|---|---|---:|---|
+| `id` | `UUID` | Yes | Khóa kỹ thuật. |
+| `code` | `VARCHAR(50)` | Yes | Mã màu, unique. |
+| `name` | `VARCHAR(100)` | Yes | Tên màu. |
+| `is_active` | `BOOLEAN` | Yes | Có còn dùng hay không. |
+| `sort_order` | `INT` | Yes | Thứ tự hiển thị. |
+
+### `vehicle_variant`
+
+Biến thể xe định giá được, kết hợp từ `vehicle_year` và `vehicle_color`.
+
+| Column | Type | Required | Ý nghĩa |
+|---|---|---:|---|
+| `id` | `UUID` | Yes | Khóa kỹ thuật. |
+| `vehicle_year_id` | `UUID` | Yes | FK đến năm sản xuất. |
+| `vehicle_color_id` | `UUID` | Yes | FK đến màu xe. |
+| `code` | `VARCHAR(100)` | Yes | Mã biến thể, unique. |
+| `name` | `VARCHAR(255)` | Yes | Tên biến thể. |
+| `is_active` | `BOOLEAN` | Yes | Có còn dùng hay không. |
+| `sort_order` | `INT` | Yes | Thứ tự hiển thị. |
+
+Quan hệ:
+
+- `vehicle_variant 1 - N vehicle_market_price`.
+- `vehicle_variant 1 - N asset`.
+
+## `vehicle_market_price`
+
+Giá thị trường theo từng biến thể xe và thời gian hiệu lực.
+
+| Column | Type | Required | Ý nghĩa |
+|---|---|---:|---|
+| `id` | `UUID` | Yes | Khóa kỹ thuật. |
+| `vehicle_variant_id` | `UUID` | Yes | FK đến biến thể xe. |
+| `price_amount` | `NUMERIC(18,2)` | Yes | Giá thị trường. |
+| `currency_code` | `VARCHAR(3)` | Yes | Mã tiền tệ, mặc định `VND`. |
+| `price_source` | `VARCHAR(100)` | No | Nguồn giá. |
+| `effective_from` | `DATE` | Yes | Ngày bắt đầu hiệu lực. |
+| `effective_to` | `DATE` | No | Ngày hết hiệu lực. |
+| `note` | `TEXT` | No | Ghi chú. |
+
+## `asset`
+
+Tài sản xe gắn vào hồ sơ vay.
+
+| Column | Type | Required | Ý nghĩa |
+|---|---|---:|---|
+| `id` | `UUID` | Yes | Khóa kỹ thuật. |
+| `asset_code` | `VARCHAR(50)` | Yes | Mã tài sản, unique. |
+| `vehicle_variant_id` | `UUID` | Yes | FK đến biến thể xe. |
+| `license_plate` | `VARCHAR(20)` | Yes | Biển số xe, unique. |
+| `status` | `VARCHAR(30)` | Yes | `AVAILABLE`, `PLEDGED`, `RELEASED`, `SETTLED`. |
+| `frame_number` | `VARCHAR(100)` | No | Số khung, unique khi có giá trị. |
+| `engine_number` | `VARCHAR(100)` | No | Số máy, unique khi có giá trị. |
+| `registration_issue_date` | `DATE` | No | Ngày cấp đăng ký xe. |
+| `registration_certificate_number` | `VARCHAR(100)` | No | Số giấy đăng ký/cavet xe, unique khi có giá trị. |
+
+Quan hệ:
+
+- `vehicle_variant 1 - N asset`.
+- `asset 1 - N loan_application` về mặt schema qua `loan_application.asset_id`; nghiệp vụ có thể giới hạn một tài sản trong một hồ sơ active.
+- `asset 1 - N asset_valuation`.
+
+## `asset_deduction_type`
+
+Danh mục yếu tố giảm trừ định giá tài sản.
+
+| Column | Type | Required | Ý nghĩa |
+|---|---|---:|---|
+| `id` | `UUID` | Yes | Khóa kỹ thuật. |
+| `code` | `VARCHAR(50)` | Yes | Mã yếu tố giảm trừ, unique. |
+| `name` | `VARCHAR(100)` | Yes | Tên yếu tố giảm trừ. |
+| `description` | `TEXT` | No | Mô tả. |
+| `deduction_amount` | `NUMERIC(18,2)` | Yes | Số tiền giảm trừ cố định. |
+| `is_active` | `BOOLEAN` | Yes | Có còn dùng hay không. |
+| `sort_order` | `INT` | Yes | Thứ tự hiển thị. |
+
+## `asset_valuation`
+
+Snapshot kết quả định giá tài sản.
+
+| Column | Type | Required | Ý nghĩa |
+|---|---|---:|---|
+| `id` | `UUID` | Yes | Khóa kỹ thuật. |
+| `asset_id` | `UUID` | Yes | FK đến tài sản. |
+| `market_price_amount` | `NUMERIC(18,2)` | Yes | Giá thị trường tại thời điểm định giá. |
+| `total_deduction_amount` | `NUMERIC(18,2)` | Yes | Tổng tiền giảm trừ. |
+| `final_value_amount` | `NUMERIC(18,2)` | Yes | Giá trị cuối sau giảm trừ. |
+| `currency_code` | `VARCHAR(3)` | Yes | Mã tiền tệ, mặc định `VND`. |
+| `valuation_source` | `VARCHAR(100)` | No | Nguồn định giá. |
+| `valued_at` | `TIMESTAMP` | Yes | Thời điểm định giá. |
+| `valued_by` | `VARCHAR(100)` | No | Người/hệ thống định giá. |
+| `note` | `TEXT` | No | Ghi chú. |
+
+Quan hệ:
+
+- `asset 1 - N asset_valuation`.
+- `asset_valuation 1 - N asset_valuation_deduction`.
+
+## `asset_valuation_deduction`
+
+Các yếu tố giảm trừ đã áp dụng trong một lần định giá.
+
+| Column | Type | Required | Ý nghĩa |
+|---|---|---:|---|
+| `id` | `UUID` | Yes | Khóa kỹ thuật. |
+| `asset_valuation_id` | `UUID` | Yes | FK đến lần định giá. |
+| `deduction_type_id` | `UUID` | Yes | FK đến loại giảm trừ. |
+| `deduction_amount_snapshot` | `NUMERIC(18,2)` | Yes | Snapshot số tiền giảm trừ tại thời điểm định giá. |
+| `note` | `TEXT` | No | Ghi chú. |
+| `created_at` | `TIMESTAMP` | Yes | Thời điểm tạo. |
+
+Quan hệ:
+
+- `asset_valuation N - N asset_deduction_type` về nghiệp vụ, được thể hiện qua bảng này.
+
+## `mock_score_grade_rule`
+
+Rule demo để map hồ sơ vào `score_grade`.
+
+| Column | Type | Required | Ý nghĩa |
+|---|---|---:|---|
+| `id` | `UUID` | Yes | Khóa kỹ thuật. |
+| `rule_code` | `VARCHAR(50)` | Yes | Mã rule, unique. |
+| `rule_name` | `VARCHAR(255)` | Yes | Tên rule. |
+| `description` | `TEXT` | No | Mô tả. |
+| `min_monthly_income_amount` | `NUMERIC(18,2)` | No | Thu nhập tháng tối thiểu. |
+| `max_monthly_income_amount` | `NUMERIC(18,2)` | No | Thu nhập tháng tối đa. |
+| `min_requested_amount` | `NUMERIC(18,2)` | No | Số tiền vay tối thiểu. |
+| `max_requested_amount` | `NUMERIC(18,2)` | No | Số tiền vay tối đa. |
+| `min_ltv_percent` | `NUMERIC(5,2)` | No | LTV tối thiểu. |
+| `max_ltv_percent` | `NUMERIC(5,2)` | No | LTV tối đa. |
+| `score_grade_id` | `UUID` | Yes | FK đến hạng điểm. |
+| `is_active` | `BOOLEAN` | Yes | Có còn áp dụng hay không. |
+| `sort_order` | `INT` | Yes | Thứ tự ưu tiên rule. |
+
+Quan hệ:
+
+- `score_grade 1 - N mock_score_grade_rule`.

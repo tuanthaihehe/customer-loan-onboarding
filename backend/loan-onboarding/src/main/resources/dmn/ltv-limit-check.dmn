@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+        id="Definitions_LtvLimitCheck"
+        name="LTV Limit Check"
+        namespace="https://f88.com.vn/loan-onboarding/dmn/valuation">
+    <decision id="ltvLimitCheck" name="LTV Limit Check">
+        <decisionTable id="DecisionTable_LtvLimitCheck" hitPolicy="FIRST">
+            <input id="Input_LtvRatio" label="LTV ratio">
+                <inputExpression id="InputExpression_LtvRatio" typeRef="number">
+                    <text>ltvRatio</text>
+                </inputExpression>
+            </input>
+            <output id="Output_Passed" label="Passed" name="passed" typeRef="boolean"/>
+            <output id="Output_ReasonCode" label="Reason Code" name="reasonCode" typeRef="string"/>
+            <output id="Output_ReasonMessage" label="Reason Message" name="reasonMessage" typeRef="string"/>
+            <rule id="Rule_LtvRatioNull">
+                <inputEntry id="InputEntry_LtvRatioNull"><text>null</text></inputEntry>
+                <outputEntry id="OutputEntry_LtvRatioNullPassed"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_LtvRatioNullReasonCode"><text>"LTV_LIMIT_CHECK"</text></outputEntry>
+                <outputEntry id="OutputEntry_LtvRatioNullReasonMessage"><text>"LTV ratio is required"</text></outputEntry>
+            </rule>
+            <rule id="Rule_LtvRatioTooHigh">
+                <inputEntry id="InputEntry_LtvRatioTooHigh"><text>&gt; 70</text></inputEntry>
+                <outputEntry id="OutputEntry_LtvRatioTooHighPassed"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_LtvRatioTooHighReasonCode"><text>"LTV_LIMIT_CHECK"</text></outputEntry>
+                <outputEntry id="OutputEntry_LtvRatioTooHighReasonMessage"><text>"LTV ratio must not exceed 70 percent"</text></outputEntry>
+            </rule>
+            <rule id="Rule_LtvRatioPassed">
+                <inputEntry id="InputEntry_LtvRatioPassed"><text>-</text></inputEntry>
+                <outputEntry id="OutputEntry_LtvRatioPassed"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_LtvRatioReasonCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_LtvRatioReasonMessage"><text>null</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+</definitions>

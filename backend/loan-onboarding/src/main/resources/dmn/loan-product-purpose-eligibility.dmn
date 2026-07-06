@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+        id="Definitions_LoanProductPurposeEligibility"
+        name="Loan Product Purpose Eligibility"
+        namespace="https://f88.com.vn/loan-onboarding/dmn/loan-product">
+    <decision id="loanProductPurposeEligibility" name="Loan Product Purpose Eligibility">
+        <decisionTable id="DecisionTable_LoanProductPurposeEligibility" hitPolicy="FIRST">
+            <input id="Input_LoanPurpose" label="Selected loan purpose">
+                <inputExpression id="InputExpression_LoanPurpose" typeRef="string">
+                    <text>loanPurpose</text>
+                </inputExpression>
+            </input>
+            <input id="Input_AppliesToAllLoanPurposes" label="Applies to all loan purposes">
+                <inputExpression id="InputExpression_AppliesToAllLoanPurposes" typeRef="boolean">
+                    <text>appliesToAllLoanPurposes</text>
+                </inputExpression>
+            </input>
+            <input id="Input_PurposeAllowedByProduct" label="Purpose allowed by product">
+                <inputExpression id="InputExpression_PurposeAllowedByProduct" typeRef="boolean">
+                    <text>list contains(allowedLoanPurposes, loanPurpose)</text>
+                </inputExpression>
+            </input>
+            <output id="Output_Passed" label="Passed" name="passed" typeRef="boolean"/>
+            <output id="Output_ReasonCode" label="Reason Code" name="reasonCode" typeRef="string"/>
+            <output id="Output_ReasonMessage" label="Reason Message" name="reasonMessage" typeRef="string"/>
+            <rule id="Rule_ProductPurposeNull">
+                <inputEntry id="InputEntry_ProductPurposeNull"><text>null</text></inputEntry>
+                <inputEntry id="InputEntry_ProductPurposeNullAll"><text>-</text></inputEntry>
+                <inputEntry id="InputEntry_ProductPurposeNullAllowed"><text>-</text></inputEntry>
+                <outputEntry id="OutputEntry_ProductPurposeNullPassed"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_ProductPurposeNullReasonCode"><text>"LOAN_PRODUCT_PURPOSE_ALLOWED"</text></outputEntry>
+                <outputEntry id="OutputEntry_ProductPurposeNullReasonMessage"><text>"Loan purpose is required"</text></outputEntry>
+            </rule>
+            <rule id="Rule_ProductPurposeBlank">
+                <inputEntry id="InputEntry_ProductPurposeBlank"><text>""</text></inputEntry>
+                <inputEntry id="InputEntry_ProductPurposeBlankAll"><text>-</text></inputEntry>
+                <inputEntry id="InputEntry_ProductPurposeBlankAllowed"><text>-</text></inputEntry>
+                <outputEntry id="OutputEntry_ProductPurposeBlankPassed"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_ProductPurposeBlankReasonCode"><text>"LOAN_PRODUCT_PURPOSE_ALLOWED"</text></outputEntry>
+                <outputEntry id="OutputEntry_ProductPurposeBlankReasonMessage"><text>"Loan purpose is required"</text></outputEntry>
+            </rule>
+            <rule id="Rule_ProductPurposeAll">
+                <inputEntry id="InputEntry_ProductPurposeAllValue"><text>-</text></inputEntry>
+                <inputEntry id="InputEntry_ProductPurposeAll"><text>true</text></inputEntry>
+                <inputEntry id="InputEntry_ProductPurposeAllAllowed"><text>-</text></inputEntry>
+                <outputEntry id="OutputEntry_ProductPurposeAllPassed"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_ProductPurposeAllReasonCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_ProductPurposeAllReasonMessage"><text>null</text></outputEntry>
+            </rule>
+            <rule id="Rule_ProductPurposeAllowed">
+                <inputEntry id="InputEntry_ProductPurposeAllowedValue"><text>-</text></inputEntry>
+                <inputEntry id="InputEntry_ProductPurposeAllowedAll"><text>false</text></inputEntry>
+                <inputEntry id="InputEntry_ProductPurposeAllowed"><text>true</text></inputEntry>
+                <outputEntry id="OutputEntry_ProductPurposeAllowedPassed"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_ProductPurposeAllowedReasonCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_ProductPurposeAllowedReasonMessage"><text>null</text></outputEntry>
+            </rule>
+            <rule id="Rule_ProductPurposeNotAllowed">
+                <inputEntry id="InputEntry_ProductPurposeNotAllowedValue"><text>-</text></inputEntry>
+                <inputEntry id="InputEntry_ProductPurposeNotAllowedAll"><text>false</text></inputEntry>
+                <inputEntry id="InputEntry_ProductPurposeNotAllowed"><text>false</text></inputEntry>
+                <outputEntry id="OutputEntry_ProductPurposeNotAllowedPassed"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_ProductPurposeNotAllowedReasonCode"><text>"LOAN_PRODUCT_PURPOSE_ALLOWED"</text></outputEntry>
+                <outputEntry id="OutputEntry_ProductPurposeNotAllowedReasonMessage"><text>"San pham khong ap dung cho muc dich vay da chon."</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+</definitions>

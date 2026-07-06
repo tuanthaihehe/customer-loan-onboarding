@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+        id="Definitions_AssetValuationRules"
+        name="Asset Valuation Rules"
+        namespace="https://f88.com.vn/loan-onboarding/dmn/asset-valuation-rules">
+<decision id="assetValuationDeductionLimit" name="Asset Valuation Deduction Limit">
+        <decisionTable id="AssetValuationDeduction_DecisionTable_AssetValuationDeductionLimit" hitPolicy="FIRST">
+            <input id="AssetValuationDeduction_Input_MarketValue" label="Market value">
+                <inputExpression id="AssetValuationDeduction_InputExpression_MarketValue" typeRef="number">
+                    <text>marketValue</text>
+                </inputExpression>
+            </input>
+            <input id="AssetValuationDeduction_Input_TotalDeductionAmount" label="Total deduction amount">
+                <inputExpression id="AssetValuationDeduction_InputExpression_TotalDeductionAmount" typeRef="number">
+                    <text>totalDeductionAmount</text>
+                </inputExpression>
+            </input>
+            <output id="AssetValuationDeduction_Output_Passed" label="Passed" name="passed" typeRef="boolean"/>
+            <output id="AssetValuationDeduction_Output_ReasonCode" label="Reason Code" name="reasonCode" typeRef="string"/>
+            <output id="AssetValuationDeduction_Output_ReasonMessage" label="Reason Message" name="reasonMessage" typeRef="string"/>
+            <rule id="AssetValuationDeduction_Rule_MarketValueNull">
+                <inputEntry id="AssetValuationDeduction_InputEntry_MarketValueNull"><text>null</text></inputEntry>
+                <inputEntry id="AssetValuationDeduction_InputEntry_MarketValueNullDeduction"><text>-</text></inputEntry>
+                <outputEntry id="AssetValuationDeduction_OutputEntry_MarketValueNullPassed"><text>false</text></outputEntry>
+                <outputEntry id="AssetValuationDeduction_OutputEntry_MarketValueNullReasonCode"><text>"ASSET_VALUATION_DEDUCTION_LIMIT"</text></outputEntry>
+                <outputEntry id="AssetValuationDeduction_OutputEntry_MarketValueNullReasonMessage"><text>"Market value and total deduction amount are required"</text></outputEntry>
+            </rule>
+            <rule id="AssetValuationDeduction_Rule_TotalDeductionAmountNull">
+                <inputEntry id="AssetValuationDeduction_InputEntry_TotalDeductionAmountNullMarket"><text>-</text></inputEntry>
+                <inputEntry id="AssetValuationDeduction_InputEntry_TotalDeductionAmountNull"><text>null</text></inputEntry>
+                <outputEntry id="AssetValuationDeduction_OutputEntry_TotalDeductionAmountNullPassed"><text>false</text></outputEntry>
+                <outputEntry id="AssetValuationDeduction_OutputEntry_TotalDeductionAmountNullReasonCode"><text>"ASSET_VALUATION_DEDUCTION_LIMIT"</text></outputEntry>
+                <outputEntry id="AssetValuationDeduction_OutputEntry_TotalDeductionAmountNullReasonMessage"><text>"Market value and total deduction amount are required"</text></outputEntry>
+            </rule>
+            <rule id="AssetValuationDeduction_Rule_TotalDeductionNegative">
+                <inputEntry id="AssetValuationDeduction_InputEntry_TotalDeductionNegativeMarket"><text>-</text></inputEntry>
+                <inputEntry id="AssetValuationDeduction_InputEntry_TotalDeductionNegative"><text>&lt; 0</text></inputEntry>
+                <outputEntry id="AssetValuationDeduction_OutputEntry_TotalDeductionNegativePassed"><text>false</text></outputEntry>
+                <outputEntry id="AssetValuationDeduction_OutputEntry_TotalDeductionNegativeReasonCode"><text>"ASSET_VALUATION_DEDUCTION_LIMIT"</text></outputEntry>
+                <outputEntry id="AssetValuationDeduction_OutputEntry_TotalDeductionNegativeReasonMessage"><text>"Total deduction amount must not be negative"</text></outputEntry>
+            </rule>
+            <rule id="AssetValuationDeduction_Rule_TotalDeductionGreaterThanMarket">
+                <inputEntry id="AssetValuationDeduction_InputEntry_TotalDeductionGreaterThanMarketMarket"><text>-</text></inputEntry>
+                <inputEntry id="AssetValuationDeduction_InputEntry_TotalDeductionGreaterThanMarket"><text>&gt; marketValue</text></inputEntry>
+                <outputEntry id="AssetValuationDeduction_OutputEntry_TotalDeductionGreaterThanMarketPassed"><text>false</text></outputEntry>
+                <outputEntry id="AssetValuationDeduction_OutputEntry_TotalDeductionGreaterThanMarketReasonCode"><text>"ASSET_VALUATION_DEDUCTION_LIMIT"</text></outputEntry>
+                <outputEntry id="AssetValuationDeduction_OutputEntry_TotalDeductionGreaterThanMarketReasonMessage"><text>"Tong giam tru khong duoc lon hon gia thi truong."</text></outputEntry>
+            </rule>
+            <rule id="AssetValuationDeduction_Rule_AssetValuationDeductionPassed">
+                <inputEntry id="AssetValuationDeduction_InputEntry_AssetValuationDeductionPassedMarket"><text>-</text></inputEntry>
+                <inputEntry id="AssetValuationDeduction_InputEntry_AssetValuationDeductionPassedDeduction"><text>-</text></inputEntry>
+                <outputEntry id="AssetValuationDeduction_OutputEntry_AssetValuationDeductionPassed"><text>true</text></outputEntry>
+                <outputEntry id="AssetValuationDeduction_OutputEntry_AssetValuationDeductionReasonCode"><text>null</text></outputEntry>
+                <outputEntry id="AssetValuationDeduction_OutputEntry_AssetValuationDeductionReasonMessage"><text>null</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+<decision id="loanableAmountCheck" name="Loanable Amount Check">
+        <decisionTable id="LoanableAmount_DecisionTable_LoanableAmountCheck" hitPolicy="FIRST">
+            <input id="LoanableAmount_Input_AssetFinalValue" label="Asset final value">
+                <inputExpression id="LoanableAmount_InputExpression_AssetFinalValue" typeRef="number">
+                    <text>assetFinalValue</text>
+                </inputExpression>
+            </input>
+            <input id="LoanableAmount_Input_LoanableAmount" label="Loanable amount">
+                <inputExpression id="LoanableAmount_InputExpression_LoanableAmount" typeRef="number">
+                    <text>loanableAmount</text>
+                </inputExpression>
+            </input>
+            <output id="LoanableAmount_Output_Passed" label="Passed" name="passed" typeRef="boolean"/>
+            <output id="LoanableAmount_Output_ReasonCode" label="Reason Code" name="reasonCode" typeRef="string"/>
+            <output id="LoanableAmount_Output_ReasonMessage" label="Reason Message" name="reasonMessage" typeRef="string"/>
+            <rule id="LoanableAmount_Rule_AssetFinalValueNull">
+                <inputEntry id="LoanableAmount_InputEntry_AssetFinalValueNull"><text>null</text></inputEntry>
+                <inputEntry id="LoanableAmount_InputEntry_AssetFinalValueNullLoanable"><text>-</text></inputEntry>
+                <outputEntry id="LoanableAmount_OutputEntry_AssetFinalValueNullPassed"><text>false</text></outputEntry>
+                <outputEntry id="LoanableAmount_OutputEntry_AssetFinalValueNullReasonCode"><text>"LOANABLE_AMOUNT_CHECK"</text></outputEntry>
+                <outputEntry id="LoanableAmount_OutputEntry_AssetFinalValueNullReasonMessage"><text>"Asset final value and loanable amount are required"</text></outputEntry>
+            </rule>
+            <rule id="LoanableAmount_Rule_LoanableAmountNull">
+                <inputEntry id="LoanableAmount_InputEntry_LoanableAmountNullAsset"><text>-</text></inputEntry>
+                <inputEntry id="LoanableAmount_InputEntry_LoanableAmountNull"><text>null</text></inputEntry>
+                <outputEntry id="LoanableAmount_OutputEntry_LoanableAmountNullPassed"><text>false</text></outputEntry>
+                <outputEntry id="LoanableAmount_OutputEntry_LoanableAmountNullReasonCode"><text>"LOANABLE_AMOUNT_CHECK"</text></outputEntry>
+                <outputEntry id="LoanableAmount_OutputEntry_LoanableAmountNullReasonMessage"><text>"Asset final value and loanable amount are required"</text></outputEntry>
+            </rule>
+            <rule id="LoanableAmount_Rule_AssetFinalValueNotPositive">
+                <inputEntry id="LoanableAmount_InputEntry_AssetFinalValueNotPositive"><text>&lt;= 0</text></inputEntry>
+                <inputEntry id="LoanableAmount_InputEntry_AssetFinalValueNotPositiveLoanable"><text>-</text></inputEntry>
+                <outputEntry id="LoanableAmount_OutputEntry_AssetFinalValueNotPositivePassed"><text>false</text></outputEntry>
+                <outputEntry id="LoanableAmount_OutputEntry_AssetFinalValueNotPositiveReasonCode"><text>"LOANABLE_AMOUNT_CHECK"</text></outputEntry>
+                <outputEntry id="LoanableAmount_OutputEntry_AssetFinalValueNotPositiveReasonMessage"><text>"Asset final value must be greater than zero"</text></outputEntry>
+            </rule>
+            <rule id="LoanableAmount_Rule_LoanableAmountGreaterThanAsset">
+                <inputEntry id="LoanableAmount_InputEntry_LoanableAmountGreaterThanAssetAsset"><text>-</text></inputEntry>
+                <inputEntry id="LoanableAmount_InputEntry_LoanableAmountGreaterThanAsset"><text>&gt; assetFinalValue</text></inputEntry>
+                <outputEntry id="LoanableAmount_OutputEntry_LoanableAmountGreaterThanAssetPassed"><text>false</text></outputEntry>
+                <outputEntry id="LoanableAmount_OutputEntry_LoanableAmountGreaterThanAssetReasonCode"><text>"LOANABLE_AMOUNT_CHECK"</text></outputEntry>
+                <outputEntry id="LoanableAmount_OutputEntry_LoanableAmountGreaterThanAssetReasonMessage"><text>"Loanable amount must not exceed asset final value"</text></outputEntry>
+            </rule>
+            <rule id="LoanableAmount_Rule_LoanableAmountPassed">
+                <inputEntry id="LoanableAmount_InputEntry_LoanableAmountPassedAsset"><text>-</text></inputEntry>
+                <inputEntry id="LoanableAmount_InputEntry_LoanableAmountPassedLoanable"><text>-</text></inputEntry>
+                <outputEntry id="LoanableAmount_OutputEntry_LoanableAmountPassed"><text>true</text></outputEntry>
+                <outputEntry id="LoanableAmount_OutputEntry_LoanableAmountReasonCode"><text>null</text></outputEntry>
+                <outputEntry id="LoanableAmount_OutputEntry_LoanableAmountReasonMessage"><text>null</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+<decision id="ltvLimitCheck" name="LTV Limit Check">
+        <decisionTable id="LtvLimit_DecisionTable_LtvLimitCheck" hitPolicy="FIRST">
+            <input id="LtvLimit_Input_LtvRatio" label="LTV ratio">
+                <inputExpression id="LtvLimit_InputExpression_LtvRatio" typeRef="number">
+                    <text>ltvRatio</text>
+                </inputExpression>
+            </input>
+            <output id="LtvLimit_Output_Passed" label="Passed" name="passed" typeRef="boolean"/>
+            <output id="LtvLimit_Output_ReasonCode" label="Reason Code" name="reasonCode" typeRef="string"/>
+            <output id="LtvLimit_Output_ReasonMessage" label="Reason Message" name="reasonMessage" typeRef="string"/>
+            <rule id="LtvLimit_Rule_LtvRatioNull">
+                <inputEntry id="LtvLimit_InputEntry_LtvRatioNull"><text>null</text></inputEntry>
+                <outputEntry id="LtvLimit_OutputEntry_LtvRatioNullPassed"><text>false</text></outputEntry>
+                <outputEntry id="LtvLimit_OutputEntry_LtvRatioNullReasonCode"><text>"LTV_LIMIT_CHECK"</text></outputEntry>
+                <outputEntry id="LtvLimit_OutputEntry_LtvRatioNullReasonMessage"><text>"LTV ratio is required"</text></outputEntry>
+            </rule>
+            <rule id="LtvLimit_Rule_LtvRatioTooHigh">
+                <inputEntry id="LtvLimit_InputEntry_LtvRatioTooHigh"><text>&gt; 70</text></inputEntry>
+                <outputEntry id="LtvLimit_OutputEntry_LtvRatioTooHighPassed"><text>false</text></outputEntry>
+                <outputEntry id="LtvLimit_OutputEntry_LtvRatioTooHighReasonCode"><text>"LTV_LIMIT_CHECK"</text></outputEntry>
+                <outputEntry id="LtvLimit_OutputEntry_LtvRatioTooHighReasonMessage"><text>"LTV ratio must not exceed 70 percent"</text></outputEntry>
+            </rule>
+            <rule id="LtvLimit_Rule_LtvRatioPassed">
+                <inputEntry id="LtvLimit_InputEntry_LtvRatioPassed"><text>-</text></inputEntry>
+                <outputEntry id="LtvLimit_OutputEntry_LtvRatioPassed"><text>true</text></outputEntry>
+                <outputEntry id="LtvLimit_OutputEntry_LtvRatioReasonCode"><text>null</text></outputEntry>
+                <outputEntry id="LtvLimit_OutputEntry_LtvRatioReasonMessage"><text>null</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+</definitions>

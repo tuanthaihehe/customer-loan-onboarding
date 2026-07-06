@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+        id="Definitions_LoanTenureEligibility"
+        name="Loan Tenure Eligibility"
+        namespace="https://f88.com.vn/loan-onboarding/dmn/loan">
+    <decision id="loanTenureEligibility" name="Loan Tenure Eligibility">
+        <decisionTable id="DecisionTable_LoanTenureEligibility" hitPolicy="FIRST">
+            <input id="Input_RequestedTenure" label="Requested tenure">
+                <inputExpression id="InputExpression_RequestedTenure" typeRef="integer">
+                    <text>requestedTenure</text>
+                </inputExpression>
+            </input>
+            <output id="Output_Passed" label="Passed" name="passed" typeRef="boolean"/>
+            <output id="Output_ReasonCode" label="Reason Code" name="reasonCode" typeRef="string"/>
+            <output id="Output_ReasonMessage" label="Reason Message" name="reasonMessage" typeRef="string"/>
+            <rule id="Rule_RequestedTenureNull">
+                <inputEntry id="InputEntry_RequestedTenureNull"><text>null</text></inputEntry>
+                <outputEntry id="OutputEntry_RequestedTenureNullPassed"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_RequestedTenureNullReasonCode"><text>"LOAN_TENURE_ALLOWED"</text></outputEntry>
+                <outputEntry id="OutputEntry_RequestedTenureNullReasonMessage"><text>"Requested tenure is required"</text></outputEntry>
+            </rule>
+            <rule id="Rule_RequestedTenureAllowed">
+                <inputEntry id="InputEntry_RequestedTenureAllowed"><text>3, 6, 9, 12, 18, 24</text></inputEntry>
+                <outputEntry id="OutputEntry_RequestedTenureAllowedPassed"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_RequestedTenureAllowedReasonCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_RequestedTenureAllowedReasonMessage"><text>null</text></outputEntry>
+            </rule>
+            <rule id="Rule_RequestedTenureNotAllowed">
+                <inputEntry id="InputEntry_RequestedTenureNotAllowed"><text>-</text></inputEntry>
+                <outputEntry id="OutputEntry_RequestedTenureNotAllowedPassed"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_RequestedTenureNotAllowedReasonCode"><text>"LOAN_TENURE_ALLOWED"</text></outputEntry>
+                <outputEntry id="OutputEntry_RequestedTenureNotAllowedReasonMessage"><text>"Requested tenure must be one of 3, 6, 9, 12, 18, 24 months"</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+</definitions>

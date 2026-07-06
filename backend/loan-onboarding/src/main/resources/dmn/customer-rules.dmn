@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+        id="Definitions_CustomerRules"
+        name="Customer Rules"
+        namespace="https://f88.com.vn/loan-onboarding/dmn/customer-rules">
+<decision id="customerAgeEligibility" name="Customer Age Eligibility">
+        <decisionTable id="CustomerAge_DecisionTable_CustomerAgeEligibility" hitPolicy="FIRST">
+            <input id="CustomerAge_Input_Age" label="Customer age">
+                <inputExpression id="CustomerAge_InputExpression_Age" typeRef="integer">
+                    <text>age</text>
+                </inputExpression>
+            </input>
+            <output id="CustomerAge_Output_Eligible" label="Eligible" name="eligible" typeRef="boolean"/>
+            <output id="CustomerAge_Output_ReasonCode" label="Reason Code" name="reasonCode" typeRef="string"/>
+            <output id="CustomerAge_Output_ReasonMessage" label="Reason Message" name="reasonMessage" typeRef="string"/>
+            <rule id="CustomerAge_Rule_Under18">
+                <inputEntry id="CustomerAge_InputEntry_Under18">
+                    <text>&lt; 18</text>
+                </inputEntry>
+                <outputEntry id="CustomerAge_OutputEntry_Under18Eligible">
+                    <text>false</text>
+                </outputEntry>
+                <outputEntry id="CustomerAge_OutputEntry_Under18ReasonCode">
+                    <text>"CUSTOMER_UNDER_AGE"</text>
+                </outputEntry>
+                <outputEntry id="CustomerAge_OutputEntry_Under18ReasonMessage">
+                    <text>"Khach hang chua du 18 tuoi, khong du dieu kien tao ho so vay."</text>
+                </outputEntry>
+            </rule>
+            <rule id="CustomerAge_Rule_Adult">
+                <inputEntry id="CustomerAge_InputEntry_Adult">
+                    <text>&gt;= 18</text>
+                </inputEntry>
+                <outputEntry id="CustomerAge_OutputEntry_AdultEligible">
+                    <text>true</text>
+                </outputEntry>
+                <outputEntry id="CustomerAge_OutputEntry_AdultReasonCode">
+                    <text>null</text>
+                </outputEntry>
+                <outputEntry id="CustomerAge_OutputEntry_AdultReasonMessage">
+                    <text>null</text>
+                </outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+<decision id="customerBlacklistCheck" name="Customer Blacklist Check">
+        <decisionTable id="CustomerBlacklist_DecisionTable_CustomerBlacklistCheck" hitPolicy="FIRST">
+            <input id="CustomerBlacklist_Input_Blacklist" label="Customer is blacklist">
+                <inputExpression id="CustomerBlacklist_InputExpression_Blacklist" typeRef="boolean">
+                    <text>blacklist</text>
+                </inputExpression>
+            </input>
+            <output id="CustomerBlacklist_Output_Passed" label="Passed" name="passed" typeRef="boolean"/>
+            <output id="CustomerBlacklist_Output_ReasonCode" label="Reason Code" name="reasonCode" typeRef="string"/>
+            <output id="CustomerBlacklist_Output_ReasonMessage" label="Reason Message" name="reasonMessage" typeRef="string"/>
+            <rule id="CustomerBlacklist_Rule_Blacklisted">
+                <inputEntry id="CustomerBlacklist_InputEntry_Blacklisted"><text>true</text></inputEntry>
+                <outputEntry id="CustomerBlacklist_OutputEntry_BlacklistedPassed"><text>false</text></outputEntry>
+                <outputEntry id="CustomerBlacklist_OutputEntry_BlacklistedReasonCode"><text>"CUSTOMER_BLACKLIST_CHECK"</text></outputEntry>
+                <outputEntry id="CustomerBlacklist_OutputEntry_BlacklistedReasonMessage"><text>"Customer is in blacklist"</text></outputEntry>
+            </rule>
+            <rule id="CustomerBlacklist_Rule_NotBlacklisted">
+                <inputEntry id="CustomerBlacklist_InputEntry_NotBlacklisted"><text>false</text></inputEntry>
+                <outputEntry id="CustomerBlacklist_OutputEntry_NotBlacklistedPassed"><text>true</text></outputEntry>
+                <outputEntry id="CustomerBlacklist_OutputEntry_NotBlacklistedReasonCode"><text>null</text></outputEntry>
+                <outputEntry id="CustomerBlacklist_OutputEntry_NotBlacklistedReasonMessage"><text>null</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+</definitions>

@@ -10,6 +10,8 @@ import com.f88.loanonboarding.dto.response.common.ReferenceDataItemResponse;
 import com.f88.loanonboarding.enums.AssetType;
 import com.f88.loanonboarding.exception.BusinessException;
 import com.f88.loanonboarding.repository.AssetDeductionTypeRepository;
+import com.f88.loanonboarding.repository.IncomeSourceRepository;
+import com.f88.loanonboarding.repository.LoanApplicationStepRepository;
 import com.f88.loanonboarding.repository.LoanApplicationStateRepository;
 import com.f88.loanonboarding.repository.LoanPurposeRepository;
 import com.f88.loanonboarding.repository.LoanTermRepository;
@@ -29,7 +31,9 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
     private final LoanApplicationStateRepository stateRepository;
     private final LoanPurposeRepository loanPurposeRepository;
     private final LoanTermRepository loanTermRepository;
+    private final LoanApplicationStepRepository loanApplicationStepRepository;
     private final OccupationRepository occupationRepository;
+    private final IncomeSourceRepository incomeSourceRepository;
     private final VehicleTypeRepository vehicleTypeRepository;
     private final VehicleBrandRepository vehicleBrandRepository;
     private final VehicleModelRepository vehicleModelRepository;
@@ -43,7 +47,9 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
             LoanApplicationStateRepository stateRepository,
             LoanPurposeRepository loanPurposeRepository,
             LoanTermRepository loanTermRepository,
+            LoanApplicationStepRepository loanApplicationStepRepository,
             OccupationRepository occupationRepository,
+            IncomeSourceRepository incomeSourceRepository,
             VehicleTypeRepository vehicleTypeRepository,
             VehicleBrandRepository vehicleBrandRepository,
             VehicleModelRepository vehicleModelRepository,
@@ -56,7 +62,9 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
         this.stateRepository = stateRepository;
         this.loanPurposeRepository = loanPurposeRepository;
         this.loanTermRepository = loanTermRepository;
+        this.loanApplicationStepRepository = loanApplicationStepRepository;
         this.occupationRepository = occupationRepository;
+        this.incomeSourceRepository = incomeSourceRepository;
         this.vehicleTypeRepository = vehicleTypeRepository;
         this.vehicleBrandRepository = vehicleBrandRepository;
         this.vehicleModelRepository = vehicleModelRepository;
@@ -85,6 +93,14 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
     }
 
     @Override
+    public List<ReferenceDataItemResponse> getIncomeSources() {
+        return incomeSourceRepository.findByActiveTrueOrderBySortOrderAsc()
+                .stream()
+                .map(item -> new ReferenceDataItemResponse(item.getCode(), item.getName(), item.getDescription()))
+                .toList();
+    }
+
+    @Override
     public List<ReferenceDataItemResponse> getLoanPurposes() {
         return loanPurposeRepository.findByActiveTrueOrderBySortOrderAsc()
                 .stream()
@@ -101,6 +117,14 @@ public class ReferenceDataServiceImpl implements ReferenceDataService {
                         item.getName(),
                         item.getDescription()
                 ))
+                .toList();
+    }
+
+    @Override
+    public List<ReferenceDataItemResponse> getLoanApplicationSteps() {
+        return loanApplicationStepRepository.findByActiveTrueOrderByStepOrderAsc()
+                .stream()
+                .map(item -> new ReferenceDataItemResponse(item.getCode(), item.getName(), item.getDescription()))
                 .toList();
     }
 

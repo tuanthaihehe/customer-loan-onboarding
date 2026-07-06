@@ -50,4 +50,7 @@ public class Asset {
 
     @Column(name = "registration_issue_date")
     private LocalDate registrationIssueDate;
+
+    @Column(name = "registration_certificate_number", unique = true, length = 100)
+    private String registrationCertificateNumber;
 }

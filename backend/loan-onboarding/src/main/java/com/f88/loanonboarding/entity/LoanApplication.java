@@ -51,8 +51,16 @@ public class LoanApplication {
     private LoanTerm loanTerm;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "loan_product_id")
+    private LoanProduct loanProduct;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "occupation_id")
     private Occupation occupation;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "income_source_id")
+    private IncomeSource incomeSource;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "disbursement_bank_id")

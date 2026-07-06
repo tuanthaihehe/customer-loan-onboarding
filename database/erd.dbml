@@ -1,42 +1,19 @@
 // Customer Loan Onboarding - ERD
-// Current scope:
-// - Customer lookup and basic customer storage
-// - Loan application lifecycle
-// - Loan purpose catalog for frontend selection
-// - Vehicle catalog for dropdown selection
-// - Asset record linked to loan application after draft creation
-// - Asset valuation snapshot and fixed valuation deductions
-//
-// Design notes:
-// - id is the technical primary key used for database references.
-// - *_code is the business code used for lookup/display.
-// - loan_application.asset_id is nullable because a draft application can be created before asset selection.
-// - loan_application.loan_purpose_id is nullable because a draft application can be created before loan purpose selection.
-// - asset does not store customer_id. The customer is resolved through loan_application.customer_id.
-// - vehicle_market_price stores market price by vehicle_variant and effective date.
-// - asset_deduction_type stores fixed deduction amounts used by valuation.
-// - asset_valuation stores the valuation snapshot used for an asset.
-// - asset_valuation_deduction stores deduction types applied in one valuation and snapshots the deduction amount.
-// - The rule "one asset must not be attached to more than one active loan application"
-//   is enforced by backend logic using loan_application.current_state_id and loan_application_state.is_terminal.
+// Updated from database/migrations through V20.
+// Focus: tables, columns, and relationships. Index definitions are intentionally omitted.
 
 Table customer {
   id uuid [pk]
-  customer_code varchar(50) [not null, unique, note: 'Business code for lookup/display. Format: CUS-YYYY-NNNNNN']
+  customer_code varchar(50) [not null, unique]
   full_name varchar(255) [not null]
   phone_number varchar(20) [unique]
   identity_number varchar(20) [unique]
   date_of_birth date
   status varchar(30) [not null, default: 'ACTIVE', note: 'ACTIVE, INACTIVE, BLACKLIST, LEAD']
-}
-
-Table loan_purpose {
-  id uuid [pk]
-  code varchar(50) [not null, unique]
-  name varchar(100) [not null]
-  description text
-  is_active boolean [not null, default: true]
-  sort_order int [not null, default: 0]
+  gender varchar(20) [note: 'MALE, FEMALE']
+  email varchar(255) [unique]
+  marital_status varchar(30) [note: 'SINGLE, MARRIED']
+  permanent_address text
 }
 
 Table loan_application_state {
@@ -56,31 +33,174 @@ Table loan_application_state_transition {
   action_code varchar(50) [not null]
   action_name varchar(100) [not null]
   description text
+}
 
-  indexes {
-    (from_state_id, to_state_id, action_code) [unique]
-  }
+Table loan_purpose {
+  id uuid [pk]
+  code varchar(50) [not null, unique]
+  name varchar(100) [not null]
+  description text
+  is_active boolean [not null, default: true]
+  sort_order int [not null, default: 0]
+}
+
+Table loan_term {
+  id uuid [pk]
+  code varchar(50) [not null, unique]
+  term_months int [not null, unique]
+  name varchar(100) [not null]
+  description text
+  is_active boolean [not null, default: true]
+  sort_order int [not null, default: 0]
+}
+
+Table bank {
+  id uuid [pk]
+  code varchar(50) [not null, unique]
+  name varchar(255) [not null]
+  short_name varchar(100)
+  is_active boolean [not null, default: true]
+  sort_order int [not null, default: 0]
+}
+
+Table occupation {
+  id uuid [pk]
+  code varchar(50) [not null, unique]
+  name varchar(255) [not null]
+  description text
+  is_active boolean [not null, default: true]
+  sort_order int [not null, default: 0]
+}
+
+Table income_source {
+  id uuid [pk]
+  code varchar(50) [not null, unique]
+  name varchar(255) [not null]
+  description text
+  is_active boolean [not null, default: true]
+  sort_order int [not null, default: 0]
+}
+
+Table score_grade {
+  id uuid [pk]
+  code varchar(10) [not null, unique]
+  name varchar(100) [not null]
+  description text
+  is_active boolean [not null, default: true]
+  sort_order int [not null, default: 0]
+}
+
+Table loan_product {
+  id uuid [pk]
+  product_code varchar(50) [not null, unique]
+  product_name varchar(255) [not null]
+  applies_to_all_loan_purposes boolean [not null, default: false]
+  min_loan_amount numeric(18,2) [not null]
+  max_loan_amount numeric(18,2) [not null]
+  max_ltv_percent numeric(5,2) [not null]
+  monthly_interest_rate_percent numeric(5,2) [not null]
+  is_active boolean [not null, default: true]
+  sort_order int [not null, default: 0]
+}
+
+Table loan_product_purpose {
+  loan_product_id uuid [not null]
+  loan_purpose_id uuid [not null]
+}
+
+Table loan_product_vehicle_type {
+  loan_product_id uuid [not null]
+  vehicle_type_id uuid [not null]
+}
+
+Table loan_product_term {
+  loan_product_id uuid [not null]
+  loan_term_id uuid [not null]
+}
+
+Table loan_product_score_grade {
+  loan_product_id uuid [not null]
+  score_grade_id uuid [not null]
 }
 
 Table loan_application {
   id uuid [pk]
-  loan_application_code varchar(50) [not null, unique, note: 'Business code for lookup/display. Format: APP-YYYY-NNNNNN']
+  loan_application_code varchar(50) [not null, unique]
   customer_id uuid [not null]
   current_state_id uuid [not null]
-  asset_id uuid [note: 'Nullable. Draft application may be created before asset selection.']
-  loan_purpose_id uuid [note: 'Nullable. Draft application may be created before loan purpose selection.']
-  requested_amount numeric(18,2) [note: 'Nullable for early draft applications. Must be positive when provided.']
-  loan_term_months int [note: 'Nullable for early draft applications. Must be positive when provided.']
+  requested_amount numeric(18,2)
+  loan_term_months int [note: 'Allowed terms: 3, 6, 9, 12, 18, 24']
+  asset_id uuid
+  loan_purpose_id uuid
+  loan_term_id uuid
+  occupation_id uuid
+  disbursement_bank_id uuid
+  disbursement_account_number varchar(50)
+  disbursement_account_name varchar(255)
+  current_address text
+  workplace_name varchar(255)
+  workplace_address text
+  monthly_income_amount numeric(18,2)
+  loan_product_id uuid
+  income_source_id uuid
 }
 
 Table loan_application_state_history {
   id uuid [pk]
   loan_application_id uuid [not null]
-  from_state_id uuid [note: 'NULL for CREATE event']
+  from_state_id uuid
   to_state_id uuid [not null]
   action_code varchar(50) [not null]
   changed_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
   changed_by varchar(100)
+  note text
+}
+
+Table loan_application_reference_person {
+  id uuid [pk]
+  loan_application_id uuid [not null]
+  full_name varchar(255) [not null]
+  phone_number varchar(20) [not null]
+  address text
+  relationship_type varchar(50) [not null, note: 'FATHER, MOTHER, SPOUSE, SIBLING, RELATIVE, FRIEND, COLLEAGUE, OTHER']
+  note text
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table document_type {
+  id uuid [pk]
+  code varchar(50) [not null, unique]
+  name varchar(255) [not null]
+  description text
+  is_required boolean [not null, default: false]
+  is_active boolean [not null, default: true]
+  sort_order int [not null, default: 0]
+}
+
+Table loan_application_document {
+  id uuid [pk]
+  loan_application_id uuid [not null]
+  document_type_id uuid [not null]
+  file_url text [not null]
+  file_name varchar(255)
+  uploaded_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  uploaded_by varchar(100)
+  note text
+}
+
+Table kyc_profile {
+  id uuid [pk]
+  customer_id uuid [not null]
+  loan_application_id uuid [unique]
+  blacklist_check_result boolean
+  phone_otp_verification_result boolean
+  face_match_score numeric(5,2)
+  liveness_detection_score numeric(5,2)
+  face_authenticity_score numeric(5,2)
+  checked_at timestamp
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
   note text
 }
 
@@ -100,10 +220,6 @@ Table vehicle_brand {
   name varchar(100) [not null]
   is_active boolean [not null, default: true]
   sort_order int [not null, default: 0]
-
-  indexes {
-    (vehicle_type_id, code) [unique]
-  }
 }
 
 Table vehicle_model {
@@ -113,10 +229,6 @@ Table vehicle_model {
   name varchar(100) [not null]
   is_active boolean [not null, default: true]
   sort_order int [not null, default: 0]
-
-  indexes {
-    (vehicle_brand_id, code) [unique]
-  }
 }
 
 Table vehicle_version {
@@ -126,10 +238,6 @@ Table vehicle_version {
   name varchar(100) [not null]
   is_active boolean [not null, default: true]
   sort_order int [not null, default: 0]
-
-  indexes {
-    (vehicle_model_id, code) [unique]
-  }
 }
 
 Table vehicle_year {
@@ -138,10 +246,6 @@ Table vehicle_year {
   manufacture_year int [not null]
   is_active boolean [not null, default: true]
   sort_order int [not null, default: 0]
-
-  indexes {
-    (vehicle_version_id, manufacture_year) [unique]
-  }
 }
 
 Table vehicle_color {
@@ -160,10 +264,6 @@ Table vehicle_variant {
   name varchar(255) [not null]
   is_active boolean [not null, default: true]
   sort_order int [not null, default: 0]
-
-  indexes {
-    (vehicle_year_id, vehicle_color_id) [unique]
-  }
 }
 
 Table vehicle_market_price {
@@ -179,10 +279,14 @@ Table vehicle_market_price {
 
 Table asset {
   id uuid [pk]
-  asset_code varchar(50) [not null, unique, note: 'Business code for lookup/display. Format: AST-YYYY-NNNNNN']
+  asset_code varchar(50) [not null, unique]
   vehicle_variant_id uuid [not null]
-  license_plate varchar(20) [unique]
+  license_plate varchar(20) [not null, unique]
   status varchar(30) [not null, default: 'AVAILABLE', note: 'AVAILABLE, PLEDGED, RELEASED, SETTLED']
+  frame_number varchar(100) [unique]
+  engine_number varchar(100) [unique]
+  registration_issue_date date
+  registration_certificate_number varchar(100) [unique]
 }
 
 Table asset_deduction_type {
@@ -190,7 +294,7 @@ Table asset_deduction_type {
   code varchar(50) [not null, unique]
   name varchar(100) [not null]
   description text
-  deduction_amount numeric(18,2) [not null, note: 'Fixed deduction amount for this deduction type.']
+  deduction_amount numeric(18,2) [not null]
   is_active boolean [not null, default: true]
   sort_order int [not null, default: 0]
 }
@@ -198,9 +302,9 @@ Table asset_deduction_type {
 Table asset_valuation {
   id uuid [pk]
   asset_id uuid [not null]
-  market_price_amount numeric(18,2) [not null, note: 'Market price snapshot at valuation time.']
-  total_deduction_amount numeric(18,2) [not null, default: 0, note: 'Total deduction amount applied in this valuation.']
-  final_value_amount numeric(18,2) [not null, note: 'Final accepted value after deductions.']
+  market_price_amount numeric(18,2) [not null]
+  total_deduction_amount numeric(18,2) [not null, default: 0]
+  final_value_amount numeric(18,2) [not null]
   currency_code varchar(3) [not null, default: 'VND']
   valuation_source varchar(100)
   valued_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
@@ -212,19 +316,36 @@ Table asset_valuation_deduction {
   id uuid [pk]
   asset_valuation_id uuid [not null]
   deduction_type_id uuid [not null]
-  deduction_amount_snapshot numeric(18,2) [not null, note: 'Snapshot of asset_deduction_type.deduction_amount at valuation time.']
+  deduction_amount_snapshot numeric(18,2) [not null]
   note text
   created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
 
-  indexes {
-    (asset_valuation_id, deduction_type_id) [unique]
-  }
+Table mock_score_grade_rule {
+  id uuid [pk]
+  rule_code varchar(50) [not null, unique]
+  rule_name varchar(255) [not null]
+  description text
+  min_monthly_income_amount numeric(18,2)
+  max_monthly_income_amount numeric(18,2)
+  min_requested_amount numeric(18,2)
+  max_requested_amount numeric(18,2)
+  min_ltv_percent numeric(5,2)
+  max_ltv_percent numeric(5,2)
+  score_grade_id uuid [not null]
+  is_active boolean [not null, default: true]
+  sort_order int [not null, default: 0]
 }
 
 Ref: customer.id < loan_application.customer_id
+Ref: loan_application_state.id < loan_application.current_state_id
 Ref: asset.id < loan_application.asset_id
 Ref: loan_purpose.id < loan_application.loan_purpose_id
-Ref: loan_application_state.id < loan_application.current_state_id
+Ref: loan_term.id < loan_application.loan_term_id
+Ref: occupation.id < loan_application.occupation_id
+Ref: bank.id < loan_application.disbursement_bank_id
+Ref: loan_product.id < loan_application.loan_product_id
+Ref: income_source.id < loan_application.income_source_id
 
 Ref: loan_application_state.id < loan_application_state_transition.from_state_id
 Ref: loan_application_state.id < loan_application_state_transition.to_state_id
@@ -232,6 +353,13 @@ Ref: loan_application_state.id < loan_application_state_transition.to_state_id
 Ref: loan_application.id < loan_application_state_history.loan_application_id
 Ref: loan_application_state.id < loan_application_state_history.from_state_id
 Ref: loan_application_state.id < loan_application_state_history.to_state_id
+
+Ref: loan_application.id < loan_application_reference_person.loan_application_id
+Ref: loan_application.id < loan_application_document.loan_application_id
+Ref: document_type.id < loan_application_document.document_type_id
+
+Ref: customer.id < kyc_profile.customer_id
+Ref: loan_application.id < kyc_profile.loan_application_id
 
 Ref: vehicle_type.id < vehicle_brand.vehicle_type_id
 Ref: vehicle_brand.id < vehicle_model.vehicle_brand_id
@@ -245,3 +373,14 @@ Ref: vehicle_variant.id < asset.vehicle_variant_id
 Ref: asset.id < asset_valuation.asset_id
 Ref: asset_valuation.id < asset_valuation_deduction.asset_valuation_id
 Ref: asset_deduction_type.id < asset_valuation_deduction.deduction_type_id
+
+Ref: loan_product.id < loan_product_purpose.loan_product_id
+Ref: loan_purpose.id < loan_product_purpose.loan_purpose_id
+Ref: loan_product.id < loan_product_vehicle_type.loan_product_id
+Ref: vehicle_type.id < loan_product_vehicle_type.vehicle_type_id
+Ref: loan_product.id < loan_product_term.loan_product_id
+Ref: loan_term.id < loan_product_term.loan_term_id
+Ref: loan_product.id < loan_product_score_grade.loan_product_id
+Ref: score_grade.id < loan_product_score_grade.score_grade_id
+
+Ref: score_grade.id < mock_score_grade_rule.score_grade_id

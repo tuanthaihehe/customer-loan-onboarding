@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+        id="Definitions_LoanProductAssetTypeEligibility"
+        name="Loan Product Asset Type Eligibility"
+        namespace="https://f88.com.vn/loan-onboarding/dmn/loan-product">
+    <decision id="loanProductAssetTypeEligibility" name="Loan Product Asset Type Eligibility">
+        <decisionTable id="DecisionTable_LoanProductAssetTypeEligibility" hitPolicy="FIRST">
+            <input id="Input_AssetType" label="Selected asset type">
+                <inputExpression id="InputExpression_AssetType" typeRef="string">
+                    <text>assetType</text>
+                </inputExpression>
+            </input>
+            <input id="Input_AssetTypeAllowedByProduct" label="Asset type allowed by product">
+                <inputExpression id="InputExpression_AssetTypeAllowedByProduct" typeRef="boolean">
+                    <text>list contains(allowedAssetTypes, assetType)</text>
+                </inputExpression>
+            </input>
+            <output id="Output_Passed" label="Passed" name="passed" typeRef="boolean"/>
+            <output id="Output_ReasonCode" label="Reason Code" name="reasonCode" typeRef="string"/>
+            <output id="Output_ReasonMessage" label="Reason Message" name="reasonMessage" typeRef="string"/>
+            <rule id="Rule_ProductAssetTypeNull">
+                <inputEntry id="InputEntry_ProductAssetTypeNull"><text>null</text></inputEntry>
+                <inputEntry id="InputEntry_ProductAssetTypeNullAllowed"><text>-</text></inputEntry>
+                <outputEntry id="OutputEntry_ProductAssetTypeNullPassed"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_ProductAssetTypeNullReasonCode"><text>"LOAN_PRODUCT_ASSET_TYPE_ALLOWED"</text></outputEntry>
+                <outputEntry id="OutputEntry_ProductAssetTypeNullReasonMessage"><text>"Asset type is required"</text></outputEntry>
+            </rule>
+            <rule id="Rule_ProductAssetTypeAllowed">
+                <inputEntry id="InputEntry_ProductAssetTypeAllowedValue"><text>-</text></inputEntry>
+                <inputEntry id="InputEntry_ProductAssetTypeAllowed"><text>true</text></inputEntry>
+                <outputEntry id="OutputEntry_ProductAssetTypeAllowedPassed"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_ProductAssetTypeAllowedReasonCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_ProductAssetTypeAllowedReasonMessage"><text>null</text></outputEntry>
+            </rule>
+            <rule id="Rule_ProductAssetTypeNotAllowed">
+                <inputEntry id="InputEntry_ProductAssetTypeNotAllowedValue"><text>-</text></inputEntry>
+                <inputEntry id="InputEntry_ProductAssetTypeNotAllowed"><text>false</text></inputEntry>
+                <outputEntry id="OutputEntry_ProductAssetTypeNotAllowedPassed"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_ProductAssetTypeNotAllowedReasonCode"><text>"LOAN_PRODUCT_ASSET_TYPE_ALLOWED"</text></outputEntry>
+                <outputEntry id="OutputEntry_ProductAssetTypeNotAllowedReasonMessage"><text>"San pham khong ap dung cho loai tai san da chon."</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+</definitions>

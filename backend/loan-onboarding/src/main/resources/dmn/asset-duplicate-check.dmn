@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+        id="Definitions_AssetDuplicateCheck"
+        name="Asset Duplicate Check"
+        namespace="https://f88.com.vn/loan-onboarding/dmn/asset">
+    <decision id="assetDuplicateCheck" name="Asset Duplicate Check">
+        <decisionTable id="DecisionTable_AssetDuplicateCheck" hitPolicy="FIRST">
+            <input id="Input_DuplicatedAsset" label="Duplicated asset">
+                <inputExpression id="InputExpression_DuplicatedAsset" typeRef="boolean">
+                    <text>duplicatedAsset</text>
+                </inputExpression>
+            </input>
+            <output id="Output_Passed" label="Passed" name="passed" typeRef="boolean"/>
+            <output id="Output_ReasonCode" label="Reason Code" name="reasonCode" typeRef="string"/>
+            <output id="Output_ReasonMessage" label="Reason Message" name="reasonMessage" typeRef="string"/>
+            <rule id="Rule_DuplicatedAsset">
+                <inputEntry id="InputEntry_DuplicatedAsset"><text>true</text></inputEntry>
+                <outputEntry id="OutputEntry_DuplicatedAssetPassed"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_DuplicatedAssetReasonCode"><text>"ASSET_DUPLICATE_CHECK"</text></outputEntry>
+                <outputEntry id="OutputEntry_DuplicatedAssetReasonMessage"><text>"Asset already exists or is already linked to another active loan application"</text></outputEntry>
+            </rule>
+            <rule id="Rule_NotDuplicatedAsset">
+                <inputEntry id="InputEntry_NotDuplicatedAsset"><text>false</text></inputEntry>
+                <outputEntry id="OutputEntry_NotDuplicatedAssetPassed"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_NotDuplicatedAssetReasonCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_NotDuplicatedAssetReasonMessage"><text>null</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+</definitions>

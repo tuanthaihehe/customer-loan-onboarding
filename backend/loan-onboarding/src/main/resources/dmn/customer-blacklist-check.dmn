@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+        id="Definitions_CustomerBlacklistCheck"
+        name="Customer Blacklist Check"
+        namespace="https://f88.com.vn/loan-onboarding/dmn/customer">
+    <decision id="customerBlacklistCheck" name="Customer Blacklist Check">
+        <decisionTable id="DecisionTable_CustomerBlacklistCheck" hitPolicy="FIRST">
+            <input id="Input_Blacklist" label="Customer is blacklist">
+                <inputExpression id="InputExpression_Blacklist" typeRef="boolean">
+                    <text>blacklist</text>
+                </inputExpression>
+            </input>
+            <output id="Output_Passed" label="Passed" name="passed" typeRef="boolean"/>
+            <output id="Output_ReasonCode" label="Reason Code" name="reasonCode" typeRef="string"/>
+            <output id="Output_ReasonMessage" label="Reason Message" name="reasonMessage" typeRef="string"/>
+            <rule id="Rule_Blacklisted">
+                <inputEntry id="InputEntry_Blacklisted"><text>true</text></inputEntry>
+                <outputEntry id="OutputEntry_BlacklistedPassed"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_BlacklistedReasonCode"><text>"CUSTOMER_BLACKLIST_CHECK"</text></outputEntry>
+                <outputEntry id="OutputEntry_BlacklistedReasonMessage"><text>"Customer is in blacklist"</text></outputEntry>
+            </rule>
+            <rule id="Rule_NotBlacklisted">
+                <inputEntry id="InputEntry_NotBlacklisted"><text>false</text></inputEntry>
+                <outputEntry id="OutputEntry_NotBlacklistedPassed"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_NotBlacklistedReasonCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_NotBlacklistedReasonMessage"><text>null</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+</definitions>
