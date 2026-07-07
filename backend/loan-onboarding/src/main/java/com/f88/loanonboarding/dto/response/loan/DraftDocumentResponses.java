@@ -80,4 +80,16 @@ public final class DraftDocumentResponses {
             EkycResult ekycResult
     ) {
     }
+
+    public record UploadUrlResult(
+            String documentCode,
+            String documentName,
+            String groupCode,
+            String fileUrl,
+            String fileName,
+            String contentType,
+            long size,
+            LocalDateTime uploadedAt
+    ) {
+    }
 }

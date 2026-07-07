@@ -107,32 +107,21 @@ public class LoanApplicationDraftDocumentServiceImpl implements LoanApplicationD
 
     @Override
     @Transactional
-    public DraftDocumentResponses.UploadResult upload(String draftCode, String documentCode, MultipartFile file) {
+    public DraftDocumentResponses.UploadUrlResult upload(String draftCode, String documentCode, MultipartFile file) {
         ensureEditableDraft(draftCode);
         DocumentDefinition definition = definitionByCode(documentCode);
         validateFile(file, definition);
 
-        LoanApplicationDraftStepData stepData = findUploadStep(draftCode);
-        ObjectNode payload = payloadObject(stepData.getPayload());
-        Map<String, UploadedDocument> uploadedDocuments = uploadedDocuments(payload);
-        UploadedDocument oldDocument = uploadedDocuments.get(definition.documentCode());
-
         UploadedDocument newDocument = storeFile(draftCode, definition, file);
-        uploadedDocuments.put(definition.documentCode(), newDocument);
-
-        ObjectNode updatedPayload = buildPayload(uploadedDocuments);
-        draftFlowService.saveStep(
-                draftCode,
-                STEP_UPLOAD_COMPLETE,
-                new SaveLoanApplicationDraftStepRequest(LoanApplicationDraftStepStatus.IN_PROGRESS, updatedPayload)
-        );
-        deleteStoredFileQuietly(oldDocument);
-
-        DraftDocumentResponses.State state = toState(draftCode, updatedPayload);
-        return new DraftDocumentResponses.UploadResult(
-                documentFile(definition, newDocument),
-                state.checklist(),
-                state.ekycResult()
+        return new DraftDocumentResponses.UploadUrlResult(
+                definition.documentCode(),
+                definition.documentName(),
+                definition.groupCode(),
+                newDocument.storagePath(),
+                newDocument.fileName(),
+                newDocument.contentType(),
+                newDocument.size(),
+                newDocument.uploadedAt()
         );
     }
 

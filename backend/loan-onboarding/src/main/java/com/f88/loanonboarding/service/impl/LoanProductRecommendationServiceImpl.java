@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Period;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -15,9 +16,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.f88.loanonboarding.common.error.ErrorCode;
 import com.f88.loanonboarding.dto.request.asset.ValuationDeductionItemRequest;
+import com.f88.loanonboarding.dto.request.creditscoring.CreditScoringCalculateRequest;
 import com.f88.loanonboarding.dto.request.loan.FinalLoanOfferPreviewRequest;
 import com.f88.loanonboarding.dto.request.loan.LoanProductRecommendationRequest;
 import com.f88.loanonboarding.dto.request.loan.SelectFinalLoanOfferRequest;
+import com.f88.loanonboarding.dto.response.creditscoring.CreditScoringCalculateResponse;
 import com.f88.loanonboarding.dto.response.loan.AppliedDeductionResponse;
 import com.f88.loanonboarding.dto.response.loan.FinalOfferAssetSummaryResponse;
 import com.f88.loanonboarding.dto.response.loan.FinalOfferCustomerSummaryResponse;
@@ -35,7 +38,6 @@ import com.f88.loanonboarding.entity.Customer;
 import com.f88.loanonboarding.entity.LoanApplication;
 import com.f88.loanonboarding.entity.LoanProduct;
 import com.f88.loanonboarding.entity.LoanTerm;
-import com.f88.loanonboarding.entity.MockScoreGradeRule;
 import com.f88.loanonboarding.entity.VehicleMarketPrice;
 import com.f88.loanonboarding.entity.VehicleType;
 import com.f88.loanonboarding.entity.VehicleVariant;
@@ -46,8 +48,8 @@ import com.f88.loanonboarding.repository.AssetValuationRepository;
 import com.f88.loanonboarding.repository.LoanApplicationRepository;
 import com.f88.loanonboarding.repository.LoanProductRepository;
 import com.f88.loanonboarding.repository.LoanTermRepository;
-import com.f88.loanonboarding.repository.MockScoreGradeRuleRepository;
 import com.f88.loanonboarding.repository.VehicleMarketPriceRepository;
+import com.f88.loanonboarding.service.CreditScoringService;
 import com.f88.loanonboarding.service.LoanProductRecommendationService;
 
 @Service
@@ -64,8 +66,8 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
     private final AssetDeductionTypeRepository assetDeductionTypeRepository;
     private final AssetValuationRepository assetValuationRepository;
     private final AssetValuationDeductionRepository assetValuationDeductionRepository;
-    private final MockScoreGradeRuleRepository mockScoreGradeRuleRepository;
     private final LoanTermRepository loanTermRepository;
+    private final CreditScoringService creditScoringService;
 
     public LoanProductRecommendationServiceImpl(
             LoanApplicationRepository loanApplicationRepository,
@@ -74,8 +76,8 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
             AssetDeductionTypeRepository assetDeductionTypeRepository,
             AssetValuationRepository assetValuationRepository,
             AssetValuationDeductionRepository assetValuationDeductionRepository,
-            MockScoreGradeRuleRepository mockScoreGradeRuleRepository,
-            LoanTermRepository loanTermRepository
+            LoanTermRepository loanTermRepository,
+            CreditScoringService creditScoringService
     ) {
         this.loanApplicationRepository = loanApplicationRepository;
         this.loanProductRepository = loanProductRepository;
@@ -83,8 +85,8 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
         this.assetDeductionTypeRepository = assetDeductionTypeRepository;
         this.assetValuationRepository = assetValuationRepository;
         this.assetValuationDeductionRepository = assetValuationDeductionRepository;
-        this.mockScoreGradeRuleRepository = mockScoreGradeRuleRepository;
         this.loanTermRepository = loanTermRepository;
+        this.creditScoringService = creditScoringService;
     }
 
     @Override
@@ -364,50 +366,45 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
         BigDecimal ltvPercent = requestedAmount
                 .multiply(ONE_HUNDRED)
                 .divide(finalAssetValue, 2, RoundingMode.HALF_UP);
-        MockScoreGradeRule matchedRule = mockScoreGradeRuleRepository.findByActiveTrueOrderBySortOrderAsc()
-                .stream()
-                .filter(rule -> matchesRule(rule, application.getMonthlyIncomeAmount(), requestedAmount, ltvPercent))
-                .findFirst()
-                .orElse(null);
-        String scoreGrade = matchedRule == null ? DEFAULT_SCORE_GRADE : matchedRule.getScoreGrade().getCode();
-        int aScore = scoreToNumber(scoreGrade);
-        int bScore = 0;
-        int overallScore = aScore;
+        CreditScoringCalculateResponse scoring = creditScoringService.calculate(new CreditScoringCalculateRequest(
+                null,
+                resolveMonthlyIncome(application),
+                resolveCustomerAge(application),
+                0
+        ));
+        int overallScore = scoring.totalScore().setScale(0, RoundingMode.HALF_UP).intValue();
         return new LoanScoringResponse(
-                scoreGrade,
+                scoring.scoreGrade(),
                 overallScore,
-                aScore,
-                bScore,
+                overallScore,
+                0,
                 1,
                 0,
                 ltvPercent,
-                matchedRule == null ? null : matchedRule.getRuleCode(),
-                matchedRule == null ? null : matchedRule.getRuleName()
+                scoring.ruleSetCode(),
+                scoring.scoreGradeLabel()
         );
     }
 
-    private boolean matchesRule(MockScoreGradeRule rule, BigDecimal monthlyIncome, BigDecimal requestedAmount, BigDecimal ltvPercent) {
-        return matchesRange(monthlyIncome, rule.getMinMonthlyIncomeAmount(), rule.getMaxMonthlyIncomeAmount())
-                && matchesRange(requestedAmount, rule.getMinRequestedAmount(), rule.getMaxRequestedAmount())
-                && matchesRange(ltvPercent, rule.getMinLtvPercent(), rule.getMaxLtvPercent());
-    }
-
-    private boolean matchesRange(BigDecimal value, BigDecimal min, BigDecimal max) {
-        if (value == null) {
-            return min == null && max == null;
+    private BigDecimal resolveMonthlyIncome(LoanApplication application) {
+        if (application.getMonthlyIncomeAmount() == null) {
+            throw new BusinessException(
+                    ErrorCode.BUSINESS_RULE_VIOLATION,
+                    "Hồ sơ chưa có thu nhập hàng tháng để tính điểm rủi ro."
+            );
         }
-        return (min == null || value.compareTo(min) >= 0)
-                && (max == null || value.compareTo(max) <= 0);
+        return application.getMonthlyIncomeAmount();
     }
 
-    private int scoreToNumber(String scoreGrade) {
-        return switch (scoreGrade) {
-            case "A" -> 95;
-            case "B" -> 80;
-            case "C" -> 65;
-            case "D" -> 50;
-            default -> 40;
-        };
+    private int resolveCustomerAge(LoanApplication application) {
+        LocalDate dateOfBirth = application.getCustomer() == null ? null : application.getCustomer().getDateOfBirth();
+        if (dateOfBirth == null) {
+            throw new BusinessException(
+                    ErrorCode.BUSINESS_RULE_VIOLATION,
+                    "Hồ sơ chưa có ngày sinh khách hàng để tính điểm rủi ro."
+            );
+        }
+        return Period.between(dateOfBirth, LocalDate.now()).getYears();
     }
 
     private FinalLoanOfferResponse toFinalOfferResponse(

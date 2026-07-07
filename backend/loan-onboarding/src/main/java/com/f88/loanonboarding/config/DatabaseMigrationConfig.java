@@ -62,6 +62,9 @@ public class DatabaseMigrationConfig {
             migrate(dataSource, SEED_LOCATION, SEED_HISTORY_TABLE, "14", true);
             migrate(dataSource, MIGRATION_LOCATION, MIGRATION_HISTORY_TABLE, "25", false);
             migrate(dataSource, SEED_LOCATION, SEED_HISTORY_TABLE, "15", true);
+            migrate(dataSource, MIGRATION_LOCATION, MIGRATION_HISTORY_TABLE, "26", false);
+            migrate(dataSource, SEED_LOCATION, SEED_HISTORY_TABLE, "16", true);
+            migrate(dataSource, SEED_LOCATION, SEED_HISTORY_TABLE, "17", true);
         };
     }
 
