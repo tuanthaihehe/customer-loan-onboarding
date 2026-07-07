@@ -9,6 +9,7 @@ public record LoanApplicationDraftOverviewResponse(
         UUID draftId,
         String draftCode,
         UUID customerId,
+        LoanApplicationDraftCustomerResponse customer,
         String status,
         String currentStepCode,
         JsonNode currentStepPayload,

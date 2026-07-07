@@ -14,6 +14,8 @@ public interface LoanApplicationDraftService {
 
     LoanApplicationDraftOverviewResponse getOverview(UUID draftId);
 
+    LoanApplicationDraftStepPayloadResponse getCurrentStepPayload(UUID draftId);
+
     LoanApplicationDraftStepPayloadResponse getStepPayload(UUID draftId, String stepCode);
 
     SaveLoanApplicationDraftStepResponse saveStep(UUID draftId, String stepCode, SaveLoanApplicationDraftStepRequest request);

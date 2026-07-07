@@ -18,14 +18,20 @@ import com.f88.loanonboarding.dto.request.asset.ValuationDeductionItemRequest;
 import com.f88.loanonboarding.dto.request.loan.FinalLoanOfferPreviewRequest;
 import com.f88.loanonboarding.dto.request.loan.LoanProductRecommendationRequest;
 import com.f88.loanonboarding.dto.request.loan.SelectFinalLoanOfferRequest;
+import com.f88.loanonboarding.dto.response.loan.AppliedDeductionResponse;
+import com.f88.loanonboarding.dto.response.loan.FinalOfferAssetSummaryResponse;
+import com.f88.loanonboarding.dto.response.loan.FinalOfferCustomerSummaryResponse;
 import com.f88.loanonboarding.dto.response.loan.FinalLoanOfferResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanProductRecommendationResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanProductValuationSummaryResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanScoringResponse;
 import com.f88.loanonboarding.dto.response.loan.RecommendedLoanProductResponse;
+import com.f88.loanonboarding.dto.response.loan.RepaymentScheduleItemResponse;
 import com.f88.loanonboarding.entity.Asset;
 import com.f88.loanonboarding.entity.AssetDeductionType;
 import com.f88.loanonboarding.entity.AssetValuation;
+import com.f88.loanonboarding.entity.AssetValuationDeduction;
+import com.f88.loanonboarding.entity.Customer;
 import com.f88.loanonboarding.entity.LoanApplication;
 import com.f88.loanonboarding.entity.LoanProduct;
 import com.f88.loanonboarding.entity.LoanTerm;
@@ -126,6 +132,9 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
                 .limit(limit)
                 .toList();
         recommendations = markRecommended(recommendations);
+        BigDecimal loanableAmount = recommendations.isEmpty()
+                ? BigDecimal.ZERO
+                : recommendations.getFirst().effectiveMaxLoanAmount();
 
         return new LoanProductRecommendationResponse(
                 application.getLoanApplicationCode(),
@@ -138,7 +147,11 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
                         marketPrice.getPriceAmount(),
                         totalDeductionAmount,
                         finalValue,
-                        deductionTypes.stream().map(AssetDeductionType::getCode).toList()
+                        loanableAmount,
+                        deductionTypes.stream().map(AssetDeductionType::getCode).toList(),
+                        deductionTypes.stream()
+                                .map(type -> toAppliedDeduction(type, marketPrice.getPriceAmount(), type.getDeductionAmount()))
+                                .toList()
                 ),
                 recommendations.isEmpty() ? null : recommendations.getFirst().productCode(),
                 recommendations
@@ -289,13 +302,18 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
                 .limit(input.limit())
                 .toList();
         recommendations = markRecommended(recommendations);
+        BigDecimal loanableAmount = recommendations.isEmpty()
+                ? BigDecimal.ZERO
+                : recommendations.getFirst().effectiveMaxLoanAmount();
         return new FinalOfferCalculation(
                 scoring,
                 new LoanProductValuationSummaryResponse(
                         valuation.marketValue(),
                         valuation.totalDeductionAmount(),
                         valuation.finalValue(),
-                        valuation.appliedDeductionTypes()
+                        loanableAmount,
+                        valuation.appliedDeductionTypes(),
+                        valuation.appliedDeductions()
                 ),
                 recommendations.isEmpty() ? null : recommendations.getFirst().productCode(),
                 recommendations
@@ -304,27 +322,45 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
 
     private ValuationSnapshot resolveLatestValuation(Asset asset, VehicleVariant variant) {
         return assetValuationRepository.findTopByAssetOrderByValuedAtDesc(asset)
-                .map(valuation -> new ValuationSnapshot(
-                        money(valuation.getMarketPriceAmount()),
-                        money(valuation.getTotalDeductionAmount()),
-                        money(valuation.getFinalValueAmount()),
-                        assetValuationDeductionRepository.findByAssetValuationOrderByCreatedAtAsc(valuation)
-                                .stream()
-                                .map(deduction -> deduction.getDeductionType().getCode())
-                                .toList()
-                ))
+                .map(valuation -> {
+                    BigDecimal marketValue = money(valuation.getMarketPriceAmount());
+                    List<AssetValuationDeduction> deductions =
+                            assetValuationDeductionRepository.findByAssetValuationOrderByCreatedAtAsc(valuation);
+                    return new ValuationSnapshot(
+                            marketValue,
+                            money(valuation.getTotalDeductionAmount()),
+                            money(valuation.getFinalValueAmount()),
+                            deductions.stream()
+                                    .map(deduction -> deduction.getDeductionType().getCode())
+                                    .toList(),
+                            deductions.stream()
+                                    .map(deduction -> toAppliedDeduction(
+                                            deduction.getDeductionType(),
+                                            marketValue,
+                                            deduction.getDeductionAmountSnapshot()
+                                    ))
+                                    .toList()
+                    );
+                })
                 .orElseGet(() -> {
                     VehicleMarketPrice marketPrice = resolveCurrentMarketPrice(variant);
                     return new ValuationSnapshot(
                             money(marketPrice.getPriceAmount()),
                             BigDecimal.ZERO,
                             money(marketPrice.getPriceAmount()),
+                            List.of(),
                             List.of()
                     );
                 });
     }
 
     private LoanScoringResponse calculateScoring(LoanApplication application, BigDecimal requestedAmount, BigDecimal finalAssetValue) {
+        if (finalAssetValue == null || finalAssetValue.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_VALUATION_VALUE,
+                    "Giá trị tài sản sau giảm trừ phải lớn hơn 0 để tính điểm rủi ro."
+            );
+        }
         BigDecimal ltvPercent = requestedAmount
                 .multiply(ONE_HUNDRED)
                 .divide(finalAssetValue, 2, RoundingMode.HALF_UP);
@@ -382,16 +418,37 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
             RecommendedLoanProductResponse selectedProduct,
             LocalDateTime selectedAt
     ) {
+        String displayProductCode = selectedProductCode == null
+                ? calculation.recommendedProductCode()
+                : selectedProductCode;
         RecommendedLoanProductResponse selected = selectedProduct == null
                 ? calculation.products().stream()
-                        .filter(item -> item.productCode().equals(selectedProductCode))
+                        .filter(item -> item.productCode().equals(displayProductCode))
                         .findFirst()
                         .orElse(null)
                 : selectedProduct;
         BigDecimal selectedLoanAmount = selected == null ? null : selected.suggestedLoanAmount();
         BigDecimal estimatedMonthlyPayment = selected == null ? null : selected.estimatedMonthlyPayment();
+        List<RepaymentScheduleItemResponse> repaymentSchedule = selected == null
+                ? List.of()
+                : buildRepaymentSchedule(
+                        selected.suggestedLoanAmount(),
+                        input.loanTermMonths(),
+                        selected.monthlyInterestRatePercent()
+                );
+        BigDecimal totalPrincipalAmount = repaymentSchedule.stream()
+                .map(RepaymentScheduleItemResponse::principalAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalInterestAmount = repaymentSchedule.stream()
+                .map(RepaymentScheduleItemResponse::interestAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalPaymentAmount = repaymentSchedule.stream()
+                .map(RepaymentScheduleItemResponse::totalPaymentAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
         return new FinalLoanOfferResponse(
                 application.getLoanApplicationCode(),
+                toCustomerSummary(application.getCustomer()),
+                toAssetSummary(application.getAsset()),
                 input.requestedAmount(),
                 input.loanTermMonths(),
                 input.paymentMethod(),
@@ -400,12 +457,107 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
                 calculation.scoring(),
                 calculation.valuation(),
                 calculation.recommendedProductCode(),
-                selectedProductCode,
+                displayProductCode,
                 selectedLoanAmount,
                 estimatedMonthlyPayment,
+                money(totalPrincipalAmount),
+                money(totalInterestAmount),
+                money(totalPaymentAmount),
                 selectedAt,
-                calculation.products()
+                calculation.products(),
+                repaymentSchedule
         );
+    }
+
+    private FinalOfferCustomerSummaryResponse toCustomerSummary(Customer customer) {
+        return new FinalOfferCustomerSummaryResponse(
+                customer.getCustomerCode(),
+                customer.getFullName(),
+                customer.getIdentityNumber(),
+                customer.getPhoneNumber(),
+                customer.getDateOfBirth(),
+                customer.getStatus() == null ? null : customer.getStatus().name()
+        );
+    }
+
+    private FinalOfferAssetSummaryResponse toAssetSummary(Asset asset) {
+        VehicleVariant variant = asset.getVehicleVariant();
+        var vehicleYear = variant.getVehicleYear();
+        var vehicleVersion = vehicleYear.getVehicleVersion();
+        var vehicleModel = vehicleVersion.getVehicleModel();
+        var vehicleBrand = vehicleModel.getVehicleBrand();
+        var vehicleType = vehicleBrand.getVehicleType();
+        var vehicleColor = variant.getVehicleColor();
+
+        return new FinalOfferAssetSummaryResponse(
+                asset.getAssetCode(),
+                vehicleType.getCode(),
+                vehicleType.getName(),
+                asset.getLicensePlate(),
+                vehicleBrand.getCode(),
+                vehicleBrand.getName(),
+                vehicleModel.getCode(),
+                vehicleModel.getName(),
+                vehicleVersion.getCode(),
+                vehicleVersion.getName(),
+                variant.getCode(),
+                variant.getName(),
+                vehicleYear.getManufactureYear(),
+                vehicleColor.getCode(),
+                vehicleColor.getName(),
+                asset.getStatus() == null ? null : asset.getStatus().name()
+        );
+    }
+
+    private AppliedDeductionResponse toAppliedDeduction(
+            AssetDeductionType deductionType,
+            BigDecimal marketValue,
+            BigDecimal deductionAmount
+    ) {
+        BigDecimal amount = money(deductionAmount);
+        BigDecimal percent = marketValue == null || marketValue.compareTo(BigDecimal.ZERO) <= 0
+                ? BigDecimal.ZERO
+                : amount.multiply(ONE_HUNDRED).divide(marketValue, 2, RoundingMode.HALF_UP);
+        return new AppliedDeductionResponse(
+                deductionType.getCode(),
+                deductionType.getName(),
+                amount,
+                percent
+        );
+    }
+
+    private List<RepaymentScheduleItemResponse> buildRepaymentSchedule(
+            BigDecimal loanAmount,
+            Integer loanTermMonths,
+            BigDecimal monthlyInterestRatePercent
+    ) {
+        BigDecimal principalPerMonth = money(loanAmount.divide(BigDecimal.valueOf(loanTermMonths), 2, RoundingMode.HALF_UP));
+        BigDecimal balance = money(loanAmount);
+        List<RepaymentScheduleItemResponse> items = new ArrayList<>();
+
+        for (int period = 1; period <= loanTermMonths; period++) {
+            BigDecimal beginningBalance = balance;
+            BigDecimal principalAmount = period == loanTermMonths
+                    ? beginningBalance
+                    : min(principalPerMonth, beginningBalance);
+            BigDecimal interestAmount = beginningBalance
+                    .multiply(monthlyInterestRatePercent)
+                    .divide(ONE_HUNDRED, 2, RoundingMode.HALF_UP);
+            BigDecimal endingBalance = money(beginningBalance.subtract(principalAmount));
+            BigDecimal totalPaymentAmount = principalAmount.add(interestAmount);
+
+            items.add(new RepaymentScheduleItemResponse(
+                    period,
+                    beginningBalance,
+                    principalAmount,
+                    money(interestAmount),
+                    money(totalPaymentAmount),
+                    endingBalance
+            ));
+            balance = endingBalance;
+        }
+
+        return items;
     }
 
     private VehicleMarketPrice resolveCurrentMarketPrice(VehicleVariant variant) {
@@ -567,7 +719,8 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
             BigDecimal marketValue,
             BigDecimal totalDeductionAmount,
             BigDecimal finalValue,
-            List<String> appliedDeductionTypes
+            List<String> appliedDeductionTypes,
+            List<AppliedDeductionResponse> appliedDeductions
     ) {
     }
 

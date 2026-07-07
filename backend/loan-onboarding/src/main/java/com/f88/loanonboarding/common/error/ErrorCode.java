@@ -14,6 +14,7 @@ public enum ErrorCode {
     INVALID_LOAN_PURPOSE("APP_INVALID_PURPOSE", "Mục đích vay không tồn tại trong database"),
     INVALID_LOAN_TERM("APP_INVALID_TERM", "Kỳ hạn vay không tồn tại trong database"),
     LOAN_APPLICATION_NOT_FOUND("APP_404", "Không tìm thấy hồ sơ vay"),
+    LOAN_APPLICATION_DRAFT_NOT_FOUND("APP_DRAFT_404", "Không tìm thấy hồ sơ vay nháp"),
     INVALID_LOAN_APPLICATION_STATE("APP_INVALID_STATE", "Trạng thái hồ sơ vay không hợp lệ"),
     ASSET_ALREADY_PLEDGED("ASSET_ALREADY_PLEDGED", "Tài sản đã được cầm cố"),
     DUPLICATED_ASSET("ASSET_DUPLICATED", "Tài sản đã tồn tại"),

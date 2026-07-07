@@ -42,6 +42,13 @@ Backend chạy Flyway theo chặng trong `DatabaseMigrationConfig`:
 | 24   | `migration` |  `V19` | Thêm kyc_profile, loan_product_id và income_source                 |
 | 25   | `seed`      |  `V11` | Seed income_source                                                 |
 | 26   | `migration` |  `V20` | Thêm `registration_certificate_number` vào asset theo BA/DA V20    |
+| 27   | `migration` |  `V21` | Thêm loan application draft step flow                              |
+| 28   | `seed`      |  `V12` | Seed loan application step catalog                                 |
+| 29   | `seed`      |  `V13` | Seed demo draft flow theo BA/DA                                    |
+| 30   | `migration` |  `V22` | Đơn giản hóa draft step flow                                       |
+| 31   | `migration` |  `V23` | Bỏ các field KYC không còn dùng                                    |
+| 32   | `migration` |  `V24` | Refine review flow với `requires_review`                           |
+| 33   | `seed`      |  `V14` | Seed draft review flow mới                                        |
 
 Ghi chú: hai file BA/DA `V13_add_additional_customer_info_and_additional_loan_info.sql`
 và `V14_add_extra_fields_customer_and_loan_application.sql` không đúng chuẩn tên Flyway

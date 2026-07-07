@@ -3,8 +3,12 @@ package com.f88.loanonboarding.entity;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import com.f88.loanonboarding.enums.ReferenceRelationshipType;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
@@ -37,8 +41,9 @@ public class LoanApplicationReferencePerson {
     @Column(name = "address")
     private String address;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "relationship_type", nullable = false, length = 50)
-    private String relationshipType;
+    private ReferenceRelationshipType relationshipType;
 
     @Column(name = "note")
     private String note;

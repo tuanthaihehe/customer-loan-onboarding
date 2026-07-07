@@ -44,7 +44,7 @@ public class LoanProductRecommendationController {
 
     @Operation(
             summary = "Load và tính màn hình đề xuất gói vay cuối cùng",
-            description = "Dùng cho bước 5. Backend lấy hồ sơ, tài sản, định giá gần nhất, tính scoring mock, lọc top sản phẩm phù hợp và tính lịch trả hàng tháng theo nhu cầu vay có thể điều chỉnh."
+            description = "Dùng cho bước 5. Backend lấy hồ sơ, tài sản, định giá gần nhất, tính scoring mock, lọc top sản phẩm phù hợp và tính lịch trả nợ theo nhu cầu vay có thể điều chỉnh."
     )
     @PostMapping("/api/v1/loan-applications/{applicationCode}/final-loan-offer/preview")
     public ApiResponse<FinalLoanOfferResponse> previewFinalOffer(

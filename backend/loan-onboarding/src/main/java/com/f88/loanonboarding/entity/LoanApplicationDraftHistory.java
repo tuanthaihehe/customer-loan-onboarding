@@ -3,6 +3,11 @@ package com.f88.loanonboarding.entity;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import com.fasterxml.jackson.databind.JsonNode;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -45,20 +50,17 @@ public class LoanApplicationDraftHistory {
     @Column(name = "note")
     private String note;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "metadata", nullable = false, columnDefinition = "jsonb")
+    private JsonNode metadata;
+
     @Column(name = "changed_at", nullable = false)
     private LocalDateTime changedAt;
 
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
-
     @PrePersist
     void prePersist() {
-        LocalDateTime now = LocalDateTime.now();
         if (changedAt == null) {
-            changedAt = now;
-        }
-        if (createdAt == null) {
-            createdAt = now;
+            changedAt = LocalDateTime.now();
         }
     }
 }

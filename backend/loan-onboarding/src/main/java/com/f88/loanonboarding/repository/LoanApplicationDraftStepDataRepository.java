@@ -17,4 +17,13 @@ public interface LoanApplicationDraftStepDataRepository extends JpaRepository<Lo
 
     @EntityGraph(attributePaths = "step")
     Optional<LoanApplicationDraftStepData> findByDraftAndStep_Code(LoanApplicationDraft draft, String stepCode);
+
+    List<LoanApplicationDraftStepData> findByDraft_DraftCodeOrderByStep_StepOrderAsc(String draftCode);
+
+    Optional<LoanApplicationDraftStepData> findByDraft_DraftCodeAndStep_Code(String draftCode, String stepCode);
+
+    List<LoanApplicationDraftStepData> findByDraftAndStep_StepOrderGreaterThan(
+            com.f88.loanonboarding.entity.LoanApplicationDraft draft,
+            int stepOrder
+    );
 }
