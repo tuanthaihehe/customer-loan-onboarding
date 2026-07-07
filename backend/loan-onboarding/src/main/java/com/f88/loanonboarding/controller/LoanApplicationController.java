@@ -1,22 +1,34 @@
 package com.f88.loanonboarding.controller;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.RequestPart;
 
 import com.f88.loanonboarding.common.response.ApiResponse;
 import com.f88.loanonboarding.dto.request.loan.CancelLoanApplicationRequest;
+import com.f88.loanonboarding.dto.request.loan.CompleteLoanApplicationDocumentUploadRequest;
 import com.f88.loanonboarding.dto.request.loan.CreateLoanApplicationRequest;
 import com.f88.loanonboarding.dto.request.loan.SaveCustomerDetailRequest;
 import com.f88.loanonboarding.dto.request.loan.SaveLoanApplicationDraftRequest;
 import com.f88.loanonboarding.dto.request.loan.SaveReferencePersonsRequest;
+import com.f88.loanonboarding.dto.response.loan.CompleteLoanApplicationDocumentUploadResponse;
 import com.f88.loanonboarding.dto.response.loan.CustomerDetailResponse;
+import com.f88.loanonboarding.dto.response.loan.DeleteLoanApplicationDocumentUploadResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDetailResponse;
+import com.f88.loanonboarding.dto.response.loan.LoanApplicationDocumentUploadResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDraftResponse;
 import com.f88.loanonboarding.dto.response.loan.ReferencePersonsResponse;
 import com.f88.loanonboarding.dto.response.loan.StepCompletionResponse;
@@ -77,6 +89,55 @@ public class LoanApplicationController {
             @Valid @RequestBody SaveReferencePersonsRequest request
     ) {
         return ApiResponse.success("Lưu người tham chiếu thành công", loanApplicationService.saveReferencePersons(applicationCode, request));
+    }
+
+    @Operation(summary = "Upload chứng từ cho hồ sơ vay chính")
+    @PostMapping(value = "/{applicationCode}/documents/{documentCode}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<List<LoanApplicationDocumentUploadResponse>> uploadDocument(
+            @PathVariable String applicationCode,
+            @PathVariable String documentCode,
+            @RequestPart(value = "files", required = false) List<MultipartFile> files,
+            @RequestPart(value = "file", required = false) MultipartFile file
+    ) {
+        return ApiResponse.success(
+                "Upload chứng từ hồ sơ vay thành công",
+                loanApplicationService.uploadDocuments(applicationCode, documentCode, uploadedFiles(files, file))
+        );
+    }
+
+    private List<MultipartFile> uploadedFiles(List<MultipartFile> files, MultipartFile file) {
+        List<MultipartFile> result = new ArrayList<>();
+        if (files != null) {
+            result.addAll(files);
+        }
+        if (file != null) {
+            result.add(file);
+        }
+        return result;
+    }
+
+    @Operation(summary = "Xóa ảnh chứng từ đã upload lên S3")
+    @DeleteMapping("/{applicationCode}/documents")
+    public ApiResponse<DeleteLoanApplicationDocumentUploadResponse> deleteUploadedDocument(
+            @PathVariable String applicationCode,
+            @RequestParam String fileUrl
+    ) {
+        return ApiResponse.success(
+                "Xóa ảnh chứng từ thành công",
+                loanApplicationService.deleteUploadedDocument(applicationCode, fileUrl)
+        );
+    }
+
+    @Operation(summary = "Hoàn tất upload chứng từ và lưu metadata vào hồ sơ vay")
+    @PostMapping("/{applicationCode}/documents/complete")
+    public ApiResponse<CompleteLoanApplicationDocumentUploadResponse> completeDocumentUpload(
+            @PathVariable String applicationCode,
+            @RequestBody CompleteLoanApplicationDocumentUploadRequest request
+    ) {
+        return ApiResponse.success(
+                "Hoàn tất upload chứng từ thành công",
+                loanApplicationService.completeDocumentUpload(applicationCode, request)
+        );
     }
 
     @Operation(summary = "Hủy hồ sơ vay")

@@ -55,6 +55,7 @@ public final class DraftDocumentResponses {
             String fileName,
             String contentType,
             Long size,
+            String fileUrl,
             LocalDateTime uploadedAt
     ) {
     }

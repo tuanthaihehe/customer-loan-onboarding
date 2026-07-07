@@ -16,6 +16,7 @@ import com.f88.loanonboarding.dto.request.loan.CancelLoanApplicationDraftRequest
 import com.f88.loanonboarding.dto.request.loan.CompleteLoanApplicationDraftStepRequest;
 import com.f88.loanonboarding.dto.request.loan.CreateLoanApplicationDraftFlowRequest;
 import com.f88.loanonboarding.dto.request.loan.SaveLoanApplicationDraftStepRequest;
+import com.f88.loanonboarding.dto.request.loan.SubmitLoanApplicationDraftRequest;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDraftDetailResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDraftStepActionResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDraftSubmitResponse;
@@ -84,8 +85,11 @@ public class LoanApplicationDraftController {
 
     @Operation(summary = "Submit hồ sơ vay nháp thành hồ sơ vay thật")
     @PostMapping("/{draftCode}/submit")
-    public ApiResponse<LoanApplicationDraftSubmitResponse> submit(@PathVariable String draftCode) {
-        return ApiResponse.success("Gửi hồ sơ vay nháp thành công", draftFlowService.submit(draftCode));
+    public ApiResponse<LoanApplicationDraftSubmitResponse> submit(
+            @PathVariable String draftCode,
+            @RequestBody SubmitLoanApplicationDraftRequest request
+    ) {
+        return ApiResponse.success("Gửi hồ sơ vay nháp thành công", draftFlowService.submit(draftCode, request));
     }
 
     @Operation(summary = "Hủy hồ sơ vay nháp")

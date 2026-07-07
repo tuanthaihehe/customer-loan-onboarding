@@ -11,17 +11,23 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.f88.loanonboarding.common.error.ErrorCode;
 import com.f88.loanonboarding.dto.request.loan.ApplicantSnapshotRequest;
 import com.f88.loanonboarding.dto.request.loan.CancelLoanApplicationRequest;
+import com.f88.loanonboarding.dto.request.loan.CompleteLoanApplicationDocumentUploadRequest;
 import com.f88.loanonboarding.dto.request.loan.CreateLoanApplicationRequest;
 import com.f88.loanonboarding.dto.request.loan.ReferencePersonRequest;
 import com.f88.loanonboarding.dto.request.loan.SaveCustomerDetailRequest;
 import com.f88.loanonboarding.dto.request.loan.SaveLoanApplicationDraftRequest;
 import com.f88.loanonboarding.dto.request.loan.SaveReferencePersonsRequest;
+import com.f88.loanonboarding.dto.response.loan.CompleteLoanApplicationDocumentUploadResponse;
 import com.f88.loanonboarding.dto.response.loan.CustomerDetailResponse;
+import com.f88.loanonboarding.dto.response.loan.DeleteLoanApplicationDocumentUploadResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDetailResponse;
+import com.f88.loanonboarding.dto.response.loan.LoanApplicationDocumentUploadResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDraftResponse;
 import com.f88.loanonboarding.dto.response.loan.ReferencePersonResponse;
 import com.f88.loanonboarding.dto.response.loan.ReferencePersonsResponse;
@@ -30,8 +36,10 @@ import com.f88.loanonboarding.dto.response.loan.SubmitForApprovalResponse;
 import com.f88.loanonboarding.entity.Asset;
 import com.f88.loanonboarding.entity.Bank;
 import com.f88.loanonboarding.entity.Customer;
+import com.f88.loanonboarding.entity.DocumentType;
 import com.f88.loanonboarding.entity.IncomeSource;
 import com.f88.loanonboarding.entity.LoanApplication;
+import com.f88.loanonboarding.entity.LoanApplicationDocument;
 import com.f88.loanonboarding.entity.LoanApplicationReferencePerson;
 import com.f88.loanonboarding.entity.LoanApplicationStateTransition;
 import com.f88.loanonboarding.entity.LoanApplicationState;
@@ -46,8 +54,10 @@ import com.f88.loanonboarding.enums.ReferenceRelationshipType;
 import com.f88.loanonboarding.exception.BusinessException;
 import com.f88.loanonboarding.repository.BankRepository;
 import com.f88.loanonboarding.repository.CustomerRepository;
+import com.f88.loanonboarding.repository.DocumentTypeRepository;
 import com.f88.loanonboarding.repository.IncomeSourceRepository;
 import com.f88.loanonboarding.repository.AssetValuationRepository;
+import com.f88.loanonboarding.repository.LoanApplicationDocumentRepository;
 import com.f88.loanonboarding.repository.LoanApplicationReferencePersonRepository;
 import com.f88.loanonboarding.repository.LoanApplicationRepository;
 import com.f88.loanonboarding.repository.LoanPurposeRepository;
@@ -61,6 +71,7 @@ import com.f88.loanonboarding.rule.RuleEvaluationService;
 import com.f88.loanonboarding.rule.loan.LoanPurposeRule;
 import com.f88.loanonboarding.rule.loan.LoanTenureRule;
 import com.f88.loanonboarding.rule.loan.RequestedAmountRule;
+import com.f88.loanonboarding.service.DocumentStorageService;
 import com.f88.loanonboarding.service.LoanApplicationService;
 
 @Service
@@ -70,6 +81,30 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     private static final String STATE_SUBMITTED = "APP_SUBMITTED";
     private static final String STATE_CANCELLED = "APP_CANCELLED";
     private static final String APPLICATION_CODE_PREFIX = "APP-2026-";
+    private static final long MAX_DOCUMENT_FILE_SIZE_MB = 5L;
+    private static final long MAX_DOCUMENT_FILE_SIZE_BYTES = MAX_DOCUMENT_FILE_SIZE_MB * 1024L * 1024L;
+    private static final Map<String, String> DOCUMENT_TYPE_CODE_BY_DOCUMENT_CODE = Map.ofEntries(
+            Map.entry("CITIZEN_ID_FRONT", "CITIZEN_ID_FRONT"),
+            Map.entry("CITIZEN_ID_BACK", "CITIZEN_ID_BACK"),
+            Map.entry("VEHICLE_REGISTRATION_FRONT", "VEHICLE_REGISTRATION_FRONT"),
+            Map.entry("VEHICLE_REGISTRATION_BACK", "VEHICLE_REGISTRATION_BACK"),
+            Map.entry("ASSET_FRONT", "ASSET_FRONT_IMAGE"),
+            Map.entry("ASSET_REAR", "ASSET_BACK_IMAGE"),
+            Map.entry("ASSET_LEFT", "ASSET_LEFT_IMAGE"),
+            Map.entry("ASSET_RIGHT", "ASSET_RIGHT_IMAGE"),
+            Map.entry("ASSET_FRAME_NUMBER", "ASSET_FRAME_NUMBER_IMAGE"),
+            Map.entry("ASSET_ENGINE_NUMBER", "ASSET_ENGINE_NUMBER_IMAGE"),
+            Map.entry("ASSET_ODO", "ASSET_ODOMETER_IMAGE"),
+            Map.entry("CUSTOMER_PORTRAIT", "BORROWER_PORTRAIT_IMAGE"),
+            Map.entry("CUSTOMER_HOLDING_ID", "BORROWER_HOLDING_CITIZEN_ID_IMAGE"),
+            Map.entry("CUSTOMER_PORTRAIT_VIDEO", "BORROWER_PORTRAIT_VIDEO"),
+            Map.entry("INCOME_PROOF", "INCOME_PROOF"),
+            Map.entry("RESIDENCE_PROOF", "RESIDENCE_PROOF_DOCUMENT"),
+            Map.entry("SIGNED_CUSTOMER_CONTRACT", "SIGNED_CUSTOMER_CONTRACT"),
+            Map.entry("REFERENCE_VERIFICATION_FORM", "REFERENCE_VERIFICATION_FORM")
+    );
+    private static final List<String> IMAGE_OR_PDF_EXTENSIONS = List.of("jpg", "jpeg", "png", "webp", "pdf");
+    private static final List<String> VIDEO_EXTENSIONS = List.of("mp4", "webm", "mov");
     private static final List<String> SUPPORTED_GENDERS = List.of("MALE", "FEMALE");
     private static final List<String> SUPPORTED_MARITAL_STATUSES = List.of("SINGLE", "MARRIED");
     private static final List<String> SUPPORTED_RELATIONSHIP_TYPES = List.of(
@@ -91,11 +126,14 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     private final BankRepository bankRepository;
     private final IncomeSourceRepository incomeSourceRepository;
     private final AssetValuationRepository assetValuationRepository;
+    private final DocumentTypeRepository documentTypeRepository;
+    private final LoanApplicationDocumentRepository loanApplicationDocumentRepository;
     private final LoanApplicationReferencePersonRepository referencePersonRepository;
     private final LoanApplicationStateRepository stateRepository;
     private final LoanApplicationStateHistoryRepository historyRepository;
     private final LoanApplicationStateTransitionRepository transitionRepository;
     private final RuleEvaluationService ruleEvaluationService;
+    private final DocumentStorageService documentStorageService;
 
     public LoanApplicationServiceImpl(
             CustomerRepository customerRepository,
@@ -106,11 +144,14 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
             BankRepository bankRepository,
             IncomeSourceRepository incomeSourceRepository,
             AssetValuationRepository assetValuationRepository,
+            DocumentTypeRepository documentTypeRepository,
+            LoanApplicationDocumentRepository loanApplicationDocumentRepository,
             LoanApplicationReferencePersonRepository referencePersonRepository,
             LoanApplicationStateRepository stateRepository,
             LoanApplicationStateHistoryRepository historyRepository,
             LoanApplicationStateTransitionRepository transitionRepository,
-            RuleEvaluationService ruleEvaluationService
+            RuleEvaluationService ruleEvaluationService,
+            DocumentStorageService documentStorageService
     ) {
         this.customerRepository = customerRepository;
         this.loanApplicationRepository = loanApplicationRepository;
@@ -120,11 +161,14 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         this.bankRepository = bankRepository;
         this.incomeSourceRepository = incomeSourceRepository;
         this.assetValuationRepository = assetValuationRepository;
+        this.documentTypeRepository = documentTypeRepository;
+        this.loanApplicationDocumentRepository = loanApplicationDocumentRepository;
         this.referencePersonRepository = referencePersonRepository;
         this.stateRepository = stateRepository;
         this.historyRepository = historyRepository;
         this.transitionRepository = transitionRepository;
         this.ruleEvaluationService = ruleEvaluationService;
+        this.documentStorageService = documentStorageService;
     }
 
     @Override
@@ -265,6 +309,114 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
 
         historyRepository.save(history(application, null, application.getCurrentState(), "SAVE_REFERENCE_PERSONS", "system", "Lưu người tham chiếu"));
         return toReferencePersonsResponse(application.getLoanApplicationCode(), savedPersons);
+    }
+
+    @Override
+    @Transactional
+    public List<LoanApplicationDocumentUploadResponse> uploadDocuments(
+            String applicationCode,
+            String documentCode,
+            List<MultipartFile> files
+    ) {
+        LoanApplication application = findApplication(applicationCode);
+        ensureState(application.getCurrentState().getCode(), STATE_DRAFT, "Chỉ hồ sơ nháp mới được upload chứng từ");
+        String normalizedDocumentCode = normalizeDocumentCode(documentCode);
+        if (files == null || files.isEmpty()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Danh sách file chứng từ không được để trống");
+        }
+        return files.stream()
+                .map(file -> uploadSingleDocument(application, normalizedDocumentCode, file))
+                .toList();
+    }
+
+    private LoanApplicationDocumentUploadResponse uploadSingleDocument(
+            LoanApplication application,
+            String normalizedDocumentCode,
+            MultipartFile file
+    ) {
+        validateDocumentFile(file, normalizedDocumentCode);
+
+        String originalFileName = StringUtils.cleanPath(file.getOriginalFilename() == null ? "upload" : file.getOriginalFilename());
+        String extension = extension(originalFileName);
+        String fileId = UUID.randomUUID().toString();
+        DocumentStorageService.StoredObject storedObject = documentStorageService.store(
+                "loan-applications",
+                application.getLoanApplicationCode(),
+                normalizedDocumentCode,
+                fileId,
+                extension,
+                file.getContentType(),
+                file
+        );
+
+        LocalDateTime uploadedAt = LocalDateTime.now();
+        return new LoanApplicationDocumentUploadResponse(
+                application.getLoanApplicationCode(),
+                normalizedDocumentCode,
+                resolveDocumentTypeCode(normalizedDocumentCode),
+                fileId,
+                originalFileName,
+                file.getContentType(),
+                file.getSize(),
+                storedObject.fileUrl(),
+                uploadedAt
+        );
+    }
+
+    @Override
+    @Transactional
+    public DeleteLoanApplicationDocumentUploadResponse deleteUploadedDocument(String applicationCode, String fileUrl) {
+        LoanApplication application = findApplication(applicationCode);
+        ensureState(application.getCurrentState().getCode(), STATE_DRAFT, "Chỉ hồ sơ nháp mới được xóa chứng từ");
+        if (fileUrl == null || fileUrl.isBlank()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "fileUrl là bắt buộc khi xóa chứng từ");
+        }
+
+        documentStorageService.delete(fileUrl);
+        List<LoanApplicationDocument> savedDocuments =
+                loanApplicationDocumentRepository.findByLoanApplication_IdAndFileUrl(application.getId(), fileUrl);
+        loanApplicationDocumentRepository.deleteAll(savedDocuments);
+
+        return new DeleteLoanApplicationDocumentUploadResponse(
+                application.getLoanApplicationCode(),
+                fileUrl,
+                true,
+                "Đã xóa ảnh chứng từ"
+        );
+    }
+
+    @Override
+    @Transactional
+    public CompleteLoanApplicationDocumentUploadResponse completeDocumentUpload(
+            String applicationCode,
+            CompleteLoanApplicationDocumentUploadRequest request
+    ) {
+        LoanApplication application = findApplication(applicationCode);
+        ensureState(application.getCurrentState().getCode(), STATE_DRAFT, "Chỉ hồ sơ nháp mới được hoàn tất upload chứng từ");
+        validateCompleteDocumentUploadRequest(request);
+
+        loanApplicationDocumentRepository.deleteByLoanApplication_Id(application.getId());
+        for (CompleteLoanApplicationDocumentUploadRequest.Document item : request.documents()) {
+            String documentTypeCode = resolveDocumentTypeCode(item);
+            DocumentType documentType = documentTypeRepository.findByCode(documentTypeCode)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.SCHEMA_NOT_READY, "Document type is not configured: " + documentTypeCode));
+
+            LoanApplicationDocument document = new LoanApplicationDocument();
+            document.setLoanApplication(application);
+            document.setDocumentType(documentType);
+            document.setFileUrl(item.fileUrl().trim());
+            document.setFileName(normalizeNullableText(item.fileName()));
+            document.setUploadedAt(item.uploadedAt() == null ? LocalDateTime.now() : item.uploadedAt());
+            document.setUploadedBy(normalizeNullableText(item.uploadedBy()) == null ? "SYSTEM" : item.uploadedBy().trim());
+            document.setNote(normalizeNullableText(item.note()));
+            loanApplicationDocumentRepository.save(document);
+        }
+
+        return new CompleteLoanApplicationDocumentUploadResponse(
+                application.getLoanApplicationCode(),
+                request.documents().size(),
+                "Đã lưu metadata chứng từ vào hồ sơ vay"
+        );
     }
 
     @Override
@@ -637,6 +789,74 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Số điện thoại người tham chiếu bị trùng trong hồ sơ: " + phone);
             }
         }
+    }
+
+    private String normalizeDocumentCode(String documentCode) {
+        String normalized = normalizeCode(documentCode);
+        if (normalized == null || !DOCUMENT_TYPE_CODE_BY_DOCUMENT_CODE.containsKey(normalized)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Loại chứng từ không hợp lệ: " + documentCode);
+        }
+        return normalized;
+    }
+
+    private String resolveDocumentTypeCode(String documentCode) {
+        String documentTypeCode = DOCUMENT_TYPE_CODE_BY_DOCUMENT_CODE.get(documentCode);
+        if (documentTypeCode == null) {
+            throw new BusinessException(ErrorCode.SCHEMA_NOT_READY, "Document type mapping is not configured: " + documentCode);
+        }
+        return documentTypeCode;
+    }
+
+    private String resolveDocumentTypeCode(CompleteLoanApplicationDocumentUploadRequest.Document document) {
+        String explicitTypeCode = normalizeCode(document.documentTypeCode());
+        if (explicitTypeCode != null) {
+            return explicitTypeCode;
+        }
+        String documentCode = normalizeDocumentCode(document.documentCode());
+        return resolveDocumentTypeCode(documentCode);
+    }
+
+    private void validateCompleteDocumentUploadRequest(CompleteLoanApplicationDocumentUploadRequest request) {
+        if (request == null || request.documents() == null || request.documents().isEmpty()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "documents[] là bắt buộc khi hoàn tất upload chứng từ");
+        }
+        for (CompleteLoanApplicationDocumentUploadRequest.Document item : request.documents()) {
+            if ((item.documentCode() == null || item.documentCode().isBlank())
+                    && (item.documentTypeCode() == null || item.documentTypeCode().isBlank())) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Mỗi chứng từ cần có documentCode hoặc documentTypeCode");
+            }
+            if (item.fileUrl() == null || item.fileUrl().isBlank()) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Mỗi chứng từ cần có fileUrl");
+            }
+            resolveDocumentTypeCode(item);
+        }
+    }
+
+    private void validateDocumentFile(MultipartFile file, String documentCode) {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "File chứng từ không được để trống");
+        }
+        if (file.getSize() > MAX_DOCUMENT_FILE_SIZE_BYTES) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "File chứng từ không được vượt quá " + MAX_DOCUMENT_FILE_SIZE_MB + "MB");
+        }
+        String extension = extension(file.getOriginalFilename());
+        if (extension == null || !allowedExtensions(documentCode).contains(extension)) {
+            throw new BusinessException(
+                    ErrorCode.VALIDATION_ERROR,
+                    "Định dạng file không hợp lệ. Chỉ hỗ trợ: " + String.join(", ", allowedExtensions(documentCode))
+            );
+        }
+    }
+
+    private List<String> allowedExtensions(String documentCode) {
+        return "CUSTOMER_PORTRAIT_VIDEO".equals(documentCode) ? VIDEO_EXTENSIONS : IMAGE_OR_PDF_EXTENSIONS;
+    }
+
+    private String extension(String fileName) {
+        if (fileName == null || !fileName.contains(".")) {
+            return null;
+        }
+        return fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase();
     }
 
     private boolean isNotBlank(String value) {

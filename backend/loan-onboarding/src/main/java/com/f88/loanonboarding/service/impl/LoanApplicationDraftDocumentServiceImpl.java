@@ -1,9 +1,5 @@
 package com.f88.loanonboarding.service.impl;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -35,6 +31,7 @@ import com.f88.loanonboarding.enums.LoanApplicationDraftStepStatus;
 import com.f88.loanonboarding.exception.BusinessException;
 import com.f88.loanonboarding.repository.LoanApplicationDraftRepository;
 import com.f88.loanonboarding.repository.LoanApplicationDraftStepDataRepository;
+import com.f88.loanonboarding.service.DocumentStorageService;
 import com.f88.loanonboarding.service.LoanApplicationDraftDocumentService;
 import com.f88.loanonboarding.service.LoanApplicationDraftFlowService;
 
@@ -54,19 +51,20 @@ public class LoanApplicationDraftDocumentServiceImpl implements LoanApplicationD
     private final LoanApplicationDraftStepDataRepository stepDataRepository;
     private final LoanApplicationDraftFlowService draftFlowService;
     private final ObjectMapper objectMapper;
-    private final Path baseUploadDir;
+    private final DocumentStorageService documentStorageService;
 
     public LoanApplicationDraftDocumentServiceImpl(
             LoanApplicationDraftRepository draftRepository,
             LoanApplicationDraftStepDataRepository stepDataRepository,
             LoanApplicationDraftFlowService draftFlowService,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            DocumentStorageService documentStorageService
     ) {
         this.draftRepository = draftRepository;
         this.stepDataRepository = stepDataRepository;
         this.draftFlowService = draftFlowService;
         this.objectMapper = objectMapper;
-        this.baseUploadDir = Paths.get(System.getProperty("java.io.tmpdir"), "loan-onboarding-uploads");
+        this.documentStorageService = documentStorageService;
     }
 
     @Override
@@ -180,14 +178,15 @@ public class LoanApplicationDraftDocumentServiceImpl implements LoanApplicationD
         String originalFileName = StringUtils.cleanPath(file.getOriginalFilename() == null ? "upload" : file.getOriginalFilename());
         String extension = extension(originalFileName);
         String fileId = UUID.randomUUID().toString();
-        Path targetDirectory = baseUploadDir.resolve(draftCode).resolve(definition.documentCode());
-        Path targetFile = targetDirectory.resolve(fileId + "." + extension);
-        try {
-            Files.createDirectories(targetDirectory);
-            file.transferTo(targetFile);
-        } catch (IOException ex) {
-            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "Không lưu được file chứng từ, vui lòng thử lại");
-        }
+        DocumentStorageService.StoredObject storedObject = documentStorageService.store(
+                "loan-application-drafts",
+                draftCode,
+                definition.documentCode(),
+                fileId,
+                extension,
+                file.getContentType(),
+                file
+        );
         return new UploadedDocument(
                 definition.documentCode(),
                 definition.groupCode(),
@@ -195,7 +194,8 @@ public class LoanApplicationDraftDocumentServiceImpl implements LoanApplicationD
                 originalFileName,
                 file.getContentType(),
                 file.getSize(),
-                targetFile.toString(),
+                storedObject.storagePath(),
+                storedObject.fileUrl(),
                 LocalDateTime.now()
         );
     }
@@ -254,6 +254,7 @@ public class LoanApplicationDraftDocumentServiceImpl implements LoanApplicationD
                     null,
                     null,
                     null,
+                    null,
                     null
             );
         }
@@ -267,6 +268,7 @@ public class LoanApplicationDraftDocumentServiceImpl implements LoanApplicationD
                 uploadedDocument.fileName(),
                 uploadedDocument.contentType(),
                 uploadedDocument.size(),
+                uploadedDocument.fileUrl(),
                 uploadedDocument.uploadedAt()
         );
     }
@@ -310,6 +312,7 @@ public class LoanApplicationDraftDocumentServiceImpl implements LoanApplicationD
             item.put("content_type", document.contentType());
             item.put("size", document.size());
             item.put("storage_path", document.storagePath());
+            item.put("file_url", document.fileUrl());
             item.put("uploaded_at", document.uploadedAt().toString());
             documentArray.add(item);
         });
@@ -352,6 +355,7 @@ public class LoanApplicationDraftDocumentServiceImpl implements LoanApplicationD
                     text(item, "content_type"),
                     item.path("size").isNumber() ? item.path("size").asLong() : null,
                     text(item, "storage_path"),
+                    textOrDefault(item, "file_url", text(item, "storage_path")),
                     parseDateTime(text(item, "uploaded_at"))
             ));
         }
@@ -428,14 +432,7 @@ public class LoanApplicationDraftDocumentServiceImpl implements LoanApplicationD
         if (document == null || document.storagePath() == null || document.storagePath().isBlank()) {
             return;
         }
-        try {
-            Path filePath = Paths.get(document.storagePath()).normalize();
-            if (filePath.startsWith(baseUploadDir.normalize())) {
-                Files.deleteIfExists(filePath);
-            }
-        } catch (IOException | RuntimeException ignored) {
-            // File tạm không xóa được thì không chặn luồng nghiệp vụ.
-        }
+        documentStorageService.deleteQuietly(document.storagePath());
     }
 
     private String extension(String fileName) {
@@ -481,6 +478,7 @@ public class LoanApplicationDraftDocumentServiceImpl implements LoanApplicationD
             String contentType,
             Long size,
             String storagePath,
+            String fileUrl,
             LocalDateTime uploadedAt
     ) {
     }

@@ -4,8 +4,11 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.Year;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -20,6 +23,7 @@ import com.f88.loanonboarding.dto.request.loan.CancelLoanApplicationDraftRequest
 import com.f88.loanonboarding.dto.request.loan.CompleteLoanApplicationDraftStepRequest;
 import com.f88.loanonboarding.dto.request.loan.CreateLoanApplicationDraftFlowRequest;
 import com.f88.loanonboarding.dto.request.loan.SaveLoanApplicationDraftStepRequest;
+import com.f88.loanonboarding.dto.request.loan.SubmitLoanApplicationDraftRequest;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDraftCustomerResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDraftDetailResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDraftStepActionResponse;
@@ -27,7 +31,9 @@ import com.f88.loanonboarding.dto.response.loan.LoanApplicationDraftStepResponse
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDraftSubmitResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDraftSummaryResponse;
 import com.f88.loanonboarding.entity.Customer;
+import com.f88.loanonboarding.entity.DocumentType;
 import com.f88.loanonboarding.entity.LoanApplication;
+import com.f88.loanonboarding.entity.LoanApplicationDocument;
 import com.f88.loanonboarding.entity.LoanApplicationDraft;
 import com.f88.loanonboarding.entity.LoanApplicationDraftHistory;
 import com.f88.loanonboarding.entity.LoanApplicationDraftStepData;
@@ -40,6 +46,8 @@ import com.f88.loanonboarding.enums.LoanApplicationDraftStatus;
 import com.f88.loanonboarding.enums.LoanApplicationDraftStepStatus;
 import com.f88.loanonboarding.exception.BusinessException;
 import com.f88.loanonboarding.repository.CustomerRepository;
+import com.f88.loanonboarding.repository.DocumentTypeRepository;
+import com.f88.loanonboarding.repository.LoanApplicationDocumentRepository;
 import com.f88.loanonboarding.repository.LoanApplicationDraftHistoryRepository;
 import com.f88.loanonboarding.repository.LoanApplicationDraftRepository;
 import com.f88.loanonboarding.repository.LoanApplicationDraftStepDataRepository;
@@ -57,6 +65,26 @@ public class LoanApplicationDraftFlowServiceImpl implements LoanApplicationDraft
     private static final String STEP_CUSTOMER_IDENTIFY = "CUSTOMER_IDENTIFY";
     private static final String STATE_APP_DRAFT = "APP_DRAFT";
     private static final String EMPTY_JSON = "{}";
+    private static final Map<String, String> DOCUMENT_TYPE_CODE_BY_DOCUMENT_CODE = Map.ofEntries(
+            Map.entry("CITIZEN_ID_FRONT", "CITIZEN_ID_FRONT"),
+            Map.entry("CITIZEN_ID_BACK", "CITIZEN_ID_BACK"),
+            Map.entry("VEHICLE_REGISTRATION_FRONT", "VEHICLE_REGISTRATION_FRONT"),
+            Map.entry("VEHICLE_REGISTRATION_BACK", "VEHICLE_REGISTRATION_BACK"),
+            Map.entry("ASSET_FRONT", "ASSET_FRONT_IMAGE"),
+            Map.entry("ASSET_REAR", "ASSET_BACK_IMAGE"),
+            Map.entry("ASSET_LEFT", "ASSET_LEFT_IMAGE"),
+            Map.entry("ASSET_RIGHT", "ASSET_RIGHT_IMAGE"),
+            Map.entry("ASSET_FRAME_NUMBER", "ASSET_FRAME_NUMBER_IMAGE"),
+            Map.entry("ASSET_ENGINE_NUMBER", "ASSET_ENGINE_NUMBER_IMAGE"),
+            Map.entry("ASSET_ODO", "ASSET_ODOMETER_IMAGE"),
+            Map.entry("CUSTOMER_PORTRAIT", "BORROWER_PORTRAIT_IMAGE"),
+            Map.entry("CUSTOMER_HOLDING_ID", "BORROWER_HOLDING_CITIZEN_ID_IMAGE"),
+            Map.entry("CUSTOMER_PORTRAIT_VIDEO", "BORROWER_PORTRAIT_VIDEO"),
+            Map.entry("INCOME_PROOF", "INCOME_PROOF"),
+            Map.entry("RESIDENCE_PROOF", "RESIDENCE_PROOF_DOCUMENT"),
+            Map.entry("SIGNED_CUSTOMER_CONTRACT", "SIGNED_CUSTOMER_CONTRACT"),
+            Map.entry("REFERENCE_VERIFICATION_FORM", "REFERENCE_VERIFICATION_FORM")
+    );
 
     private final CustomerRepository customerRepository;
     private final LoanApplicationDraftRepository draftRepository;
@@ -64,10 +92,12 @@ public class LoanApplicationDraftFlowServiceImpl implements LoanApplicationDraft
     private final LoanApplicationDraftStepDataRepository stepDataRepository;
     private final LoanApplicationDraftHistoryRepository historyRepository;
     private final LoanApplicationRepository loanApplicationRepository;
+    private final LoanApplicationDocumentRepository loanApplicationDocumentRepository;
     private final LoanApplicationStateRepository loanApplicationStateRepository;
     private final LoanPurposeRepository loanPurposeRepository;
     private final LoanTermRepository loanTermRepository;
     private final LoanProductRepository loanProductRepository;
+    private final DocumentTypeRepository documentTypeRepository;
     private final ObjectMapper objectMapper;
 
     public LoanApplicationDraftFlowServiceImpl(
@@ -77,10 +107,12 @@ public class LoanApplicationDraftFlowServiceImpl implements LoanApplicationDraft
             LoanApplicationDraftStepDataRepository stepDataRepository,
             LoanApplicationDraftHistoryRepository historyRepository,
             LoanApplicationRepository loanApplicationRepository,
+            LoanApplicationDocumentRepository loanApplicationDocumentRepository,
             LoanApplicationStateRepository loanApplicationStateRepository,
             LoanPurposeRepository loanPurposeRepository,
             LoanTermRepository loanTermRepository,
             LoanProductRepository loanProductRepository,
+            DocumentTypeRepository documentTypeRepository,
             ObjectMapper objectMapper
     ) {
         this.customerRepository = customerRepository;
@@ -89,10 +121,12 @@ public class LoanApplicationDraftFlowServiceImpl implements LoanApplicationDraft
         this.stepDataRepository = stepDataRepository;
         this.historyRepository = historyRepository;
         this.loanApplicationRepository = loanApplicationRepository;
+        this.loanApplicationDocumentRepository = loanApplicationDocumentRepository;
         this.loanApplicationStateRepository = loanApplicationStateRepository;
         this.loanPurposeRepository = loanPurposeRepository;
         this.loanTermRepository = loanTermRepository;
         this.loanProductRepository = loanProductRepository;
+        this.documentTypeRepository = documentTypeRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -252,7 +286,7 @@ public class LoanApplicationDraftFlowServiceImpl implements LoanApplicationDraft
 
     @Override
     @Transactional
-    public LoanApplicationDraftSubmitResponse submit(String draftCode) {
+    public LoanApplicationDraftSubmitResponse submit(String draftCode, SubmitLoanApplicationDraftRequest request) {
         LoanApplicationDraft draft = findDraft(draftCode);
         if (statusEquals(draft, LoanApplicationDraftStatus.CONVERTED)) {
             String applicationCode = draft.getConvertedLoanApplication() == null
@@ -264,6 +298,7 @@ public class LoanApplicationDraftFlowServiceImpl implements LoanApplicationDraft
             throw new BusinessException(ErrorCode.INVALID_LOAN_APPLICATION_STATE, "Only active or completed draft can be submitted.");
         }
         ensureReadyToSubmit(draftCode);
+        validateSubmitDocuments(request);
 
         LoanApplication application = new LoanApplication();
         application.setLoanApplicationCode(nextApplicationCode());
@@ -272,6 +307,7 @@ public class LoanApplicationDraftFlowServiceImpl implements LoanApplicationDraft
         applyPayloadToLoanApplication(application, draftCode);
 
         LoanApplication savedApplication = loanApplicationRepository.save(application);
+        saveSubmittedDocuments(savedApplication, draftCode, request.documents());
         String oldStatus = draft.getStatus();
         draft.setStatus(LoanApplicationDraftStatus.CONVERTED.name());
         draft.setConvertedLoanApplication(savedApplication);
@@ -405,6 +441,61 @@ public class LoanApplicationDraftFlowServiceImpl implements LoanApplicationDraft
                     "{\"changedStepCode\":\"" + changedStep.getCode() + "\"}"
             );
         }
+    }
+
+    private void validateSubmitDocuments(SubmitLoanApplicationDraftRequest request) {
+        if (request == null || request.documents() == null || request.documents().isEmpty()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "documents[] is required when submitting a loan application draft.");
+        }
+        Set<String> documentTypeCodes = new HashSet<>();
+        for (SubmitLoanApplicationDraftRequest.Document document : request.documents()) {
+            if (!hasText(document.documentCode()) && !hasText(document.documentTypeCode())) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "documentCode or documentTypeCode is required for each submitted document.");
+            }
+            if (!hasText(document.fileUrl())) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "fileUrl is required for each submitted document.");
+            }
+            String documentTypeCode = resolveDocumentTypeCode(document);
+            if (!documentTypeCodes.add(documentTypeCode)) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "documents[] contains duplicated documentTypeCode: " + documentTypeCode);
+            }
+        }
+    }
+
+    private void saveSubmittedDocuments(
+            LoanApplication application,
+            String draftCode,
+            List<SubmitLoanApplicationDraftRequest.Document> documents
+    ) {
+        for (SubmitLoanApplicationDraftRequest.Document requestDocument : documents) {
+            String documentTypeCode = resolveDocumentTypeCode(requestDocument);
+            DocumentType documentType = documentTypeRepository.findByCode(documentTypeCode)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.SCHEMA_NOT_READY, "Document type is not configured: " + documentTypeCode));
+
+            LoanApplicationDocument document = new LoanApplicationDocument();
+            document.setLoanApplication(application);
+            document.setDocumentType(documentType);
+            document.setFileUrl(requestDocument.fileUrl().trim());
+            document.setFileName(blankToNull(requestDocument.fileName()));
+            document.setUploadedAt(requestDocument.uploadedAt() == null ? LocalDateTime.now() : requestDocument.uploadedAt());
+            document.setUploadedBy(hasText(requestDocument.uploadedBy()) ? requestDocument.uploadedBy().trim() : "SYSTEM");
+            document.setNote(hasText(requestDocument.note())
+                    ? requestDocument.note().trim()
+                    : "Imported from draft " + draftCode + " document " + blankToNull(requestDocument.documentCode()));
+            loanApplicationDocumentRepository.save(document);
+        }
+    }
+
+    private String resolveDocumentTypeCode(SubmitLoanApplicationDraftRequest.Document document) {
+        if (hasText(document.documentTypeCode())) {
+            return document.documentTypeCode().trim().toUpperCase();
+        }
+        String documentCode = document.documentCode().trim().toUpperCase();
+        String documentTypeCode = DOCUMENT_TYPE_CODE_BY_DOCUMENT_CODE.get(documentCode);
+        if (documentTypeCode == null) {
+            throw new BusinessException(ErrorCode.SCHEMA_NOT_READY, "Document type mapping is not configured: " + documentCode);
+        }
+        return documentTypeCode;
     }
 
     private boolean allStepsCompleted(String draftCode) {
@@ -690,6 +781,14 @@ public class LoanApplicationDraftFlowServiceImpl implements LoanApplicationDraft
             }
         }
         return null;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private String blankToNull(String value) {
+        return hasText(value) ? value.trim() : null;
     }
 
     private Integer firstInteger(JsonNode... nodes) {

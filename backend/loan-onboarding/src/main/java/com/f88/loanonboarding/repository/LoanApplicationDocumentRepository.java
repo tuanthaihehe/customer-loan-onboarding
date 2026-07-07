@@ -12,4 +12,8 @@ public interface LoanApplicationDocumentRepository extends JpaRepository<LoanApp
 
     @EntityGraph(attributePaths = "documentType")
     List<LoanApplicationDocument> findByLoanApplicationId(UUID loanApplicationId);
+
+    List<LoanApplicationDocument> findByLoanApplication_IdAndFileUrl(UUID loanApplicationId, String fileUrl);
+
+    void deleteByLoanApplication_Id(UUID loanApplicationId);
 }
