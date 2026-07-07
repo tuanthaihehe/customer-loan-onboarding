@@ -1,5 +1,5 @@
 // Customer Loan Onboarding - ERD
-// Updated from database/migrations through V20.
+// Updated from database/migrations through V26.
 // Focus: tables, columns, and relationships. Index definitions are intentionally omitted.
 
 Table customer {
@@ -33,6 +33,135 @@ Table loan_application_state_transition {
   action_code varchar(50) [not null]
   action_name varchar(100) [not null]
   description text
+}
+
+Table loan_application {
+  id uuid [pk]
+  loan_application_code varchar(50) [not null, unique]
+  customer_id uuid [not null]
+  current_state_id uuid [not null]
+  requested_amount numeric(18,2)
+  loan_term_months int [note: 'Allowed terms: 3, 6, 9, 12, 18, 24']
+  branch text
+  asset_id uuid
+  loan_purpose_id uuid
+  loan_term_id uuid
+  occupation_id uuid
+  disbursement_bank_id uuid
+  disbursement_account_number varchar(50)
+  disbursement_account_name varchar(255)
+  current_address text
+  workplace_name varchar(255)
+  workplace_address text
+  monthly_income_amount numeric(18,2)
+  loan_product_id uuid
+  income_source_id uuid
+}
+
+Table loan_application_state_history {
+  id uuid [pk]
+  loan_application_id uuid [not null]
+  from_state_id uuid
+  to_state_id uuid [not null]
+  action_code varchar(50) [not null]
+  changed_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  changed_by varchar(100)
+  note text
+}
+
+Table loan_application_step {
+  code varchar(50) [pk]
+  name varchar(255) [not null]
+  step_order int [not null, unique]
+  description text
+  is_active boolean [not null, default: true]
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table loan_application_draft {
+  id uuid [pk]
+  draft_code varchar(50) [not null, unique]
+  customer_id uuid [not null]
+  current_step_code varchar(50) [not null]
+  status varchar(30) [not null, default: 'DRAFT', note: 'DRAFT, COMPLETED, CONVERTED, CANCELLED, EXPIRED']
+  converted_loan_application_id uuid
+  expired_at timestamp
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table loan_application_draft_step_data {
+  id uuid [pk]
+  draft_id uuid [not null]
+  step_code varchar(50) [not null]
+  status varchar(30) [not null, default: 'NOT_STARTED', note: 'NOT_STARTED, IN_PROGRESS, COMPLETED']
+  payload jsonb [not null, default: '{}']
+  completed_at timestamp
+  invalidated_at timestamp
+  invalidated_reason text
+  requires_review boolean [not null, default: false]
+  invalidated_by_step_code varchar(50)
+  reviewed_at timestamp
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table loan_application_draft_history {
+  id uuid [pk]
+  draft_id uuid [not null]
+  step_code varchar(50)
+  action varchar(50) [not null, note: 'CREATE_DRAFT, START_STEP, SAVE_STEP, COMPLETE_STEP, REOPEN_STEP, INVALIDATE_STEP, CANCEL_DRAFT, EXPIRE_DRAFT, COMPLETE_DRAFT, CONVERT_DRAFT']
+  old_status varchar(30)
+  new_status varchar(30)
+  note text
+  changed_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  metadata jsonb [not null, default: '{}']
+}
+
+Table loan_application_reference_person {
+  id uuid [pk]
+  loan_application_id uuid [not null]
+  full_name varchar(255) [not null]
+  phone_number varchar(20) [not null]
+  address text
+  relationship_type varchar(50) [not null, note: 'FATHER, MOTHER, SPOUSE, SIBLING, RELATIVE, FRIEND, COLLEAGUE, OTHER']
+  note text
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table document_type {
+  id uuid [pk]
+  code varchar(50) [not null, unique]
+  name varchar(255) [not null]
+  description text
+  is_required boolean [not null, default: false]
+  is_active boolean [not null, default: true]
+  sort_order int [not null, default: 0]
+}
+
+Table loan_application_document {
+  id uuid [pk]
+  loan_application_id uuid [not null]
+  document_type_id uuid [not null]
+  file_url text [not null]
+  file_name varchar(255)
+  uploaded_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  uploaded_by varchar(100)
+  note text
+}
+
+Table kyc_profile {
+  id uuid [pk]
+  customer_id uuid [not null]
+  loan_application_id uuid [unique]
+  face_match_score numeric(5,2)
+  liveness_detection_score numeric(5,2)
+  checked_at timestamp
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  note text
 }
 
 Table loan_purpose {
@@ -121,87 +250,6 @@ Table loan_product_term {
 Table loan_product_score_grade {
   loan_product_id uuid [not null]
   score_grade_id uuid [not null]
-}
-
-Table loan_application {
-  id uuid [pk]
-  loan_application_code varchar(50) [not null, unique]
-  customer_id uuid [not null]
-  current_state_id uuid [not null]
-  requested_amount numeric(18,2)
-  loan_term_months int [note: 'Allowed terms: 3, 6, 9, 12, 18, 24']
-  asset_id uuid
-  loan_purpose_id uuid
-  loan_term_id uuid
-  occupation_id uuid
-  disbursement_bank_id uuid
-  disbursement_account_number varchar(50)
-  disbursement_account_name varchar(255)
-  current_address text
-  workplace_name varchar(255)
-  workplace_address text
-  monthly_income_amount numeric(18,2)
-  loan_product_id uuid
-  income_source_id uuid
-}
-
-Table loan_application_state_history {
-  id uuid [pk]
-  loan_application_id uuid [not null]
-  from_state_id uuid
-  to_state_id uuid [not null]
-  action_code varchar(50) [not null]
-  changed_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
-  changed_by varchar(100)
-  note text
-}
-
-Table loan_application_reference_person {
-  id uuid [pk]
-  loan_application_id uuid [not null]
-  full_name varchar(255) [not null]
-  phone_number varchar(20) [not null]
-  address text
-  relationship_type varchar(50) [not null, note: 'FATHER, MOTHER, SPOUSE, SIBLING, RELATIVE, FRIEND, COLLEAGUE, OTHER']
-  note text
-  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
-  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
-}
-
-Table document_type {
-  id uuid [pk]
-  code varchar(50) [not null, unique]
-  name varchar(255) [not null]
-  description text
-  is_required boolean [not null, default: false]
-  is_active boolean [not null, default: true]
-  sort_order int [not null, default: 0]
-}
-
-Table loan_application_document {
-  id uuid [pk]
-  loan_application_id uuid [not null]
-  document_type_id uuid [not null]
-  file_url text [not null]
-  file_name varchar(255)
-  uploaded_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
-  uploaded_by varchar(100)
-  note text
-}
-
-Table kyc_profile {
-  id uuid [pk]
-  customer_id uuid [not null]
-  loan_application_id uuid [unique]
-  blacklist_check_result boolean
-  phone_otp_verification_result boolean
-  face_match_score numeric(5,2)
-  liveness_detection_score numeric(5,2)
-  face_authenticity_score numeric(5,2)
-  checked_at timestamp
-  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
-  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
-  note text
 }
 
 Table vehicle_type {
@@ -321,20 +369,67 @@ Table asset_valuation_deduction {
   created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
 }
 
-Table mock_score_grade_rule {
+Table income_score_band {
   id uuid [pk]
-  rule_code varchar(50) [not null, unique]
-  rule_name varchar(255) [not null]
-  description text
-  min_monthly_income_amount numeric(18,2)
-  max_monthly_income_amount numeric(18,2)
-  min_requested_amount numeric(18,2)
-  max_requested_amount numeric(18,2)
-  min_ltv_percent numeric(5,2)
-  max_ltv_percent numeric(5,2)
-  score_grade_id uuid [not null]
+  rule_set_code varchar(50) [not null, default: 'BASIC_SCORING_V1']
+  min_income_amount numeric(18,2) [not null]
+  max_income_amount numeric(18,2)
+  score_value numeric(10,2) [not null]
+  weight numeric(5,4) [not null, default: 0.3000]
+  display_label varchar(255)
+  priority int [not null, default: 0]
   is_active boolean [not null, default: true]
-  sort_order int [not null, default: 0]
+  effective_from date [not null, default: `CURRENT_DATE`]
+  effective_to date
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table age_score_band {
+  id uuid [pk]
+  rule_set_code varchar(50) [not null, default: 'BASIC_SCORING_V1']
+  min_age int [not null]
+  max_age int
+  score_value numeric(10,2) [not null]
+  weight numeric(5,4) [not null, default: 0.4000]
+  display_label varchar(255)
+  priority int [not null, default: 0]
+  is_active boolean [not null, default: true]
+  effective_from date [not null, default: `CURRENT_DATE`]
+  effective_to date
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table dependent_score_band {
+  id uuid [pk]
+  rule_set_code varchar(50) [not null, default: 'BASIC_SCORING_V1']
+  min_dependent_count int [not null]
+  max_dependent_count int
+  score_value numeric(10,2) [not null]
+  weight numeric(5,4) [not null, default: 0.3000]
+  display_label varchar(255)
+  priority int [not null, default: 0]
+  is_active boolean [not null, default: true]
+  effective_from date [not null, default: `CURRENT_DATE`]
+  effective_to date
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+}
+
+Table overall_score_grade_band {
+  id uuid [pk]
+  rule_set_code varchar(50) [not null, default: 'BASIC_SCORING_V1']
+  grade_code varchar(10) [not null]
+  min_score numeric(10,2) [not null]
+  max_score numeric(10,2)
+  display_label varchar(255)
+  priority int [not null, default: 0]
+  is_active boolean [not null, default: true]
+  effective_from date [not null, default: `CURRENT_DATE`]
+  effective_to date
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
 }
 
 Ref: customer.id < loan_application.customer_id
@@ -349,15 +444,22 @@ Ref: income_source.id < loan_application.income_source_id
 
 Ref: loan_application_state.id < loan_application_state_transition.from_state_id
 Ref: loan_application_state.id < loan_application_state_transition.to_state_id
-
 Ref: loan_application.id < loan_application_state_history.loan_application_id
 Ref: loan_application_state.id < loan_application_state_history.from_state_id
 Ref: loan_application_state.id < loan_application_state_history.to_state_id
 
+Ref: customer.id < loan_application_draft.customer_id
+Ref: loan_application_step.code < loan_application_draft.current_step_code
+Ref: loan_application.id < loan_application_draft.converted_loan_application_id
+Ref: loan_application_draft.id < loan_application_draft_step_data.draft_id
+Ref: loan_application_step.code < loan_application_draft_step_data.step_code
+Ref: loan_application_step.code < loan_application_draft_step_data.invalidated_by_step_code
+Ref: loan_application_draft.id < loan_application_draft_history.draft_id
+Ref: loan_application_step.code < loan_application_draft_history.step_code
+
 Ref: loan_application.id < loan_application_reference_person.loan_application_id
 Ref: loan_application.id < loan_application_document.loan_application_id
 Ref: document_type.id < loan_application_document.document_type_id
-
 Ref: customer.id < kyc_profile.customer_id
 Ref: loan_application.id < kyc_profile.loan_application_id
 
@@ -382,5 +484,3 @@ Ref: loan_product.id < loan_product_term.loan_product_id
 Ref: loan_term.id < loan_product_term.loan_term_id
 Ref: loan_product.id < loan_product_score_grade.loan_product_id
 Ref: score_grade.id < loan_product_score_grade.score_grade_id
-
-Ref: score_grade.id < mock_score_grade_rule.score_grade_id
