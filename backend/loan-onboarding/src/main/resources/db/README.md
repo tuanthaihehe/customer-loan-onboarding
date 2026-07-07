@@ -1,64 +1,106 @@
-# Flyway Database Resources
+# Customer Loan Onboarding Database
 
-Folder này giữ cùng cách đặt tên với tài liệu database do BA/DA bàn giao.
+Tài liệu này mô tả schema database hiện tại cho module Customer Loan Onboarding.
+
+## Phạm Vi Hiện Tại
+
+Schema hiện tại tập trung vào:
+
+- lưu thông tin khách hàng cơ bản để tra cứu;
+- tạo và quản lý hồ sơ vay;
+- quản lý lifecycle của hồ sơ vay;
+- quản lý danh mục mục đích vay, kỳ hạn vay và sản phẩm vay;
+- quản lý danh mục xe, tài sản xe gắn với hồ sơ vay;
+- định giá tài sản và các khoản giảm trừ;
+- lưu thông tin người tham chiếu, snapshot thông tin sơ bộ, chứng từ hồ sơ vay và dữ liệu scoring mock;
+- lưu hồ sơ vay nháp theo từng step trước khi convert sang hồ sơ vay thật.
+
+Theo cập nhật BA/DA mới nhất, database **không có Eligibility** nên backend không làm chức năng Eligibility.
+
+## Danh Sách File
 
 ```text
-db/
-├── migration/   # DDL/schema migration, giữ V1..V20 theo database/migrations và cập nhật theo dataflow mới
-└── seed/        # Dữ liệu seed, giữ V1..V11 theo database/seed
+.
+├── data-dictionary.md
+├── erd.dbml
+├── lifecycle.md
+├── migrations
+│   ├── V1__init_schema.sql
+│   ├── V2__add_loan_terms_and_purpose_enum.sql
+│   ├── V3__add_branch.sql
+│   ├── V4__add_vehicle_catalog_and_asset_revised.sql
+│   ├── V5__link_asset_to_loan_application.sql
+│   ├── V6__add_asset_valuation_and_deductions.sql
+│   ├── V7__update_customer_status_enum.sql
+│   ├── V8__add_loan_purpose_catalog.sql
+│   ├── V9__add_loan_term_catalog.sql
+│   ├── V10__add_lead_customer_status.sql
+│   ├── V11__add_loan_product_catalog.sql
+│   ├── V12__add_loan_application_reference_person.sql
+│   ├── V13__add_preliminary_applicant_snapshot.sql
+│   ├── V14__add_customer_bank_occupation_extra_fields.sql
+│   ├── V15__add_vehicle_identifier_fields_to_asset.sql
+│   ├── V16__add_mock_score_grade_rule.sql
+│   ├── V17__add_loan_application_document.sql
+│   ├── V18__add_kyc_profile.sql
+│   ├── V19__update_loan_application_product_and_income_source.sql
+│   ├── V20__add_registration_certificate_number_to_asset.sql
+│   └── V21__add_loan_application_draft_step_flow.sql
+└── seed
+    ├── V1__seed_reference_data.sql
+    ├── V2__seed_demo_business_data.sql
+    ├── V3__seed_vehicle_catalog_and_asset.sql
+    ├── V4__seed_asset_deduction_type.sql
+    ├── V5__seed_loan_purpose.sql
+    ├── V6__seed_loan_term.sql
+    ├── V7__seed_loan_product.sql
+    ├── V8__seed_bank_and_occupation.sql
+    ├── V9__seed_mock_score_grade_rule.sql
+    ├── V10__seed_document_type.sql
+    ├── V11__seed_income_source.sql
+    └── V12__seed_loan_application_step.sql
 ```
 
-## Cách chạy trong backend
+## Bảng Chính
 
-Không dùng Spring Boot Flyway auto-config để đọc đồng thời cả hai folder, vì Flyway dùng chung version trên mọi location. Nếu để auto-config đọc `db/migration` và `db/seed` cùng lúc thì `migration/V1` sẽ trùng version với `seed/V1`.
+| Bảng | Vai trò |
+|---|---|
+| `customer` | Lưu thông tin khách hàng cơ bản và một số thông tin hồ sơ khách hàng. |
+| `loan_application` | Lưu hồ sơ vay, gồm thông tin khoản vay, snapshot khách hàng sơ bộ, chi nhánh, tài sản, nghề nghiệp, địa chỉ, nơi làm việc và thông tin giải ngân. |
+| `loan_purpose` | Danh mục mục đích vay cho dropdown/frontend. |
+| `loan_term` | Danh mục kỳ hạn vay cho dropdown/frontend. |
+| `loan_product` | Danh mục sản phẩm vay và điều kiện áp dụng. |
+| `score_grade` | Danh mục hạng điểm phục vụ rule/đề xuất sản phẩm vay. |
+| `mock_score_grade_rule` | Rule scoring mock theo thu nhập, số tiền vay và LTV. |
+| `bank` | Danh mục ngân hàng giải ngân. |
+| `occupation` | Danh mục nghề nghiệp. |
+| `loan_application_reference_person` | Người tham chiếu của hồ sơ vay. |
+| `loan_application_state` | Danh mục state hợp lệ của hồ sơ vay. |
+| `loan_application_state_transition` | Cấu hình state nào được phép chuyển sang state nào. |
+| `loan_application_state_history` | Nhật ký lifecycle của từng hồ sơ vay. |
+| `asset` | Lưu tài sản xe ở mức hồ sơ, gồm biển số, số khung, số máy và ngày cấp đăng ký nếu có. |
+| `asset_valuation` | Lưu kết quả định giá tài sản. |
+| `asset_valuation_deduction` | Lưu các yếu tố giảm trừ đã áp dụng trong một lần định giá. |
+| `document_type` | Danh mục loại chứng từ cần upload. |
+| `loan_application_document` | Lưu chứng từ của hồ sơ vay. |
+| `loan_application_step` | Danh mục các step nhập hồ sơ vay nháp. |
+| `loan_application_draft` | Header hồ sơ vay nháp gắn với khách hàng trước khi tạo `loan_application` thật. |
+| `loan_application_draft_step_data` | Payload JSONB và trạng thái riêng của từng step trong một draft. |
+| `loan_application_draft_history` | Nhật ký hành động chính trên draft và step draft. |
 
-Backend chạy Flyway theo chặng trong `DatabaseMigrationConfig`:
+## Ghi Chú Thiết Kế
 
-| Bước | Folder      | Target | Lý do                                                              |
-| ---- | ----------- | -----: | ------------------------------------------------------------------ |
-| 1    | `migration` |   `V1` | Tạo schema lõi                                                     |
-| 2    | `seed`      |   `V1` | Seed lifecycle state/transition                                    |
-| 3    | `migration` |   `V4` | Thêm loan term/purpose enum, branch, vehicle catalog, asset        |
-| 4    | `internal`  |    `-` | Mở tạm status `BLACKLIST` để chạy seed demo đúng file BA/DA        |
-| 5    | `seed`      |   `V3` | Seed demo V2 và vehicle catalog khi asset còn `customer_id`         |
-| 6    | `migration` |   `V7` | Link asset vào loan application, valuation và status BLACKLIST     |
-| 7    | `seed`      |   `V4` | Seed asset deduction type                                          |
-| 8    | `migration` |   `V8` | Thêm loan purpose catalog và loan_purpose_id                       |
-| 9    | `seed`      |   `V5` | Seed loan purpose                                                  |
-| 10   | `migration` |   `V9` | Thêm loan term catalog                                             |
-| 11   | `seed`      |   `V6` | Seed loan term                                                     |
-| 12   | `migration` |  `V10` | Bổ sung customer status `LEAD` theo cập nhật BA/DA                 |
-| 13   | `migration` |  `V11` | Thêm loan product catalog và các bảng mapping                      |
-| 14   | `seed`      |   `V7` | Seed loan product và score grade                                   |
-| 15   | `migration` |  `V12` | Thêm người tham chiếu của hồ sơ vay                                |
-| 16   | `migration` |  `V13` | Thêm snapshot thông tin sơ bộ khách hàng trên hồ sơ vay            |
-| 17   | `migration` |  `V14` | Thêm thông tin customer, bank, occupation và field bổ sung hồ sơ    |
-| 18   | `seed`      |   `V8` | Seed bank và occupation                                            |
-| 19   | `migration` |  `V15` | Thêm số khung, số máy, ngày cấp đăng ký xe cho asset               |
-| 20   | `migration` |  `V16` | Thêm mock score grade rule theo tài liệu DA/BA                     |
-| 21   | `seed`      |   `V9` | Seed mock score grade rule                                         |
-| 22   | `migration` |  `V17` | Thêm document_type và loan_application_document                    |
-| 23   | `seed`      |  `V10` | Seed document_type                                                 |
-| 24   | `migration` |  `V19` | Thêm kyc_profile, loan_product_id và income_source                 |
-| 25   | `seed`      |  `V11` | Seed income_source                                                 |
-| 26   | `migration` |  `V20` | Thêm `registration_certificate_number` vào asset theo BA/DA V20    |
-| 27   | `migration` |  `V21` | Thêm loan application draft step flow                              |
-| 28   | `seed`      |  `V12` | Seed loan application step catalog                                 |
-| 29   | `seed`      |  `V13` | Seed demo draft flow theo BA/DA                                    |
-| 30   | `migration` |  `V22` | Đơn giản hóa draft step flow                                       |
-| 31   | `migration` |  `V23` | Bỏ các field KYC không còn dùng                                    |
-| 32   | `migration` |  `V24` | Refine review flow với `requires_review`                           |
-| 33   | `seed`      |  `V14` | Seed draft review flow mới                                        |
+- `loan_application.loan_purpose_id`, `loan_term_id`, `loan_term_months`, `branch`, `asset_id` cho phép `NULL` vì hồ sơ có thể được tạo ở trạng thái nháp.
+- `loan_application.loan_term_months` lưu snapshot số tháng thực tế đã chọn.
+- Các trường `loan_application.applicant_*` lưu snapshot thông tin sơ bộ tại thời điểm nhân viên lưu hồ sơ.
+- Các mốc thời gian lifecycle được ghi nhận trong `loan_application_state_history.changed_at`.
+- `loan_application.asset_id` nullable để tạo hồ sơ trước, chọn tài sản sau.
+- `loan_application_draft` tách khỏi `loan_application` để khách hàng có thể bắt đầu nhập hồ sơ mà chưa tạo hồ sơ vay thật.
+- Dữ liệu draft được chia theo step trong `loan_application_draft_step_data.payload`, không gom thành một JSONB lớn trên header, để backend đọc/lưu/invalidate từng step độc lập.
+- `vehicle_market_price` lưu giá theo `vehicle_variant` và ngày hiệu lực.
+- `asset_valuation.final_value_amount` bằng `market_price_amount - total_deduction_amount`.
+- `V2__seed_demo_business_data.sql` chỉ dùng để tạo dữ liệu demo cho việc kiểm tra backend và database.
 
-Ghi chú: hai file BA/DA `V13_add_additional_customer_info_and_additional_loan_info.sql`
-và `V14_add_extra_fields_customer_and_loan_application.sql` không đúng chuẩn tên Flyway
-versioned migration. Nội dung của chúng đã được chuẩn hóa vào
-`migration/V14__add_customer_bank_occupation_extra_fields.sql` để tránh trùng version.
+## Cách chạy SQL bằng Docker
 
-## Schema history
-
-- Migration dùng bảng `flyway_schema_history`.
-- Seed dùng bảng `flyway_seed_schema_history`.
-- Seed baseline ở version `0` để Flyway có thể tạo seed history trên schema đã có bảng từ migration, nhưng vẫn chạy đủ `seed/V1` trở lên.
-
-Không đổi nội dung hoặc version file đã chạy trên database dùng chung nếu chưa thống nhất với team.
+Backend đang chạy Flyway theo thứ tự trong `backend/loan-onboarding/src/main/java/com/f88/loanonboarding/config/DatabaseMigrationConfig.java`. Khi chạy backend với profile `db`, hệ thống sẽ tự chạy migration và seed theo các mốc đã cấu hình.

@@ -63,7 +63,7 @@ public class LoanApplicationDraftFlowServiceImpl implements LoanApplicationDraft
 
     private static final String STEP_CUSTOMER_IDENTIFY = "CUSTOMER_IDENTIFY";
     private static final String STEP_UPLOAD_COMPLETE = "UPLOAD_COMPLETE";
-    private static final String STATE_APP_DRAFT = "APP_DRAFT";
+    private static final String STATE_APP_SUBMITTED = "APP_SUBMITTED";
     private static final String EMPTY_JSON = "{}";
     private static final Set<String> REQUIRED_DRAFT_DOCUMENT_CODES = Set.of(
             "CITIZEN_ID_FRONT",
@@ -318,7 +318,7 @@ public class LoanApplicationDraftFlowServiceImpl implements LoanApplicationDraft
         LoanApplication application = new LoanApplication();
         application.setLoanApplicationCode(nextApplicationCode());
         application.setCustomer(draft.getCustomer());
-        application.setCurrentState(findApplicationState(STATE_APP_DRAFT));
+        application.setCurrentState(findApplicationState(STATE_APP_SUBMITTED));
         applyPayloadToLoanApplication(application, draftCode);
 
         LoanApplication savedApplication = loanApplicationRepository.save(application);
