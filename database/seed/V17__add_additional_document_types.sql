@@ -23,7 +23,9 @@ VALUES
     ('INCOME_PROOF', 'Chứng từ chứng minh thu nhập', 'Chứng từ bổ sung dùng để chứng minh thu nhập của khách hàng.', FALSE, TRUE, 140),
     ('OCCUPATION_PROOF_DOCUMENT', 'Chứng từ chứng minh nghề nghiệp', 'Chứng từ bổ sung dùng để chứng minh nghề nghiệp/công việc hiện tại của khách hàng.', FALSE, TRUE, 150),
     ('RESIDENCE_PROOF_DOCUMENT', 'Chứng từ chứng minh nơi cư trú', 'Chứng từ bổ sung dùng để chứng minh nơi cư trú hoặc địa chỉ sinh sống của khách hàng.', FALSE, TRUE, 160),
-    ('DEPENDENT_PROOF_DOCUMENT', 'Chứng từ chứng minh người phụ thuộc', 'Chứng từ bổ sung dùng để chứng minh thông tin người phụ thuộc của khách hàng.', FALSE, TRUE, 170)
+    ('DEPENDENT_PROOF_DOCUMENT', 'Chứng từ chứng minh người phụ thuộc', 'Chứng từ bổ sung dùng để chứng minh thông tin người phụ thuộc của khách hàng.', FALSE, TRUE, 170),
+    ('SIGNED_CUSTOMER_CONTRACT', 'Hợp đồng có chữ ký khách hàng', 'Hợp đồng/hồ sơ có chữ ký của khách hàng.', FALSE, TRUE, 180),
+    ('REFERENCE_VERIFICATION_FORM', 'Phiếu xác minh người tham chiếu', 'Phiếu xác minh thông tin người tham chiếu.', FALSE, TRUE, 190)
 ON CONFLICT (code) DO UPDATE
 SET
     name = EXCLUDED.name,
