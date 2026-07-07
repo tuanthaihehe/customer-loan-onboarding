@@ -76,3 +76,5 @@ local-database/
 db-dump/
 
 database/queries/
+
+*.csv
