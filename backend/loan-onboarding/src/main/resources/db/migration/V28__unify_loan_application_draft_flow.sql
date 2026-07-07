@@ -98,6 +98,15 @@ VALUES
         FALSE,
         FALSE,
         3
+    ),
+    (
+        '00000000-0000-0000-0000-000000000110',
+        'APP_EXPIRED',
+        'Hồ sơ hết hạn',
+        'Hồ sơ vay hết hạn hoàn thiện và không tiếp tục xử lý.',
+        FALSE,
+        TRUE,
+        10
     )
 ON CONFLICT (code) DO UPDATE
 SET
@@ -118,6 +127,7 @@ SET
         WHEN 'APP_READY_FOR_CONTRACT' THEN 7
         WHEN 'APP_CONTRACTED' THEN 8
         WHEN 'APP_CANCELLED' THEN 9
+        WHEN 'APP_EXPIRED' THEN 10
         ELSE sort_order
     END,
     description = CASE code
@@ -130,12 +140,13 @@ WHERE code IN (
     'APP_IN_REVIEW',
     'APP_READY_FOR_CONTRACT',
     'APP_CONTRACTED',
-    'APP_CANCELLED'
+    'APP_CANCELLED',
+    'APP_EXPIRED'
 );
 
 UPDATE loan_application_state
 SET is_terminal = TRUE
-WHERE code IN ('APP_CONTRACTED', 'APP_CANCELLED');
+WHERE code IN ('APP_CONTRACTED', 'APP_CANCELLED', 'APP_EXPIRED');
 
 DROP TABLE IF EXISTS v28_draft_application_map;
 
@@ -178,7 +189,8 @@ JOIN loan_application_state s
     ON s.code = CASE
         WHEN m.status = 'COMPLETED' THEN 'APP_COMPLETED'
         WHEN m.status IN ('CONVERTED') THEN 'APP_SUBMITTED'
-        WHEN m.status IN ('CANCELLED', 'EXPIRED') THEN 'APP_CANCELLED'
+        WHEN m.status = 'CANCELLED' THEN 'APP_CANCELLED'
+        WHEN m.status = 'EXPIRED' THEN 'APP_EXPIRED'
         WHEN EXISTS (
             SELECT 1
             FROM loan_application_draft_step_data sd
