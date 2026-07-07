@@ -13,7 +13,7 @@ public interface LoanApplicationDraftDocumentService {
 
     DraftDocumentResponses.State getState(String draftCode);
 
-    DraftDocumentResponses.UploadResult upload(String draftCode, String documentCode, MultipartFile file);
+    DraftDocumentResponses.UploadUrlResult upload(String draftCode, String documentCode, MultipartFile file);
 
     DraftDocumentResponses.State delete(String draftCode, String documentCode);
 
