@@ -5,7 +5,9 @@ import java.time.LocalDateTime;
 import java.time.Year;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -20,6 +22,7 @@ import com.f88.loanonboarding.dto.request.loan.CancelLoanApplicationDraftRequest
 import com.f88.loanonboarding.dto.request.loan.CompleteLoanApplicationDraftStepRequest;
 import com.f88.loanonboarding.dto.request.loan.CreateLoanApplicationDraftFlowRequest;
 import com.f88.loanonboarding.dto.request.loan.SaveLoanApplicationDraftStepRequest;
+import com.f88.loanonboarding.dto.request.loan.SubmitLoanApplicationDraftRequest;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDraftCustomerResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDraftDetailResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDraftStepActionResponse;
@@ -27,7 +30,9 @@ import com.f88.loanonboarding.dto.response.loan.LoanApplicationDraftStepResponse
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDraftSubmitResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDraftSummaryResponse;
 import com.f88.loanonboarding.entity.Customer;
+import com.f88.loanonboarding.entity.DocumentType;
 import com.f88.loanonboarding.entity.LoanApplication;
+import com.f88.loanonboarding.entity.LoanApplicationDocument;
 import com.f88.loanonboarding.entity.LoanApplicationDraft;
 import com.f88.loanonboarding.entity.LoanApplicationDraftHistory;
 import com.f88.loanonboarding.entity.LoanApplicationDraftStepData;
@@ -40,6 +45,8 @@ import com.f88.loanonboarding.enums.LoanApplicationDraftStatus;
 import com.f88.loanonboarding.enums.LoanApplicationDraftStepStatus;
 import com.f88.loanonboarding.exception.BusinessException;
 import com.f88.loanonboarding.repository.CustomerRepository;
+import com.f88.loanonboarding.repository.DocumentTypeRepository;
+import com.f88.loanonboarding.repository.LoanApplicationDocumentRepository;
 import com.f88.loanonboarding.repository.LoanApplicationDraftHistoryRepository;
 import com.f88.loanonboarding.repository.LoanApplicationDraftRepository;
 import com.f88.loanonboarding.repository.LoanApplicationDraftStepDataRepository;
@@ -55,8 +62,44 @@ import com.f88.loanonboarding.service.LoanApplicationDraftFlowService;
 public class LoanApplicationDraftFlowServiceImpl implements LoanApplicationDraftFlowService {
 
     private static final String STEP_CUSTOMER_IDENTIFY = "CUSTOMER_IDENTIFY";
+    private static final String STEP_UPLOAD_COMPLETE = "UPLOAD_COMPLETE";
     private static final String STATE_APP_DRAFT = "APP_DRAFT";
     private static final String EMPTY_JSON = "{}";
+    private static final Set<String> REQUIRED_DRAFT_DOCUMENT_CODES = Set.of(
+            "CITIZEN_ID_FRONT",
+            "CITIZEN_ID_BACK",
+            "VEHICLE_REGISTRATION_FRONT",
+            "VEHICLE_REGISTRATION_BACK",
+            "ASSET_FRONT",
+            "ASSET_REAR",
+            "ASSET_LEFT",
+            "ASSET_RIGHT",
+            "CUSTOMER_PORTRAIT",
+            "CUSTOMER_PORTRAIT_VIDEO"
+    );
+    private static final Map<String, String> DRAFT_DOCUMENT_TYPE_MAPPING = Map.ofEntries(
+            Map.entry("CITIZEN_ID_FRONT", "CITIZEN_ID_FRONT"),
+            Map.entry("CITIZEN_ID_BACK", "CITIZEN_ID_BACK"),
+            Map.entry("VEHICLE_REGISTRATION_FRONT", "VEHICLE_REGISTRATION_FRONT"),
+            Map.entry("VEHICLE_REGISTRATION_BACK", "VEHICLE_REGISTRATION_BACK"),
+            Map.entry("ASSET_FRONT", "ASSET_FRONT_IMAGE"),
+            Map.entry("ASSET_REAR", "ASSET_BACK_IMAGE"),
+            Map.entry("ASSET_LEFT", "ASSET_LEFT_IMAGE"),
+            Map.entry("ASSET_RIGHT", "ASSET_RIGHT_IMAGE"),
+            Map.entry("ASSET_FRAME_NUMBER", "ASSET_FRAME_NUMBER_IMAGE"),
+            Map.entry("ASSET_ENGINE_NUMBER", "ASSET_ENGINE_NUMBER_IMAGE"),
+            Map.entry("ASSET_ODO", "ASSET_ODOMETER_IMAGE"),
+            Map.entry("CUSTOMER_PORTRAIT", "BORROWER_PORTRAIT_IMAGE"),
+            Map.entry("ASSET_FRONT_IMAGE", "ASSET_FRONT_IMAGE"),
+            Map.entry("ASSET_BACK_IMAGE", "ASSET_BACK_IMAGE"),
+            Map.entry("ASSET_LEFT_IMAGE", "ASSET_LEFT_IMAGE"),
+            Map.entry("ASSET_RIGHT_IMAGE", "ASSET_RIGHT_IMAGE"),
+            Map.entry("ASSET_FRAME_NUMBER_IMAGE", "ASSET_FRAME_NUMBER_IMAGE"),
+            Map.entry("ASSET_ENGINE_NUMBER_IMAGE", "ASSET_ENGINE_NUMBER_IMAGE"),
+            Map.entry("ASSET_ODOMETER_IMAGE", "ASSET_ODOMETER_IMAGE"),
+            Map.entry("BORROWER_PORTRAIT_IMAGE", "BORROWER_PORTRAIT_IMAGE"),
+            Map.entry("INCOME_PROOF", "INCOME_PROOF")
+    );
 
     private final CustomerRepository customerRepository;
     private final LoanApplicationDraftRepository draftRepository;
@@ -64,10 +107,12 @@ public class LoanApplicationDraftFlowServiceImpl implements LoanApplicationDraft
     private final LoanApplicationDraftStepDataRepository stepDataRepository;
     private final LoanApplicationDraftHistoryRepository historyRepository;
     private final LoanApplicationRepository loanApplicationRepository;
+    private final LoanApplicationDocumentRepository loanApplicationDocumentRepository;
     private final LoanApplicationStateRepository loanApplicationStateRepository;
     private final LoanPurposeRepository loanPurposeRepository;
     private final LoanTermRepository loanTermRepository;
     private final LoanProductRepository loanProductRepository;
+    private final DocumentTypeRepository documentTypeRepository;
     private final ObjectMapper objectMapper;
 
     public LoanApplicationDraftFlowServiceImpl(
@@ -77,10 +122,12 @@ public class LoanApplicationDraftFlowServiceImpl implements LoanApplicationDraft
             LoanApplicationDraftStepDataRepository stepDataRepository,
             LoanApplicationDraftHistoryRepository historyRepository,
             LoanApplicationRepository loanApplicationRepository,
+            LoanApplicationDocumentRepository loanApplicationDocumentRepository,
             LoanApplicationStateRepository loanApplicationStateRepository,
             LoanPurposeRepository loanPurposeRepository,
             LoanTermRepository loanTermRepository,
             LoanProductRepository loanProductRepository,
+            DocumentTypeRepository documentTypeRepository,
             ObjectMapper objectMapper
     ) {
         this.customerRepository = customerRepository;
@@ -89,10 +136,12 @@ public class LoanApplicationDraftFlowServiceImpl implements LoanApplicationDraft
         this.stepDataRepository = stepDataRepository;
         this.historyRepository = historyRepository;
         this.loanApplicationRepository = loanApplicationRepository;
+        this.loanApplicationDocumentRepository = loanApplicationDocumentRepository;
         this.loanApplicationStateRepository = loanApplicationStateRepository;
         this.loanPurposeRepository = loanPurposeRepository;
         this.loanTermRepository = loanTermRepository;
         this.loanProductRepository = loanProductRepository;
+        this.documentTypeRepository = documentTypeRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -252,7 +301,7 @@ public class LoanApplicationDraftFlowServiceImpl implements LoanApplicationDraft
 
     @Override
     @Transactional
-    public LoanApplicationDraftSubmitResponse submit(String draftCode) {
+    public LoanApplicationDraftSubmitResponse submit(String draftCode, SubmitLoanApplicationDraftRequest request) {
         LoanApplicationDraft draft = findDraft(draftCode);
         if (statusEquals(draft, LoanApplicationDraftStatus.CONVERTED)) {
             String applicationCode = draft.getConvertedLoanApplication() == null
@@ -263,6 +312,7 @@ public class LoanApplicationDraftFlowServiceImpl implements LoanApplicationDraft
         if (statusEquals(draft, LoanApplicationDraftStatus.CANCELLED) || statusEquals(draft, LoanApplicationDraftStatus.EXPIRED)) {
             throw new BusinessException(ErrorCode.INVALID_LOAN_APPLICATION_STATE, "Only active or completed draft can be submitted.");
         }
+        completeUploadStepBeforeSubmit(draftCode, request);
         ensureReadyToSubmit(draftCode);
 
         LoanApplication application = new LoanApplication();
@@ -272,6 +322,7 @@ public class LoanApplicationDraftFlowServiceImpl implements LoanApplicationDraft
         applyPayloadToLoanApplication(application, draftCode);
 
         LoanApplication savedApplication = loanApplicationRepository.save(application);
+        saveSubmittedDocuments(savedApplication, request);
         String oldStatus = draft.getStatus();
         draft.setStatus(LoanApplicationDraftStatus.CONVERTED.name());
         draft.setConvertedLoanApplication(savedApplication);
@@ -499,6 +550,115 @@ public class LoanApplicationDraftFlowServiceImpl implements LoanApplicationDraft
         }
     }
 
+    private void saveSubmittedDocuments(LoanApplication application, SubmitLoanApplicationDraftRequest request) {
+        if (request == null || request.documents() == null) {
+            return;
+        }
+        for (SubmitLoanApplicationDraftRequest.Document submittedDocument : request.documents()) {
+            String documentTypeCode = officialDocumentTypeCode(submittedDocument.documentTypeCode());
+            if (documentTypeCode == null || submittedDocument.fileUrl() == null || submittedDocument.fileUrl().isBlank()) {
+                continue;
+            }
+
+            DocumentType documentType = documentTypeRepository.findByCode(documentTypeCode).orElse(null);
+            if (documentType == null) {
+                continue;
+            }
+
+            LoanApplicationDocument document = new LoanApplicationDocument();
+            document.setLoanApplication(application);
+            document.setDocumentType(documentType);
+            document.setFileUrl(submittedDocument.fileUrl());
+            document.setFileName(submittedDocument.fileName());
+            document.setUploadedAt(LocalDateTime.now());
+            document.setUploadedBy("DRAFT_SUBMIT");
+            document.setNote("Submitted from draft documentTypeCode=" + submittedDocument.documentTypeCode());
+            loanApplicationDocumentRepository.save(document);
+        }
+    }
+
+    private void completeUploadStepBeforeSubmit(String draftCode, SubmitLoanApplicationDraftRequest request) {
+        LoanApplicationDraftStepData uploadStep = findStepData(draftCode, STEP_UPLOAD_COMPLETE);
+        if (stepStatusEquals(uploadStep, LoanApplicationDraftStepStatus.COMPLETED)) {
+            return;
+        }
+        if (request == null || request.documents() == null || request.documents().isEmpty()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Chưa gửi danh sách chứng từ để hoàn tất hồ sơ");
+        }
+
+        Set<String> uploadedDocumentCodes = new java.util.HashSet<>();
+        for (SubmitLoanApplicationDraftRequest.Document document : request.documents()) {
+            String documentTypeCode = document.documentTypeCode();
+            if (documentTypeCode != null && document.fileUrl() != null && !document.fileUrl().isBlank()) {
+                uploadedDocumentCodes.add(documentTypeCode.trim().toUpperCase());
+            }
+        }
+        List<String> missingDocumentCodes = REQUIRED_DRAFT_DOCUMENT_CODES.stream()
+                .filter(code -> !uploadedDocumentCodes.contains(code))
+                .sorted()
+                .toList();
+        if (!missingDocumentCodes.isEmpty()) {
+            throw new BusinessException(
+                    ErrorCode.VALIDATION_ERROR,
+                    "Chưa upload đủ chứng từ bắt buộc: " + String.join(", ", missingDocumentCodes)
+            );
+        }
+
+        String oldStatus = uploadStep.getStatus();
+        LocalDateTime now = LocalDateTime.now();
+        uploadStep.setStatus(LoanApplicationDraftStepStatus.COMPLETED.name());
+        uploadStep.setCompletedAt(now);
+        uploadStep.setReviewedAt(now);
+        uploadStep.setUpdatedAt(now);
+        uploadStep.setRequiresReview(false);
+        uploadStep.setInvalidatedAt(null);
+        uploadStep.setInvalidatedReason(null);
+        uploadStep.setInvalidatedByStep(null);
+        uploadStep.setPayload(submitDocumentsPayload(request));
+        stepDataRepository.save(uploadStep);
+
+        LoanApplicationDraft draft = uploadStep.getDraft();
+        draft.setCurrentStep(uploadStep.getStep());
+        draft.setStatus(LoanApplicationDraftStatus.COMPLETED.name());
+        draft.setUpdatedAt(now);
+        draftRepository.save(draft);
+        saveHistory(
+                draft,
+                uploadStep.getStep(),
+                LoanApplicationDraftHistoryAction.COMPLETE_STEP,
+                oldStatus,
+                LoanApplicationDraftStepStatus.COMPLETED.name(),
+                "Complete upload step automatically before submit",
+                toJsonString(uploadStep.getPayload())
+        );
+        saveHistory(draft, null, LoanApplicationDraftHistoryAction.COMPLETE_DRAFT, "DRAFT", "COMPLETED", "All draft steps completed before submit", EMPTY_JSON);
+    }
+
+    private ObjectNode submitDocumentsPayload(SubmitLoanApplicationDraftRequest request) {
+        ObjectNode payload = objectMapper.createObjectNode();
+        com.fasterxml.jackson.databind.node.ArrayNode uploadedDocuments = objectMapper.createArrayNode();
+        if (request != null && request.documents() != null) {
+            for (SubmitLoanApplicationDraftRequest.Document document : request.documents()) {
+                ObjectNode item = objectMapper.createObjectNode();
+                item.put("document_code", document.documentTypeCode());
+                item.put("document_type_code", officialDocumentTypeCode(document.documentTypeCode()));
+                item.put("file_url", document.fileUrl());
+                item.put("file_name", document.fileName());
+                uploadedDocuments.add(item);
+            }
+        }
+        payload.set("submitted_documents", uploadedDocuments);
+        return payload;
+    }
+
+    private String officialDocumentTypeCode(String submittedCode) {
+        if (submittedCode == null || submittedCode.isBlank()) {
+            return null;
+        }
+        String normalizedCode = submittedCode.trim().toUpperCase();
+        return DRAFT_DOCUMENT_TYPE_MAPPING.getOrDefault(normalizedCode, normalizedCode);
+    }
+
     private JsonNode payloadByStep(List<LoanApplicationDraftStepData> steps, String stepCode) {
         return steps.stream()
                 .filter(step -> stepCode.equals(step.getStep().getCode()))
@@ -683,6 +843,11 @@ public class LoanApplicationDraftFlowServiceImpl implements LoanApplicationDraft
         return current;
     }
 
+    private String text(JsonNode node, String field) {
+        JsonNode value = node == null ? null : node.get(field);
+        return value == null || value.isNull() ? null : value.asText();
+    }
+
     private String firstText(JsonNode... nodes) {
         for (JsonNode node : nodes) {
             if (node != null && !node.isNull() && !node.isMissingNode() && node.isTextual() && !node.asText().isBlank()) {
@@ -720,5 +885,16 @@ public class LoanApplicationDraftFlowServiceImpl implements LoanApplicationDraft
             }
         }
         return null;
+    }
+
+    private LocalDateTime parseLocalDateTime(String value) {
+        if (value == null || value.isBlank()) {
+            return LocalDateTime.now();
+        }
+        try {
+            return LocalDateTime.parse(value);
+        } catch (RuntimeException ex) {
+            return LocalDateTime.now();
+        }
     }
 }

@@ -6,6 +6,7 @@ import com.f88.loanonboarding.dto.request.loan.CancelLoanApplicationDraftRequest
 import com.f88.loanonboarding.dto.request.loan.CompleteLoanApplicationDraftStepRequest;
 import com.f88.loanonboarding.dto.request.loan.CreateLoanApplicationDraftFlowRequest;
 import com.f88.loanonboarding.dto.request.loan.SaveLoanApplicationDraftStepRequest;
+import com.f88.loanonboarding.dto.request.loan.SubmitLoanApplicationDraftRequest;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDraftDetailResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDraftStepActionResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDraftSubmitResponse;
@@ -32,7 +33,7 @@ public interface LoanApplicationDraftFlowService {
             CompleteLoanApplicationDraftStepRequest request
     );
 
-    LoanApplicationDraftSubmitResponse submit(String draftCode);
+    LoanApplicationDraftSubmitResponse submit(String draftCode, SubmitLoanApplicationDraftRequest request);
 
     LoanApplicationDraftSubmitResponse cancel(String draftCode, CancelLoanApplicationDraftRequest request);
 }
