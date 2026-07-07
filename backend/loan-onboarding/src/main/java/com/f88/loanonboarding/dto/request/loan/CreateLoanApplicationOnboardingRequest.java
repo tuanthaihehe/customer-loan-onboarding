@@ -4,7 +4,7 @@ import java.util.UUID;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
-public record CreateLoanApplicationDraftFlowRequest(
+public record CreateLoanApplicationOnboardingRequest(
         UUID customerId,
         String customerCode,
         JsonNode customerIdentifyPayload

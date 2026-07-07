@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 
 import com.f88.loanonboarding.enums.LoanApplicationState;
 
-public record LoanApplicationDraftResponse(
+public record LoanApplicationSummaryResponse(
         String applicationCode,
         LoanApplicationState applicationState,
         String customerCode,

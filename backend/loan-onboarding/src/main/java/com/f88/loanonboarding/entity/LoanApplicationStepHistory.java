@@ -6,7 +6,7 @@ import java.util.UUID;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import com.f88.loanonboarding.enums.LoanApplicationDraftHistoryAction;
+import com.f88.loanonboarding.enums.LoanApplicationStepHistoryAction;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -25,15 +25,15 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "loan_application_draft_history")
-public class LoanApplicationDraftHistory {
+@Table(name = "loan_application_step_history")
+public class LoanApplicationStepHistory {
 
     @Id
     private UUID id = UUID.randomUUID();
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "draft_id", nullable = false)
-    private LoanApplicationDraft draft;
+    @JoinColumn(name = "loan_application_id", nullable = false)
+    private LoanApplication loanApplication;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "step_code")
@@ -41,7 +41,7 @@ public class LoanApplicationDraftHistory {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "action", nullable = false, length = 50)
-    private LoanApplicationDraftHistoryAction action;
+    private LoanApplicationStepHistoryAction action;
 
     @Column(name = "old_status", length = 30)
     private String oldStatus;

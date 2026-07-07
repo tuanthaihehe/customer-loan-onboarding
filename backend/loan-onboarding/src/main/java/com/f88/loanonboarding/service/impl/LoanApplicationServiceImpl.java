@@ -13,9 +13,9 @@ import org.springframework.transaction.annotation.Transactional;
 import com.f88.loanonboarding.common.error.ErrorCode;
 import com.f88.loanonboarding.dto.request.loan.CancelLoanApplicationRequest;
 import com.f88.loanonboarding.dto.request.loan.CreateLoanApplicationRequest;
-import com.f88.loanonboarding.dto.request.loan.SaveLoanApplicationDraftRequest;
+import com.f88.loanonboarding.dto.request.loan.UpdateLoanApplicationRequest;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDetailResponse;
-import com.f88.loanonboarding.dto.response.loan.LoanApplicationDraftResponse;
+import com.f88.loanonboarding.dto.response.loan.LoanApplicationSummaryResponse;
 import com.f88.loanonboarding.dto.response.loan.StepCompletionResponse;
 import com.f88.loanonboarding.dto.response.loan.SubmitForApprovalResponse;
 import com.f88.loanonboarding.entity.Asset;
@@ -44,7 +44,7 @@ import com.f88.loanonboarding.service.LoanApplicationService;
 @Service
 public class LoanApplicationServiceImpl implements LoanApplicationService {
 
-    private static final String STATE_DRAFT = "APP_DRAFT";
+    private static final String STATE_CREATED = "APP_CREATED";
     private static final String STATE_SUBMITTED = "APP_SUBMITTED";
     private static final String STATE_CANCELLED = "APP_CANCELLED";
 
@@ -79,21 +79,21 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
 
     @Override
     @Transactional
-    public LoanApplicationDraftResponse createDraft(CreateLoanApplicationRequest request) {
+    public LoanApplicationSummaryResponse createApplication(CreateLoanApplicationRequest request) {
         Customer customer = customerRepository.findByCustomerCode(request.customerCode())
                 .orElseThrow(() -> new BusinessException(ErrorCode.CUSTOMER_NOT_FOUND));
-        LoanApplicationState draftState = findState(STATE_DRAFT);
+        LoanApplicationState createdState = findState(STATE_CREATED);
 
         LoanApplication application = new LoanApplication();
         application.setLoanApplicationCode(nextApplicationCode());
         application.setCustomer(customer);
-        application.setCurrentState(draftState);
+        application.setCurrentState(createdState);
         application.setBranch(request.branchCode());
 
         LoanApplication saved = loanApplicationRepository.save(application);
-        historyRepository.save(history(saved, null, draftState, "CREATE", request.staffCode(), "Create draft"));
+        historyRepository.save(history(saved, null, createdState, "CREATE", request.staffCode(), "Create application"));
 
-        return toDraftResponse(saved);
+        return toSummaryResponse(saved);
     }
 
     @Override
@@ -124,7 +124,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
 
     @Override
     @Transactional
-    public LoanApplicationDraftResponse saveDraft(String applicationCode, SaveLoanApplicationDraftRequest request) {
+    public LoanApplicationSummaryResponse updateLoanRequest(String applicationCode, UpdateLoanApplicationRequest request) {
         ruleEvaluationService.validateOrThrow(
                 RuleContext.loan(
                         request.loanRequest().requestedAmount(),
@@ -150,12 +150,12 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         application.setLoanTerm(loanTerm);
         application.setLoanTermMonths(request.loanRequest().requestedTenure());
 
-        return toDraftResponse(loanApplicationRepository.save(application));
+        return toSummaryResponse(loanApplicationRepository.save(application));
     }
 
     @Override
     @Transactional
-    public LoanApplicationDraftResponse cancel(String applicationCode, CancelLoanApplicationRequest request) {
+    public LoanApplicationSummaryResponse cancel(String applicationCode, CancelLoanApplicationRequest request) {
         LoanApplication application = findApplication(applicationCode);
         LoanApplicationState cancelledState = findState(STATE_CANCELLED);
         validateTransition(application.getCurrentState(), cancelledState, "CANCEL");
@@ -165,7 +165,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         LoanApplication saved = loanApplicationRepository.save(application);
         historyRepository.save(history(saved, previousState, cancelledState, "CANCEL", null, request.note()));
 
-        return toDraftResponse(saved);
+        return toSummaryResponse(saved);
     }
 
     @Override
@@ -245,8 +245,8 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         return history;
     }
 
-    private LoanApplicationDraftResponse toDraftResponse(LoanApplication application) {
-        return new LoanApplicationDraftResponse(
+    private LoanApplicationSummaryResponse toSummaryResponse(LoanApplication application) {
+        return new LoanApplicationSummaryResponse(
                 application.getLoanApplicationCode(),
                 toStateEnum(application.getCurrentState()),
                 application.getCustomer().getCustomerCode(),

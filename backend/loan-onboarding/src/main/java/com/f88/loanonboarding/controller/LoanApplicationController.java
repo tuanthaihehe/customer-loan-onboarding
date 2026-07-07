@@ -11,9 +11,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.f88.loanonboarding.common.response.ApiResponse;
 import com.f88.loanonboarding.dto.request.loan.CancelLoanApplicationRequest;
 import com.f88.loanonboarding.dto.request.loan.CreateLoanApplicationRequest;
-import com.f88.loanonboarding.dto.request.loan.SaveLoanApplicationDraftRequest;
+import com.f88.loanonboarding.dto.request.loan.UpdateLoanApplicationRequest;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDetailResponse;
-import com.f88.loanonboarding.dto.response.loan.LoanApplicationDraftResponse;
+import com.f88.loanonboarding.dto.response.loan.LoanApplicationSummaryResponse;
 import com.f88.loanonboarding.dto.response.loan.StepCompletionResponse;
 import com.f88.loanonboarding.dto.response.loan.SubmitForApprovalResponse;
 import com.f88.loanonboarding.service.LoanApplicationService;
@@ -33,12 +33,12 @@ public class LoanApplicationController {
         this.loanApplicationService = loanApplicationService;
     }
 
-    @Operation(summary = "Tạo hồ sơ vay nháp")
+    @Operation(summary = "Tạo hồ sơ vay")
     @PostMapping
-    public ApiResponse<LoanApplicationDraftResponse> createDraft(
+    public ApiResponse<LoanApplicationSummaryResponse> createApplication(
             @Valid @RequestBody CreateLoanApplicationRequest request
     ) {
-        return ApiResponse.success("Loan application draft created", loanApplicationService.createDraft(request));
+        return ApiResponse.success("Loan application created", loanApplicationService.createApplication(request));
     }
 
     @Operation(summary = "Lấy chi tiết hồ sơ vay")
@@ -47,18 +47,18 @@ public class LoanApplicationController {
         return ApiResponse.success(loanApplicationService.getDetail(applicationCode));
     }
 
-    @Operation(summary = "Lưu nháp thông tin hồ sơ vay")
-    @PatchMapping("/{applicationCode}/draft")
-    public ApiResponse<LoanApplicationDraftResponse> saveDraft(
+    @Operation(summary = "Cập nhật thông tin khoản vay")
+    @PatchMapping("/{applicationCode}/loan-request")
+    public ApiResponse<LoanApplicationSummaryResponse> updateLoanRequest(
             @PathVariable String applicationCode,
-            @Valid @RequestBody SaveLoanApplicationDraftRequest request
+            @Valid @RequestBody UpdateLoanApplicationRequest request
     ) {
-        return ApiResponse.success("Loan application draft saved", loanApplicationService.saveDraft(applicationCode, request));
+        return ApiResponse.success("Loan application updated", loanApplicationService.updateLoanRequest(applicationCode, request));
     }
 
     @Operation(summary = "Hủy hồ sơ vay")
     @PostMapping("/{applicationCode}/cancel")
-    public ApiResponse<LoanApplicationDraftResponse> cancel(
+    public ApiResponse<LoanApplicationSummaryResponse> cancel(
             @PathVariable String applicationCode,
             @Valid @RequestBody CancelLoanApplicationRequest request
     ) {

@@ -3,13 +3,13 @@ package com.f88.loanonboarding.dto.response.loan;
 import java.time.LocalDateTime;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.f88.loanonboarding.enums.LoanApplicationDraftStepStatus;
+import com.f88.loanonboarding.enums.LoanApplicationStepDataStatus;
 
-public record LoanApplicationDraftStepResponse(
+public record LoanApplicationStepResponse(
         String stepCode,
         String stepName,
         int stepOrder,
-        LoanApplicationDraftStepStatus status,
+        LoanApplicationStepDataStatus status,
         boolean requiresReview,
         String invalidatedByStepCode,
         String invalidatedReason,

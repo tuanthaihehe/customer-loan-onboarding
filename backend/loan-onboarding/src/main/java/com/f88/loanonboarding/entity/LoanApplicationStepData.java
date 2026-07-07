@@ -6,7 +6,7 @@ import java.util.UUID;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import com.f88.loanonboarding.enums.LoanApplicationDraftStepStatus;
+import com.f88.loanonboarding.enums.LoanApplicationStepStatus;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -25,15 +25,15 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "loan_application_draft_step_data")
-public class LoanApplicationDraftStepData {
+@Table(name = "loan_application_step_data")
+public class LoanApplicationStepData {
 
     @Id
     private UUID id = UUID.randomUUID();
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "draft_id", nullable = false)
-    private LoanApplicationDraft draft;
+    @JoinColumn(name = "loan_application_id", nullable = false)
+    private LoanApplication loanApplication;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "step_code", nullable = false)
@@ -41,26 +41,11 @@ public class LoanApplicationDraftStepData {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
-    private LoanApplicationDraftStepStatus status = LoanApplicationDraftStepStatus.NOT_STARTED;
+    private LoanApplicationStepStatus status = LoanApplicationStepStatus.NOT_STARTED;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "payload", columnDefinition = "jsonb", nullable = false)
     private String payload;
-
-    @Column(name = "completed_at")
-    private LocalDateTime completedAt;
-
-    @Column(name = "invalidated_at")
-    private LocalDateTime invalidatedAt;
-
-    @Column(name = "invalidated_reason")
-    private String invalidatedReason;
-
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
 
     @Column(name = "requires_review", nullable = false)
     private boolean requiresReview;
@@ -69,6 +54,21 @@ public class LoanApplicationDraftStepData {
     @JoinColumn(name = "invalidated_by_step_code")
     private LoanApplicationStep invalidatedByStep;
 
+    @Column(name = "invalidated_at")
+    private LocalDateTime invalidatedAt;
+
+    @Column(name = "invalidated_reason")
+    private String invalidatedReason;
+
     @Column(name = "reviewed_at")
     private LocalDateTime reviewedAt;
+
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
+
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
 }

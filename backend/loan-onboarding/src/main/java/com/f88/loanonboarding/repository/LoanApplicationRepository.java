@@ -2,6 +2,7 @@ package com.f88.loanonboarding.repository;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.List;
 
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,6 +14,7 @@ public interface LoanApplicationRepository extends JpaRepository<LoanApplication
     @EntityGraph(attributePaths = {
             "customer",
             "currentState",
+            "currentStep",
             "loanPurpose",
             "loanTerm",
             "asset",
@@ -27,4 +29,10 @@ public interface LoanApplicationRepository extends JpaRepository<LoanApplication
     Optional<LoanApplication> findByLoanApplicationCode(String loanApplicationCode);
 
     boolean existsByLoanApplicationCode(String loanApplicationCode);
+
+    @EntityGraph(attributePaths = {"customer", "currentState", "currentStep"})
+    List<LoanApplication> findByCurrentState_CodeOrderByUpdatedAtDesc(String stateCode);
+
+    @EntityGraph(attributePaths = {"customer", "currentState", "currentStep"})
+    List<LoanApplication> findAllByOrderByUpdatedAtDesc();
 }
