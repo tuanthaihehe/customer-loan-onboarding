@@ -1,7 +1,9 @@
 package com.f88.loanonboarding.enums;
 
 public enum LoanApplicationState {
-    APP_DRAFT,
+    APP_CREATED,
+    APP_IN_PROGRESS,
+    APP_COMPLETED,
     APP_SUBMITTED,
     APP_IN_REVIEW,
     APP_READY_FOR_CONTRACT,

@@ -1,30 +1,27 @@
 package com.f88.loanonboarding.service;
 
+import java.util.List;
+
 import com.f88.loanonboarding.dto.request.loan.CancelLoanApplicationRequest;
 import com.f88.loanonboarding.dto.request.loan.CreateLoanApplicationRequest;
-import com.f88.loanonboarding.dto.request.loan.SaveCustomerDetailRequest;
-import com.f88.loanonboarding.dto.request.loan.SaveLoanApplicationDraftRequest;
-import com.f88.loanonboarding.dto.request.loan.SaveReferencePersonsRequest;
-import com.f88.loanonboarding.dto.response.loan.CustomerDetailResponse;
+import com.f88.loanonboarding.dto.request.loan.UpdateLoanApplicationRequest;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDetailResponse;
-import com.f88.loanonboarding.dto.response.loan.LoanApplicationDraftResponse;
-import com.f88.loanonboarding.dto.response.loan.ReferencePersonsResponse;
+import com.f88.loanonboarding.dto.response.loan.LoanApplicationListItemResponse;
+import com.f88.loanonboarding.dto.response.loan.LoanApplicationSummaryResponse;
 import com.f88.loanonboarding.dto.response.loan.StepCompletionResponse;
 import com.f88.loanonboarding.dto.response.loan.SubmitForApprovalResponse;
 
 public interface LoanApplicationService {
 
-    LoanApplicationDraftResponse createDraft(CreateLoanApplicationRequest request);
+    LoanApplicationSummaryResponse createApplication(CreateLoanApplicationRequest request);
+
+    List<LoanApplicationListItemResponse> findLoanApplications();
 
     LoanApplicationDetailResponse getDetail(String applicationCode);
 
-    LoanApplicationDraftResponse saveDraft(String applicationCode, SaveLoanApplicationDraftRequest request);
+    LoanApplicationSummaryResponse updateLoanRequest(String applicationCode, UpdateLoanApplicationRequest request);
 
-    CustomerDetailResponse saveCustomerDetail(String applicationCode, SaveCustomerDetailRequest request);
-
-    ReferencePersonsResponse saveReferencePersons(String applicationCode, SaveReferencePersonsRequest request);
-
-    LoanApplicationDraftResponse cancel(String applicationCode, CancelLoanApplicationRequest request);
+    LoanApplicationSummaryResponse cancel(String applicationCode, CancelLoanApplicationRequest request);
 
     StepCompletionResponse completePreliminaryStep(String applicationCode);
 

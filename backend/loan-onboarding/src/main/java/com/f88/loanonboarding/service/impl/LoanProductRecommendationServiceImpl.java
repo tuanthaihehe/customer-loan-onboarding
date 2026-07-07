@@ -58,7 +58,7 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
     private static final int DEFAULT_LIMIT = 3;
     private static final String DEFAULT_SCORE_GRADE = "B";
     private static final BigDecimal ONE_HUNDRED = BigDecimal.valueOf(100);
-    private static final String STATE_DRAFT = "APP_DRAFT";
+    private static final List<String> NON_EDITABLE_STATES = List.of("APP_SUBMITTED", "APP_CANCELLED", "APP_EXPIRED", "APP_CLOSED");
 
     private final LoanApplicationRepository loanApplicationRepository;
     private final LoanProductRepository loanProductRepository;
@@ -178,7 +178,7 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
     public FinalLoanOfferResponse selectFinalOffer(String applicationCode, SelectFinalLoanOfferRequest request) {
         LoanApplication application = loanApplicationRepository.findByLoanApplicationCode(applicationCode)
                 .orElseThrow(() -> new BusinessException(ErrorCode.LOAN_APPLICATION_NOT_FOUND));
-        ensureDraftApplication(application);
+        ensureEditableApplication(application);
         ensureApplicationReady(application);
 
         FinalOfferInput input = resolveFinalOfferInput(application, request);
@@ -225,11 +225,11 @@ public class LoanProductRecommendationServiceImpl implements LoanProductRecommen
         }
     }
 
-    private void ensureDraftApplication(LoanApplication application) {
-        if (application.getCurrentState() == null || !STATE_DRAFT.equals(application.getCurrentState().getCode())) {
+    private void ensureEditableApplication(LoanApplication application) {
+        if (application.getCurrentState() == null || NON_EDITABLE_STATES.contains(application.getCurrentState().getCode())) {
             throw new BusinessException(
                     ErrorCode.INVALID_LOAN_APPLICATION_STATE,
-                    "Chỉ hồ sơ nháp mới được lưu gói vay cuối cùng."
+                    "Không được lưu gói vay cuối cùng khi hồ sơ đã nộp, đã hủy hoặc đã hết hạn."
             );
         }
     }
