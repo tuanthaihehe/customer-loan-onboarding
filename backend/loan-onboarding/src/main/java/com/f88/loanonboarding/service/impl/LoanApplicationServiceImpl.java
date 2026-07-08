@@ -1,61 +1,47 @@
 package com.f88.loanonboarding.service.impl;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashSet;
+import java.time.Year;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.f88.loanonboarding.common.error.ErrorCode;
-import com.f88.loanonboarding.dto.request.loan.ApplicantSnapshotRequest;
 import com.f88.loanonboarding.dto.request.loan.CancelLoanApplicationRequest;
 import com.f88.loanonboarding.dto.request.loan.CreateLoanApplicationRequest;
-import com.f88.loanonboarding.dto.request.loan.ReferencePersonRequest;
-import com.f88.loanonboarding.dto.request.loan.SaveCustomerDetailRequest;
-import com.f88.loanonboarding.dto.request.loan.SaveLoanApplicationDraftRequest;
-import com.f88.loanonboarding.dto.request.loan.SaveReferencePersonsRequest;
-import com.f88.loanonboarding.dto.response.loan.CustomerDetailResponse;
+import com.f88.loanonboarding.dto.request.loan.UpdateLoanApplicationRequest;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDetailResponse;
-import com.f88.loanonboarding.dto.response.loan.LoanApplicationDraftResponse;
-import com.f88.loanonboarding.dto.response.loan.ReferencePersonResponse;
-import com.f88.loanonboarding.dto.response.loan.ReferencePersonsResponse;
+import com.f88.loanonboarding.dto.response.loan.LoanApplicationListItemResponse;
+import com.f88.loanonboarding.dto.response.loan.LoanApplicationSummaryResponse;
 import com.f88.loanonboarding.dto.response.loan.StepCompletionResponse;
 import com.f88.loanonboarding.dto.response.loan.SubmitForApprovalResponse;
 import com.f88.loanonboarding.entity.Asset;
-import com.f88.loanonboarding.entity.Bank;
 import com.f88.loanonboarding.entity.Customer;
-import com.f88.loanonboarding.entity.IncomeSource;
 import com.f88.loanonboarding.entity.LoanApplication;
-import com.f88.loanonboarding.entity.LoanApplicationReferencePerson;
-import com.f88.loanonboarding.entity.LoanApplicationStateTransition;
-import com.f88.loanonboarding.entity.LoanApplicationState;
-import com.f88.loanonboarding.entity.LoanApplicationStateHistory;
 import com.f88.loanonboarding.entity.LoanPurpose;
 import com.f88.loanonboarding.entity.LoanTerm;
-import com.f88.loanonboarding.entity.Occupation;
+import com.f88.loanonboarding.entity.LoanApplicationState;
+import com.f88.loanonboarding.entity.LoanApplicationStateHistory;
+import com.f88.loanonboarding.entity.LoanProduct;
 import com.f88.loanonboarding.enums.AssetType;
-import com.f88.loanonboarding.enums.Gender;
-import com.f88.loanonboarding.enums.MaritalStatus;
-import com.f88.loanonboarding.enums.ReferenceRelationshipType;
 import com.f88.loanonboarding.exception.BusinessException;
-import com.f88.loanonboarding.repository.BankRepository;
 import com.f88.loanonboarding.repository.CustomerRepository;
-import com.f88.loanonboarding.repository.IncomeSourceRepository;
-import com.f88.loanonboarding.repository.AssetValuationRepository;
-import com.f88.loanonboarding.repository.LoanApplicationReferencePersonRepository;
 import com.f88.loanonboarding.repository.LoanApplicationRepository;
 import com.f88.loanonboarding.repository.LoanPurposeRepository;
 import com.f88.loanonboarding.repository.LoanApplicationStateHistoryRepository;
 import com.f88.loanonboarding.repository.LoanApplicationStateRepository;
 import com.f88.loanonboarding.repository.LoanApplicationStateTransitionRepository;
+import com.f88.loanonboarding.repository.LoanApplicationStepDataRepository;
+import com.f88.loanonboarding.repository.LoanProductRepository;
 import com.f88.loanonboarding.repository.LoanTermRepository;
-import com.f88.loanonboarding.repository.OccupationRepository;
 import com.f88.loanonboarding.rule.RuleContext;
 import com.f88.loanonboarding.rule.RuleEvaluationService;
 import com.f88.loanonboarding.rule.loan.LoanPurposeRule;
@@ -66,84 +52,85 @@ import com.f88.loanonboarding.service.LoanApplicationService;
 @Service
 public class LoanApplicationServiceImpl implements LoanApplicationService {
 
-    private static final String STATE_DRAFT = "APP_DRAFT";
+    private static final String STATE_CREATED = "APP_CREATED";
     private static final String STATE_SUBMITTED = "APP_SUBMITTED";
     private static final String STATE_CANCELLED = "APP_CANCELLED";
-    private static final String APPLICATION_CODE_PREFIX = "APP-2026-";
-    private static final List<String> SUPPORTED_GENDERS = List.of("MALE", "FEMALE");
-    private static final List<String> SUPPORTED_MARITAL_STATUSES = List.of("SINGLE", "MARRIED");
-    private static final List<String> SUPPORTED_RELATIONSHIP_TYPES = List.of(
-            "FATHER",
-            "MOTHER",
-            "SPOUSE",
-            "SIBLING",
-            "RELATIVE",
-            "FRIEND",
-            "COLLEAGUE",
-            "OTHER"
+    private static final List<String> NON_DRAFT_STATES = List.of(
+            "APP_SUBMITTED",
+            "APP_IN_REVIEW",
+            "APP_NEEDS_SUPPLEMENT",
+            "APP_READY_FOR_CONTRACT",
+            "APP_CONTRACTED",
+            "APP_DISBURSED",
+            "APP_CLOSED",
+            "APP_CANCELLED",
+            "APP_EXPIRED"
     );
 
     private final CustomerRepository customerRepository;
     private final LoanApplicationRepository loanApplicationRepository;
     private final LoanPurposeRepository loanPurposeRepository;
     private final LoanTermRepository loanTermRepository;
-    private final OccupationRepository occupationRepository;
-    private final BankRepository bankRepository;
-    private final IncomeSourceRepository incomeSourceRepository;
-    private final AssetValuationRepository assetValuationRepository;
-    private final LoanApplicationReferencePersonRepository referencePersonRepository;
     private final LoanApplicationStateRepository stateRepository;
     private final LoanApplicationStateHistoryRepository historyRepository;
     private final LoanApplicationStateTransitionRepository transitionRepository;
+    private final LoanApplicationStepDataRepository stepDataRepository;
+    private final LoanProductRepository loanProductRepository;
     private final RuleEvaluationService ruleEvaluationService;
+    private final ObjectMapper objectMapper;
 
     public LoanApplicationServiceImpl(
             CustomerRepository customerRepository,
             LoanApplicationRepository loanApplicationRepository,
             LoanPurposeRepository loanPurposeRepository,
             LoanTermRepository loanTermRepository,
-            OccupationRepository occupationRepository,
-            BankRepository bankRepository,
-            IncomeSourceRepository incomeSourceRepository,
-            AssetValuationRepository assetValuationRepository,
-            LoanApplicationReferencePersonRepository referencePersonRepository,
             LoanApplicationStateRepository stateRepository,
             LoanApplicationStateHistoryRepository historyRepository,
             LoanApplicationStateTransitionRepository transitionRepository,
-            RuleEvaluationService ruleEvaluationService
+            LoanApplicationStepDataRepository stepDataRepository,
+            LoanProductRepository loanProductRepository,
+            RuleEvaluationService ruleEvaluationService,
+            ObjectMapper objectMapper
     ) {
         this.customerRepository = customerRepository;
         this.loanApplicationRepository = loanApplicationRepository;
         this.loanPurposeRepository = loanPurposeRepository;
         this.loanTermRepository = loanTermRepository;
-        this.occupationRepository = occupationRepository;
-        this.bankRepository = bankRepository;
-        this.incomeSourceRepository = incomeSourceRepository;
-        this.assetValuationRepository = assetValuationRepository;
-        this.referencePersonRepository = referencePersonRepository;
         this.stateRepository = stateRepository;
         this.historyRepository = historyRepository;
         this.transitionRepository = transitionRepository;
+        this.stepDataRepository = stepDataRepository;
+        this.loanProductRepository = loanProductRepository;
         this.ruleEvaluationService = ruleEvaluationService;
+        this.objectMapper = objectMapper;
     }
 
     @Override
     @Transactional
-    public LoanApplicationDraftResponse createDraft(CreateLoanApplicationRequest request) {
+    public LoanApplicationSummaryResponse createApplication(CreateLoanApplicationRequest request) {
         Customer customer = customerRepository.findByCustomerCode(request.customerCode())
                 .orElseThrow(() -> new BusinessException(ErrorCode.CUSTOMER_NOT_FOUND));
-        LoanApplicationState draftState = findState(STATE_DRAFT);
+        LoanApplicationState createdState = findState(STATE_CREATED);
 
         LoanApplication application = new LoanApplication();
         application.setLoanApplicationCode(nextApplicationCode());
         application.setCustomer(customer);
-        application.setCurrentState(draftState);
+        application.setCurrentState(createdState);
         application.setBranch(request.branchCode());
 
         LoanApplication saved = loanApplicationRepository.save(application);
-        historyRepository.save(history(saved, null, draftState, "CREATE", request.staffCode(), "Create draft"));
+        historyRepository.save(history(saved, null, createdState, "CREATE", request.staffCode(), "Create application"));
 
-        return toDraftResponse(saved);
+        return toSummaryResponse(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<LoanApplicationListItemResponse> findLoanApplications() {
+        return loanApplicationRepository.findByCurrentState_CodeInOrderByUpdatedAtDesc(NON_DRAFT_STATES)
+                .stream()
+                .map(this::toListItemResponse)
+                .toList();
     }
 
     @Override
@@ -154,14 +141,15 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 application.getLoanApplicationCode(),
                 toStateEnum(application.getCurrentState()),
                 application.getCustomer().getCustomerCode(),
-                toApplicantSnapshot(application),
+                mapOf(
+                        "fullName", application.getCustomer().getFullName(),
+                        "dateOfBirth", application.getCustomer().getDateOfBirth(),
+                        "identifierNumber", application.getCustomer().getIdentityNumber(),
+                        "phoneNumber", application.getCustomer().getPhoneNumber()
+                ),
                 mapOf(
                         "requestedAmount", application.getRequestedAmount(),
-                        "loanPurposeId", application.getLoanPurpose() == null ? null : application.getLoanPurpose().getId(),
                         "loanPurpose", application.getLoanPurpose() == null ? null : application.getLoanPurpose().getCode(),
-                        "loanPurposeName", application.getLoanPurpose() == null ? null : application.getLoanPurpose().getName(),
-                        "loanTermId", application.getLoanTerm() == null ? null : application.getLoanTerm().getId(),
-                        "loanTermMonths", application.getLoanTermMonths(),
                         "requestedTenure", application.getLoanTermMonths()
                 ),
                 toAssetSnapshot(application.getAsset()),
@@ -173,7 +161,7 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
 
     @Override
     @Transactional
-    public LoanApplicationDraftResponse saveDraft(String applicationCode, SaveLoanApplicationDraftRequest request) {
+    public LoanApplicationSummaryResponse updateLoanRequest(String applicationCode, UpdateLoanApplicationRequest request) {
         ruleEvaluationService.validateOrThrow(
                 RuleContext.loan(
                         request.loanRequest().requestedAmount(),
@@ -184,92 +172,27 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         );
 
         LoanApplication application = findApplication(applicationCode);
-        ensureState(application.getCurrentState().getCode(), STATE_DRAFT, "Chỉ hồ sơ nháp mới được lưu thông tin khoản vay");
-        LoanPurpose loanPurpose = loanPurposeRepository.findByCodeAndActiveTrue(request.loanRequest().loanPurpose())
-                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_LOAN_PURPOSE, "Mục đích vay không tồn tại hoặc đã ngừng áp dụng trong database"));
-        LoanTerm loanTerm = loanTermRepository.findByTermMonthsAndActiveTrue(request.loanRequest().requestedTenure())
-                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_LOAN_TERM, "Kỳ hạn vay không tồn tại hoặc đã ngừng áp dụng trong database"));
-
-        saveApplicantSnapshot(application, request.applicantSnapshot());
+        LoanPurpose loanPurpose = loanPurposeRepository.findByCode(request.loanRequest().loanPurpose())
+                .orElseThrow(() -> new BusinessException(
+                        ErrorCode.RESOURCE_NOT_FOUND,
+                        "Loan purpose is not configured: " + request.loanRequest().loanPurpose()
+                ));
+        LoanTerm loanTerm = loanTermRepository.findByTermMonths(request.loanRequest().requestedTenure())
+                .orElseThrow(() -> new BusinessException(
+                        ErrorCode.RESOURCE_NOT_FOUND,
+                        "Loan term is not configured: " + request.loanRequest().requestedTenure()
+                ));
         application.setRequestedAmount(request.loanRequest().requestedAmount());
         application.setLoanPurpose(loanPurpose);
         application.setLoanTerm(loanTerm);
         application.setLoanTermMonths(request.loanRequest().requestedTenure());
 
-        LoanApplication saved = loanApplicationRepository.save(application);
-        historyRepository.save(history(saved, null, saved.getCurrentState(), "SAVE_DRAFT", "system", "Lưu thông tin nháp"));
-        return toDraftResponse(saved);
+        return toSummaryResponse(loanApplicationRepository.save(application));
     }
 
     @Override
     @Transactional
-    public CustomerDetailResponse saveCustomerDetail(String applicationCode, SaveCustomerDetailRequest request) {
-        LoanApplication application = findApplication(applicationCode);
-        ensureState(application.getCurrentState().getCode(), STATE_DRAFT, "Chỉ hồ sơ nháp mới được lưu thông tin chi tiết khách hàng");
-
-        Customer customer = application.getCustomer();
-        customer.setGender(validateGender(request.gender()));
-        customer.setEmail(normalizeNullableText(request.email()));
-        customer.setMaritalStatus(validateMaritalStatus(request.maritalStatus()));
-        customer.setPermanentAddress(normalizeText(request.permanentAddress()));
-
-        Occupation occupation = occupationRepository.findByCode(normalizeCode(request.occupationCode()))
-                .filter(Occupation::isActive)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy nghề nghiệp đang hoạt động: " + request.occupationCode()));
-        IncomeSource incomeSource = incomeSourceRepository.findByCode(normalizeCode(request.incomeSourceCode()))
-                .filter(IncomeSource::isActive)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy nguồn thu nhập đang hoạt động: " + request.incomeSourceCode()));
-        Bank bank = bankRepository.findByCode(normalizeCode(request.disbursementBankCode()))
-                .filter(Bank::isActive)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy ngân hàng đang hoạt động: " + request.disbursementBankCode()));
-
-        application.setOccupation(occupation);
-        application.setIncomeSource(incomeSource);
-        application.setMonthlyIncomeAmount(request.monthlyIncomeAmount());
-        application.setDisbursementBank(bank);
-        application.setDisbursementAccountNumber(normalizeText(request.disbursementAccountNumber()));
-        application.setDisbursementAccountName(normalizeText(request.disbursementAccountName()));
-        application.setWorkplaceName(normalizeNullableText(request.workplaceName()));
-        application.setWorkplaceAddress(normalizeNullableText(request.workplaceAddress()));
-        application.setCurrentAddress(normalizeText(request.currentAddress()));
-
-        customerRepository.save(customer);
-        LoanApplication saved = loanApplicationRepository.save(application);
-        historyRepository.save(history(saved, null, saved.getCurrentState(), "SAVE_CUSTOMER_DETAIL", "system", "Lưu thông tin chi tiết khách hàng"));
-        return toCustomerDetailResponse(saved);
-    }
-
-    @Override
-    @Transactional
-    public ReferencePersonsResponse saveReferencePersons(String applicationCode, SaveReferencePersonsRequest request) {
-        LoanApplication application = findApplication(applicationCode);
-        ensureState(application.getCurrentState().getCode(), STATE_DRAFT, "Chỉ hồ sơ nháp mới được lưu người tham chiếu");
-
-        validateReferencePhones(request.referencePersons());
-        referencePersonRepository.deleteByLoanApplicationId(application.getId());
-
-        List<LoanApplicationReferencePerson> savedPersons = new ArrayList<>();
-        for (ReferencePersonRequest item : request.referencePersons()) {
-            LoanApplicationReferencePerson referencePerson = new LoanApplicationReferencePerson();
-            referencePerson.setLoanApplication(application);
-            referencePerson.setFullName(normalizeText(item.fullName()));
-            referencePerson.setPhoneNumber(normalizeText(item.phoneNumber()));
-            referencePerson.setRelationshipType(validateRelationshipType(item.relationshipType()));
-            referencePerson.setAddress(normalizeNullableText(item.address()));
-            referencePerson.setNote(normalizeNullableText(item.note()));
-            LocalDateTime now = LocalDateTime.now();
-            referencePerson.setCreatedAt(now);
-            referencePerson.setUpdatedAt(now);
-            savedPersons.add(referencePersonRepository.save(referencePerson));
-        }
-
-        historyRepository.save(history(application, null, application.getCurrentState(), "SAVE_REFERENCE_PERSONS", "system", "Lưu người tham chiếu"));
-        return toReferencePersonsResponse(application.getLoanApplicationCode(), savedPersons);
-    }
-
-    @Override
-    @Transactional
-    public LoanApplicationDraftResponse cancel(String applicationCode, CancelLoanApplicationRequest request) {
+    public LoanApplicationSummaryResponse cancel(String applicationCode, CancelLoanApplicationRequest request) {
         LoanApplication application = findApplication(applicationCode);
         LoanApplicationState cancelledState = findState(STATE_CANCELLED);
         validateTransition(application.getCurrentState(), cancelledState, "CANCEL");
@@ -277,18 +200,18 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         LoanApplicationState previousState = application.getCurrentState();
         application.setCurrentState(cancelledState);
         LoanApplication saved = loanApplicationRepository.save(application);
-        historyRepository.save(history(saved, previousState, cancelledState, "CANCEL", null, cancellationNote(request)));
+        historyRepository.save(history(saved, previousState, cancelledState, "CANCEL", null, request.note()));
 
-        return toDraftResponse(saved);
+        return toSummaryResponse(saved);
     }
 
     @Override
     @Transactional(readOnly = true)
     public StepCompletionResponse completePreliminaryStep(String applicationCode) {
         LoanApplication application = findApplication(applicationCode);
-        List<String> errors = hasCompletePreliminaryInfo(application)
+        List<String> errors = hasCompleteLoanRequest(application)
                 ? List.of()
-                : List.of("Thông tin sơ bộ khách hàng hoặc nhu cầu vay chưa đầy đủ");
+                : List.of("Loan request data is incomplete");
 
         return new StepCompletionResponse(
                 applicationCode,
@@ -303,17 +226,6 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     @Transactional
     public SubmitForApprovalResponse submitForApproval(String applicationCode) {
         LoanApplication application = findApplication(applicationCode);
-        List<String> validationErrors = validateReadyForSubmission(application);
-        if (!validationErrors.isEmpty()) {
-            throw new BusinessException(
-                    ErrorCode.BUSINESS_RULE_VIOLATION,
-                    "Hồ sơ chưa đủ điều kiện gửi phê duyệt: " + String.join("; ", validationErrors)
-            );
-        }
-        ensureState(application.getCurrentState().getCode(), STATE_DRAFT, "Chỉ hồ sơ nháp mới được gửi phê duyệt");
-        if (!hasCompletePreliminaryInfo(application)) {
-            throw new BusinessException(ErrorCode.INVALID_REQUESTED_AMOUNT, "Hồ sơ chưa đủ thông tin sơ bộ khách hàng và nhu cầu vay để gửi phê duyệt");
-        }
         LoanApplicationState submittedState = findState(STATE_SUBMITTED);
         validateTransition(application.getCurrentState(), submittedState, "SUBMIT");
 
@@ -321,7 +233,6 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         application.setCurrentState(submittedState);
         LoanApplication saved = loanApplicationRepository.save(application);
         LoanApplicationStateHistory history = history(saved, previousState, submittedState, "SUBMIT", null, "Submit for approval");
-        history.setChangedAt(LocalDateTime.now());
         historyRepository.save(history);
 
         return new SubmitForApprovalResponse(
@@ -330,59 +241,8 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 "APR-" + saved.getLoanApplicationCode(),
                 "LoanApplicationSubmittedForApproval",
                 history.getChangedAt(),
-                "Hồ sơ vay đã được gửi phê duyệt"
+                "Loan application submitted for approval"
         );
-    }
-
-    private List<String> validateReadyForSubmission(LoanApplication application) {
-        List<String> errors = new ArrayList<>();
-        if (!hasCompletePreliminaryInfo(application)) {
-            errors.add("thiếu thông tin sơ bộ khách hàng hoặc nhu cầu vay");
-        }
-        if (!hasCompleteCustomerDetail(application)) {
-            errors.add("thiếu thông tin chi tiết khách hàng");
-        }
-        if (referencePersonRepository.findByLoanApplicationId(application.getId()).size() < 3) {
-            errors.add("thiếu tối thiểu 3 người tham chiếu");
-        }
-        Asset asset = application.getAsset();
-        if (asset == null) {
-            errors.add("thiếu thông tin tài sản");
-        } else {
-            if (isBlank(asset.getFrameNumber()) || isBlank(asset.getEngineNumber())) {
-                errors.add("thiếu thông tin pháp lý xe");
-            }
-            if (isBlank(asset.getRegistrationNumber()) || asset.getRegistrationIssueDate() == null) {
-                errors.add("thiếu thông tin giấy tờ xe");
-            }
-            if (assetValuationRepository.findTopByAssetOrderByValuedAtDesc(asset).isEmpty()) {
-                errors.add("chưa lưu định giá tài sản");
-            }
-        }
-        if (application.getLoanProduct() == null) {
-            errors.add("chưa chọn gói vay cuối cùng");
-        }
-        return errors;
-    }
-
-    private boolean hasCompleteCustomerDetail(LoanApplication application) {
-        Customer customer = application.getCustomer();
-        return customer.getGender() != null
-                && customer.getMaritalStatus() != null
-                && isNotBlank(customer.getPermanentAddress())
-                && application.getOccupation() != null
-                && application.getIncomeSource() != null
-                && application.getMonthlyIncomeAmount() != null
-                && application.getDisbursementBank() != null
-                && isNotBlank(application.getDisbursementAccountNumber())
-                && isNotBlank(application.getDisbursementAccountName())
-                && isNotBlank(application.getCurrentAddress());
-    }
-
-    private String cancellationNote(CancelLoanApplicationRequest request) {
-        String reason = normalizeText(request.cancellationReasonCode());
-        String note = normalizeNullableText(request.note());
-        return note == null ? "Reason: " + reason : "Reason: " + reason + " - " + note;
     }
 
     private LoanApplication findApplication(String applicationCode) {
@@ -404,12 +264,6 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         }
     }
 
-    private LoanApplicationState findTransitionToState(LoanApplicationState fromState, String actionCode) {
-        return transitionRepository.findByFromStateAndActionCode(fromState, actionCode)
-                .map(LoanApplicationStateTransition::getToState)
-                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_LOAN_APPLICATION_STATE, "Lifecycle trong database không cho phép thao tác này"));
-    }
-
     private LoanApplicationStateHistory history(
             LoanApplication application,
             LoanApplicationState fromState,
@@ -428,14 +282,134 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         return history;
     }
 
-    private LoanApplicationDraftResponse toDraftResponse(LoanApplication application) {
-        return new LoanApplicationDraftResponse(
+    private LoanApplicationSummaryResponse toSummaryResponse(LoanApplication application) {
+        return new LoanApplicationSummaryResponse(
                 application.getLoanApplicationCode(),
                 toStateEnum(application.getCurrentState()),
                 application.getCustomer().getCustomerCode(),
                 firstChangedAt(application),
                 latestChangedAt(application)
         );
+    }
+
+    private LoanApplicationListItemResponse toListItemResponse(LoanApplication application) {
+        var customer = application.getCustomer();
+        var loanPurpose = application.getLoanPurpose();
+        var loanProduct = application.getLoanProduct();
+        var currentState = application.getCurrentState();
+        var fallback = listFallback(application.getLoanApplicationCode());
+        var requestedAmount = application.getRequestedAmount() != null
+                ? application.getRequestedAmount()
+                : fallback.requestedAmount();
+        var loanTermMonths = application.getLoanTermMonths() != null
+                ? application.getLoanTermMonths()
+                : fallback.loanTermMonths();
+        var loanPurposeCode = loanPurpose == null ? fallback.loanPurposeCode() : loanPurpose.getCode();
+        var loanPurposeName = loanPurpose == null ? fallback.loanPurposeName() : loanPurpose.getName();
+        var loanProductCode = loanProduct == null ? fallback.loanProductCode() : loanProduct.getProductCode();
+        var loanProductName = loanProduct == null ? fallback.loanProductName() : loanProduct.getProductName();
+
+        return new LoanApplicationListItemResponse(
+                application.getLoanApplicationCode(),
+                toStateEnum(currentState),
+                stateDisplayName(currentState.getCode()),
+                customer.getCustomerCode(),
+                customer.getFullName(),
+                customer.getPhoneNumber(),
+                customer.getIdentityNumber(),
+                requestedAmount,
+                loanTermMonths,
+                loanPurposeCode,
+                loanPurposeName,
+                loanProductCode,
+                loanProductName,
+                application.getBranch(),
+                application.getCreatedAt(),
+                application.getUpdatedAt()
+        );
+    }
+
+    private ListFallback listFallback(String applicationCode) {
+        JsonNode preliminary = payloadByStep(applicationCode, "PRELIMINARY_INFO");
+        JsonNode proposal = payloadByStep(applicationCode, "CUSTOMER_ASSET_LOAN_PROPOSAL");
+
+        BigDecimal requestedAmount = firstNumber(
+                at(proposal, "selected_loan_offer", "final_requested_amount"),
+                at(proposal, "selectedLoanOffer", "finalRequestedAmount"),
+                at(preliminary, "preliminary_loan_package", "requested_amount"),
+                at(preliminary, "preliminaryLoanPackage", "requestedAmount"),
+                at(preliminary, "loanRequest", "requestedAmount"),
+                at(preliminary, "requestedAmount")
+        );
+        Integer loanTermMonths = firstInteger(
+                at(proposal, "selected_loan_offer", "final_loan_term_months"),
+                at(proposal, "selectedLoanOffer", "finalLoanTermMonths"),
+                at(preliminary, "preliminary_loan_package", "loan_term_months"),
+                at(preliminary, "preliminaryLoanPackage", "loanTermMonths"),
+                at(preliminary, "loanRequest", "termMonths"),
+                at(preliminary, "loanRequest", "requestedTenure"),
+                at(preliminary, "loanTermMonths")
+        );
+        String loanPurposeCode = firstText(
+                at(proposal, "selected_loan_offer", "loan_purpose_code"),
+                at(proposal, "selectedLoanOffer", "loanPurposeCode"),
+                at(preliminary, "preliminary_loan_package", "loan_purpose_code"),
+                at(preliminary, "preliminaryLoanPackage", "loanPurposeCode"),
+                at(preliminary, "loanRequest", "loanPurposeCode"),
+                at(preliminary, "loanRequest", "loanPurpose"),
+                at(preliminary, "loanPurposeCode")
+        );
+        String loanPurposeName = loanPurposeCode == null
+                ? null
+                : loanPurposeRepository.findByCode(loanPurposeCode).map(LoanPurpose::getName).orElse(null);
+        String loanProductCode = firstText(
+                at(proposal, "selected_loan_offer", "loan_product_code"),
+                at(proposal, "selectedLoanOffer", "loanProductCode"),
+                at(proposal, "selectedLoanProduct", "productCode"),
+                at(proposal, "selectedLoanProductCode"),
+                at(proposal, "selectedProductCode"),
+                at(preliminary, "selectedLoanProduct", "productCode"),
+                at(preliminary, "selectedLoanProductCode"),
+                at(preliminary, "selectedProductCode")
+        );
+        String loanProductName = firstText(
+                at(proposal, "selected_loan_offer", "loan_product_name"),
+                at(proposal, "selectedLoanOffer", "loanProductName"),
+                at(proposal, "selectedLoanProduct", "productName"),
+                at(preliminary, "selectedLoanProduct", "productName")
+        );
+        if (loanProductName == null && loanProductCode != null) {
+            loanProductName = loanProductRepository.findByProductCode(loanProductCode)
+                    .map(LoanProduct::getProductName)
+                    .orElse(null);
+        }
+
+        return new ListFallback(
+                requestedAmount,
+                loanTermMonths,
+                loanPurposeCode,
+                loanPurposeName,
+                loanProductCode,
+                loanProductName
+        );
+    }
+
+    private String stateDisplayName(String stateCode) {
+        return switch (stateCode) {
+            case "APP_CREATED" -> "Hồ sơ mới tạo";
+            case "APP_IN_PROGRESS" -> "Đang hoàn thiện";
+            case "APP_COMPLETED" -> "Đã hoàn thiện";
+            case "APP_SUBMITTED" -> "Đã nộp hồ sơ";
+            case "APP_IN_REVIEW" -> "Đang thẩm định/phê duyệt";
+            case "APP_NEEDS_SUPPLEMENT" -> "Cần bổ sung hồ sơ";
+            case "APP_READY_FOR_CONTRACT" -> "Sẵn sàng lập hợp đồng";
+            case "APP_CONTRACTED" -> "Đã có hợp đồng";
+            case "APP_DISBURSED" -> "Đã giải ngân";
+            case "APP_CANCELLED" -> "Hồ sơ bị hủy";
+            case "APP_EXPIRED" -> "Hồ sơ hết hạn";
+            case "APP_CLOSED" -> "Hồ sơ đã đóng";
+            default -> stateCode;
+        };
     }
 
     private LocalDateTime firstChangedAt(LoanApplication application) {
@@ -458,86 +432,6 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         return application.getRequestedAmount() != null
                 && application.getLoanPurpose() != null
                 && application.getLoanTermMonths() != null;
-    }
-
-    private boolean hasCompletePreliminaryInfo(LoanApplication application) {
-        Customer customer = application.getCustomer();
-        return hasCompleteLoanRequest(application)
-                && isNotBlank(customer.getFullName())
-                && isNotBlank(customer.getIdentityNumber())
-                && isNotBlank(customer.getPhoneNumber())
-                && customer.getDateOfBirth() != null
-                && customer.getGender() != null
-                && application.getOccupation() != null
-                && application.getMonthlyIncomeAmount() != null;
-    }
-
-    private void saveApplicantSnapshot(LoanApplication application, ApplicantSnapshotRequest request) {
-        Customer customer = application.getCustomer();
-        customer.setGender(validateGender(request.gender()));
-        application.setOccupation(occupationRepository.findByCode(normalizeCode(request.occupation()))
-                .filter(Occupation::isActive)
-                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Không tìm thấy nghề nghiệp đang hoạt động: " + request.occupation())));
-        application.setMonthlyIncomeAmount(request.monthlyIncome());
-        customerRepository.save(customer);
-    }
-
-    private Map<String, Object> toApplicantSnapshot(LoanApplication application) {
-        Customer customer = application.getCustomer();
-        return mapOf(
-                "fullName", customer.getFullName(),
-                "dateOfBirth", customer.getDateOfBirth(),
-                "identifierNumber", customer.getIdentityNumber(),
-                "phoneNumber", customer.getPhoneNumber(),
-                "gender", customer.getGender() == null ? null : customer.getGender().name(),
-                "occupation", application.getOccupation() == null ? null : application.getOccupation().getCode(),
-                "occupationName", application.getOccupation() == null ? null : application.getOccupation().getName(),
-                "monthlyIncome", application.getMonthlyIncomeAmount()
-        );
-    }
-
-    private CustomerDetailResponse toCustomerDetailResponse(LoanApplication application) {
-        Customer customer = application.getCustomer();
-        Occupation occupation = application.getOccupation();
-        IncomeSource incomeSource = application.getIncomeSource();
-        Bank bank = application.getDisbursementBank();
-        return new CustomerDetailResponse(
-                application.getLoanApplicationCode(),
-                customer.getCustomerCode(),
-                customer.getFullName(),
-                customer.getIdentityNumber(),
-                customer.getPhoneNumber(),
-                customer.getDateOfBirth(),
-                customer.getGender() == null ? null : customer.getGender().name(),
-                customer.getEmail(),
-                customer.getMaritalStatus() == null ? null : customer.getMaritalStatus().name(),
-                occupation == null ? null : occupation.getCode(),
-                occupation == null ? null : occupation.getName(),
-                incomeSource == null ? null : incomeSource.getCode(),
-                incomeSource == null ? null : incomeSource.getName(),
-                application.getMonthlyIncomeAmount(),
-                bank == null ? null : bank.getCode(),
-                bank == null ? null : bank.getName(),
-                application.getDisbursementAccountNumber(),
-                application.getDisbursementAccountName(),
-                application.getWorkplaceName(),
-                application.getWorkplaceAddress(),
-                customer.getPermanentAddress(),
-                application.getCurrentAddress()
-        );
-    }
-
-    private ReferencePersonsResponse toReferencePersonsResponse(String applicationCode, List<LoanApplicationReferencePerson> persons) {
-        List<ReferencePersonResponse> items = persons.stream()
-                .map(item -> new ReferencePersonResponse(
-                        item.getFullName(),
-                        item.getPhoneNumber(),
-                        item.getRelationshipType() == null ? null : item.getRelationshipType().name(),
-                        item.getAddress(),
-                        item.getNote()
-                ))
-                .toList();
-        return new ReferencePersonsResponse(applicationCode, items.size(), items);
     }
 
     private Map<String, Object> toAssetSnapshot(Asset asset) {
@@ -565,90 +459,99 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     }
 
     private String nextApplicationCode() {
-        String lastCode = loanApplicationRepository
-                .findTopByLoanApplicationCodeStartingWithOrderByLoanApplicationCodeDesc(APPLICATION_CODE_PREFIX)
-                .map(LoanApplication::getLoanApplicationCode)
-                .orElse(null);
-        int next = lastCode == null ? 1 : parseApplicationSequence(lastCode) + 1;
-        return APPLICATION_CODE_PREFIX + "%06d".formatted(next);
+        String applicationCode;
+        do {
+            applicationCode = "APP-" + Year.now() + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        } while (loanApplicationRepository.existsByLoanApplicationCode(applicationCode));
+        return applicationCode;
     }
 
-    private int parseApplicationSequence(String applicationCode) {
-        int delimiter = applicationCode.lastIndexOf('-');
-        if (delimiter < 0 || delimiter == applicationCode.length() - 1) {
-            return 0;
+    private JsonNode payloadByStep(String applicationCode, String stepCode) {
+        return stepDataRepository.findByLoanApplication_LoanApplicationCodeAndStep_Code(applicationCode, stepCode)
+                .map(step -> parseJson(step.getPayload()))
+                .orElse(objectMapper.createObjectNode());
+    }
+
+    private JsonNode parseJson(String payload) {
+        if (payload == null || payload.isBlank()) {
+            return objectMapper.createObjectNode();
         }
         try {
-            return Integer.parseInt(applicationCode.substring(delimiter + 1));
-        } catch (NumberFormatException ex) {
-            return 0;
+            return objectMapper.readTree(payload);
+        } catch (JsonProcessingException exception) {
+            return objectMapper.createObjectNode();
         }
     }
 
-    private void ensureState(String actualState, String expectedState, String message) {
-        if (!expectedState.equals(actualState)) {
-            throw new BusinessException(ErrorCode.INVALID_LOAN_APPLICATION_STATE, message);
+    private JsonNode at(JsonNode node, String... path) {
+        JsonNode current = node;
+        for (String segment : path) {
+            if (current == null || current.isMissingNode() || current.isNull()) {
+                return objectMapper.missingNode();
+            }
+            current = current.path(segment);
         }
+        return current == null ? objectMapper.missingNode() : current;
     }
 
-    private String normalizeText(String value) {
-        return value == null ? null : value.trim();
-    }
-
-    private String normalizeNullableText(String value) {
-        String normalized = normalizeText(value);
-        return normalized == null || normalized.isBlank() ? null : normalized;
-    }
-
-    private String normalizeCode(String value) {
-        String normalized = normalizeText(value);
-        return normalized == null ? null : normalized.toUpperCase();
-    }
-
-    private Gender validateGender(String value) {
-        String gender = normalizeCode(value);
-        if (!SUPPORTED_GENDERS.contains(gender)) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Giới tính không hợp lệ. Giá trị hợp lệ: MALE, FEMALE");
-        }
-        return Gender.valueOf(gender);
-    }
-
-    private MaritalStatus validateMaritalStatus(String value) {
-        String status = normalizeCode(value);
-        if (!SUPPORTED_MARITAL_STATUSES.contains(status)) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Tình trạng hôn nhân không hợp lệ. Giá trị hợp lệ: SINGLE, MARRIED");
-        }
-        return MaritalStatus.valueOf(status);
-    }
-
-    private ReferenceRelationshipType validateRelationshipType(String value) {
-        String relationshipType = normalizeCode(value);
-        if (!SUPPORTED_RELATIONSHIP_TYPES.contains(relationshipType)) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Mối quan hệ người tham chiếu không hợp lệ");
-        }
-        return ReferenceRelationshipType.valueOf(relationshipType);
-    }
-
-    private void validateReferencePhones(List<ReferencePersonRequest> referencePersons) {
-        Set<String> phones = new HashSet<>();
-        for (ReferencePersonRequest item : referencePersons) {
-            String phone = normalizeText(item.phoneNumber());
-            if (!phones.add(phone)) {
-                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Số điện thoại người tham chiếu bị trùng trong hồ sơ: " + phone);
+    private String firstText(JsonNode... nodes) {
+        for (JsonNode node : nodes) {
+            if (node != null && !node.isMissingNode() && !node.isNull()) {
+                String text = node.asText(null);
+                if (text != null && !text.isBlank()) {
+                    return text;
+                }
             }
         }
+        return null;
     }
 
-    private boolean isNotBlank(String value) {
-        return value != null && !value.isBlank();
+    private Integer firstInteger(JsonNode... nodes) {
+        for (JsonNode node : nodes) {
+            if (node != null && !node.isMissingNode() && !node.isNull()) {
+                if (node.isInt() || node.isLong()) {
+                    return node.asInt();
+                }
+                String text = node.asText(null);
+                if (text != null && !text.isBlank()) {
+                    try {
+                        return Integer.parseInt(text.replaceAll("[^0-9]", ""));
+                    } catch (NumberFormatException ignored) {
+                        // Try the next candidate.
+                    }
+                }
+            }
+        }
+        return null;
     }
 
-    private boolean isBlank(String value) {
-        return value == null || value.isBlank();
+    private BigDecimal firstNumber(JsonNode... nodes) {
+        for (JsonNode node : nodes) {
+            if (node != null && !node.isMissingNode() && !node.isNull()) {
+                if (node.isNumber()) {
+                    return node.decimalValue();
+                }
+                String text = node.asText(null);
+                if (text != null && !text.isBlank()) {
+                    try {
+                        return new BigDecimal(text.replaceAll("[^0-9.]", ""));
+                    } catch (NumberFormatException ignored) {
+                        // Try the next candidate.
+                    }
+                }
+            }
+        }
+        return null;
     }
 
-    private Object coalesce(Object first, Object fallback) {
-        return first == null ? fallback : first;
+    private record ListFallback(
+            BigDecimal requestedAmount,
+            Integer loanTermMonths,
+            String loanPurposeCode,
+            String loanPurposeName,
+            String loanProductCode,
+            String loanProductName
+    ) {
     }
 
     private static Map<String, Object> mapOf(Object... values) {

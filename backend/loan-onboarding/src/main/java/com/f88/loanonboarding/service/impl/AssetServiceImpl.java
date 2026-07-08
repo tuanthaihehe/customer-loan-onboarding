@@ -31,7 +31,7 @@ import com.f88.loanonboarding.service.AssetService;
 @Service
 public class AssetServiceImpl implements AssetService {
 
-    private static final String DRAFT_STATE = "APP_DRAFT";
+    private static final List<String> NON_EDITABLE_STATES = List.of("APP_SUBMITTED", "APP_CANCELLED", "APP_EXPIRED", "APP_CLOSED");
 
     private final LoanApplicationRepository loanApplicationRepository;
     private final AssetRepository assetRepository;
@@ -75,7 +75,7 @@ public class AssetServiceImpl implements AssetService {
     public AssetSnapshotResponse saveSnapshot(String applicationCode, SaveAssetSnapshotRequest request) {
         LoanApplication application = loanApplicationRepository.findByLoanApplicationCode(applicationCode)
                 .orElseThrow(() -> new BusinessException(ErrorCode.LOAN_APPLICATION_NOT_FOUND));
-        ensureDraftApplication(application);
+        ensureEditableApplication(application);
         VehicleVariant variant = resolveVariant(request);
         validateCatalogSelection(request, variant);
         String licensePlate = normalizeLicensePlate(request.licensePlate());
@@ -123,7 +123,7 @@ public class AssetServiceImpl implements AssetService {
     private LoanApplication findDraftApplication(String applicationCode) {
         LoanApplication application = loanApplicationRepository.findByLoanApplicationCode(applicationCode)
                 .orElseThrow(() -> new BusinessException(ErrorCode.LOAN_APPLICATION_NOT_FOUND));
-        ensureDraftApplication(application);
+        ensureEditableApplication(application);
         return application;
     }
 
@@ -143,11 +143,11 @@ public class AssetServiceImpl implements AssetService {
         }
     }
 
-    private void ensureDraftApplication(LoanApplication application) {
-        if (application.getCurrentState() == null || !DRAFT_STATE.equals(application.getCurrentState().getCode())) {
+    private void ensureEditableApplication(LoanApplication application) {
+        if (application.getCurrentState() == null || NON_EDITABLE_STATES.contains(application.getCurrentState().getCode())) {
             throw new BusinessException(
                     ErrorCode.INVALID_LOAN_APPLICATION_STATE,
-                    "Chỉ được lưu thông tin tài sản khi hồ sơ vay đang ở trạng thái nháp."
+                    "Không được lưu thông tin tài sản khi hồ sơ đã nộp, đã hủy hoặc đã hết hạn."
             );
         }
     }

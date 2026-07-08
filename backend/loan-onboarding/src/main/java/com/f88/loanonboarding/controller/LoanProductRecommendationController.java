@@ -59,7 +59,7 @@ public class LoanProductRecommendationController {
 
     @Operation(
             summary = "Lưu gói vay cuối cùng được chọn",
-            description = "Dùng khi staff chọn sản phẩm vay cuối cùng. Backend validate sản phẩm còn phù hợp, sau đó lưu loan_product_id vào hồ sơ APP_DRAFT."
+            description = "Dùng khi staff chọn sản phẩm vay cuối cùng. Backend validate sản phẩm còn phù hợp, sau đó lưu loan_product_id vào hồ sơ loan_application đang onboarding."
     )
     @PostMapping("/api/v1/loan-applications/{applicationCode}/final-loan-offer/select")
     public ApiResponse<FinalLoanOfferResponse> selectFinalOffer(

@@ -94,7 +94,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ApiResponse<Void>> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException ex) {
         ApiResponse<Void> response = ApiResponse.error(
-                "Kích thước ảnh vượt quá 5MB, vui lòng chọn ảnh nhỏ hơn",
+                "Kích thước file upload vượt quá giới hạn cho phép",
                 ErrorCode.OCR_INVALID_IMAGE.getCode()
         );
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(response);

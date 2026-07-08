@@ -1,10 +1,11 @@
 package com.f88.loanonboarding.controller;
 
+import java.util.List;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -12,13 +13,10 @@ import org.springframework.web.bind.annotation.RestController;
 import com.f88.loanonboarding.common.response.ApiResponse;
 import com.f88.loanonboarding.dto.request.loan.CancelLoanApplicationRequest;
 import com.f88.loanonboarding.dto.request.loan.CreateLoanApplicationRequest;
-import com.f88.loanonboarding.dto.request.loan.SaveCustomerDetailRequest;
-import com.f88.loanonboarding.dto.request.loan.SaveLoanApplicationDraftRequest;
-import com.f88.loanonboarding.dto.request.loan.SaveReferencePersonsRequest;
-import com.f88.loanonboarding.dto.response.loan.CustomerDetailResponse;
+import com.f88.loanonboarding.dto.request.loan.UpdateLoanApplicationRequest;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDetailResponse;
-import com.f88.loanonboarding.dto.response.loan.LoanApplicationDraftResponse;
-import com.f88.loanonboarding.dto.response.loan.ReferencePersonsResponse;
+import com.f88.loanonboarding.dto.response.loan.LoanApplicationListItemResponse;
+import com.f88.loanonboarding.dto.response.loan.LoanApplicationSummaryResponse;
 import com.f88.loanonboarding.dto.response.loan.StepCompletionResponse;
 import com.f88.loanonboarding.dto.response.loan.SubmitForApprovalResponse;
 import com.f88.loanonboarding.service.LoanApplicationService;
@@ -38,12 +36,18 @@ public class LoanApplicationController {
         this.loanApplicationService = loanApplicationService;
     }
 
-    @Operation(summary = "Tạo hồ sơ vay nháp")
+    @Operation(summary = "Tạo hồ sơ vay")
     @PostMapping
-    public ApiResponse<LoanApplicationDraftResponse> createDraft(
+    public ApiResponse<LoanApplicationSummaryResponse> createApplication(
             @Valid @RequestBody CreateLoanApplicationRequest request
     ) {
-        return ApiResponse.success("Tạo hồ sơ vay nháp thành công", loanApplicationService.createDraft(request));
+        return ApiResponse.success("Loan application created", loanApplicationService.createApplication(request));
+    }
+
+    @Operation(summary = "Lấy danh sách hồ sơ vay đã ra khỏi luồng nháp")
+    @GetMapping
+    public ApiResponse<List<LoanApplicationListItemResponse>> findLoanApplications() {
+        return ApiResponse.success(loanApplicationService.findLoanApplications());
     }
 
     @Operation(summary = "Lấy chi tiết hồ sơ vay")
@@ -52,47 +56,29 @@ public class LoanApplicationController {
         return ApiResponse.success(loanApplicationService.getDetail(applicationCode));
     }
 
-    @Operation(summary = "Lưu thông tin sơ bộ khách hàng và nhu cầu vay")
-    @PatchMapping("/{applicationCode}/draft")
-    public ApiResponse<LoanApplicationDraftResponse> saveDraft(
+    @Operation(summary = "Cập nhật thông tin khoản vay")
+    @PatchMapping("/{applicationCode}/loan-request")
+    public ApiResponse<LoanApplicationSummaryResponse> updateLoanRequest(
             @PathVariable String applicationCode,
-            @Valid @RequestBody SaveLoanApplicationDraftRequest request
+            @Valid @RequestBody UpdateLoanApplicationRequest request
     ) {
-        return ApiResponse.success("Lưu thông tin sơ bộ khách hàng thành công", loanApplicationService.saveDraft(applicationCode, request));
-    }
-
-    @Operation(summary = "Lưu thông tin chi tiết khách hàng")
-    @PatchMapping("/{applicationCode}/customer-detail")
-    public ApiResponse<CustomerDetailResponse> saveCustomerDetail(
-            @PathVariable String applicationCode,
-            @Valid @RequestBody SaveCustomerDetailRequest request
-    ) {
-        return ApiResponse.success("Lưu thông tin chi tiết khách hàng thành công", loanApplicationService.saveCustomerDetail(applicationCode, request));
-    }
-
-    @Operation(summary = "Lưu danh sách người tham chiếu")
-    @PutMapping("/{applicationCode}/reference-persons")
-    public ApiResponse<ReferencePersonsResponse> saveReferencePersons(
-            @PathVariable String applicationCode,
-            @Valid @RequestBody SaveReferencePersonsRequest request
-    ) {
-        return ApiResponse.success("Lưu người tham chiếu thành công", loanApplicationService.saveReferencePersons(applicationCode, request));
+        return ApiResponse.success("Loan application updated", loanApplicationService.updateLoanRequest(applicationCode, request));
     }
 
     @Operation(summary = "Hủy hồ sơ vay")
     @PostMapping("/{applicationCode}/cancel")
-    public ApiResponse<LoanApplicationDraftResponse> cancel(
+    public ApiResponse<LoanApplicationSummaryResponse> cancel(
             @PathVariable String applicationCode,
             @Valid @RequestBody CancelLoanApplicationRequest request
     ) {
-        return ApiResponse.success("Hủy hồ sơ vay thành công", loanApplicationService.cancel(applicationCode, request));
+        return ApiResponse.success("Loan application cancelled", loanApplicationService.cancel(applicationCode, request));
     }
 
     @Operation(summary = "Hoàn thành bước thông tin sơ bộ và gói vay")
     @PostMapping("/{applicationCode}/steps/preliminary/complete")
     public ApiResponse<StepCompletionResponse> completePreliminaryStep(@PathVariable String applicationCode) {
         return ApiResponse.success(
-                "Hoàn thành bước thông tin sơ bộ",
+                "Preliminary step completed",
                 loanApplicationService.completePreliminaryStep(applicationCode)
         );
     }
@@ -101,7 +87,7 @@ public class LoanApplicationController {
     @PostMapping("/{applicationCode}/submit-for-approval")
     public ApiResponse<SubmitForApprovalResponse> submitForApproval(@PathVariable String applicationCode) {
         return ApiResponse.success(
-                "Gửi hồ sơ vay sang bước phê duyệt thành công",
+                "Loan application submitted for approval",
                 loanApplicationService.submitForApproval(applicationCode)
         );
     }

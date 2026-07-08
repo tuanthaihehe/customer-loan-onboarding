@@ -2,6 +2,7 @@ package com.f88.loanonboarding.repository;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.List;
 
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -11,11 +12,10 @@ import com.f88.loanonboarding.entity.LoanApplication;
 
 public interface LoanApplicationRepository extends JpaRepository<LoanApplication, UUID> {
 
-    boolean existsByLoanApplicationCode(String loanApplicationCode);
-
     @EntityGraph(attributePaths = {
             "customer",
             "currentState",
+            "currentStep",
             "loanPurpose",
             "loanTerm",
             "asset",
@@ -29,7 +29,16 @@ public interface LoanApplicationRepository extends JpaRepository<LoanApplication
     })
     Optional<LoanApplication> findByLoanApplicationCode(String loanApplicationCode);
 
-    Optional<LoanApplication> findTopByLoanApplicationCodeStartingWithOrderByLoanApplicationCodeDesc(String prefix);
+    boolean existsByLoanApplicationCode(String loanApplicationCode);
+
+    @EntityGraph(attributePaths = {"customer", "currentState", "currentStep"})
+    List<LoanApplication> findByCurrentState_CodeOrderByUpdatedAtDesc(String stateCode);
+
+    @EntityGraph(attributePaths = {"customer", "currentState", "loanPurpose", "loanProduct"})
+    List<LoanApplication> findByCurrentState_CodeInOrderByUpdatedAtDesc(List<String> stateCodes);
+
+    @EntityGraph(attributePaths = {"customer", "currentState", "currentStep"})
+    List<LoanApplication> findAllByOrderByUpdatedAtDesc();
 
     boolean existsByAssetAndCurrentState_TerminalFalseAndLoanApplicationCodeNot(
             Asset asset,

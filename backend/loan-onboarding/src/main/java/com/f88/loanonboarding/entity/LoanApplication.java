@@ -1,6 +1,7 @@
 package com.f88.loanonboarding.entity;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -9,6 +10,8 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -34,6 +37,10 @@ public class LoanApplication {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "current_state_id", nullable = false)
     private LoanApplicationState currentState;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "current_step_code")
+    private LoanApplicationStep currentStep;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "asset_id")
@@ -89,4 +96,29 @@ public class LoanApplication {
 
     @Column(name = "monthly_income_amount", precision = 18, scale = 2)
     private BigDecimal monthlyIncomeAmount;
+
+    @Column(name = "expired_at")
+    private LocalDateTime expiredAt;
+
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    void prePersist() {
+        LocalDateTime now = LocalDateTime.now();
+        if (createdAt == null) {
+            createdAt = now;
+        }
+        if (updatedAt == null) {
+            updatedAt = now;
+        }
+    }
+
+    @PreUpdate
+    void preUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 }
