@@ -1,6 +1,9 @@
 // Customer Loan Onboarding - ERD
-// Updated from database/migrations through V26.
-// Focus: tables, columns, and relationships. Index definitions are intentionally omitted.
+// Source of truth: backend/loan-onboarding/src/main/resources/db/migration through V27.
+// Notes:
+// - V27 moves onboarding draft flow into loan_application.
+// - loan_application_draft, loan_application_draft_step_data and loan_application_draft_history are obsolete and dropped.
+// - mock_score_grade_rule is obsolete and dropped by V26.
 
 Table customer {
   id uuid [pk]
@@ -18,7 +21,7 @@ Table customer {
 
 Table loan_application_state {
   id uuid [pk]
-  code varchar(50) [not null, unique]
+  code varchar(50) [not null, unique, note: 'APP_CREATED, APP_IN_PROGRESS, APP_COMPLETED, APP_SUBMITTED, APP_CANCELLED, APP_EXPIRED']
   name varchar(100) [not null]
   description text
   is_initial boolean [not null, default: false]
@@ -41,7 +44,7 @@ Table loan_application {
   customer_id uuid [not null]
   current_state_id uuid [not null]
   requested_amount numeric(18,2)
-  loan_term_months int [note: 'Allowed terms: 3, 6, 9, 12, 18, 24']
+  loan_term_months int [note: 'Allowed terms from seed/catalog, commonly 3, 6, 9, 12, 18, 24']
   branch text
   asset_id uuid
   loan_purpose_id uuid
@@ -56,6 +59,10 @@ Table loan_application {
   monthly_income_amount numeric(18,2)
   loan_product_id uuid
   income_source_id uuid
+  current_step_code varchar(50)
+  expired_at timestamp
+  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
 }
 
 Table loan_application_state_history {
@@ -79,39 +86,27 @@ Table loan_application_step {
   updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
 }
 
-Table loan_application_draft {
+Table loan_application_step_data {
   id uuid [pk]
-  draft_code varchar(50) [not null, unique]
-  customer_id uuid [not null]
-  current_step_code varchar(50) [not null]
-  status varchar(30) [not null, default: 'DRAFT', note: 'DRAFT, COMPLETED, CONVERTED, CANCELLED, EXPIRED']
-  converted_loan_application_id uuid
-  expired_at timestamp
-  created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
-  updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
-}
-
-Table loan_application_draft_step_data {
-  id uuid [pk]
-  draft_id uuid [not null]
+  loan_application_id uuid [not null]
   step_code varchar(50) [not null]
   status varchar(30) [not null, default: 'NOT_STARTED', note: 'NOT_STARTED, IN_PROGRESS, COMPLETED']
   payload jsonb [not null, default: '{}']
-  completed_at timestamp
-  invalidated_at timestamp
-  invalidated_reason text
   requires_review boolean [not null, default: false]
   invalidated_by_step_code varchar(50)
+  invalidated_at timestamp
+  invalidated_reason text
   reviewed_at timestamp
+  completed_at timestamp
   created_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
   updated_at timestamp [not null, default: `CURRENT_TIMESTAMP`]
 }
 
-Table loan_application_draft_history {
+Table loan_application_step_history {
   id uuid [pk]
-  draft_id uuid [not null]
+  loan_application_id uuid [not null]
   step_code varchar(50)
-  action varchar(50) [not null, note: 'CREATE_DRAFT, START_STEP, SAVE_STEP, COMPLETE_STEP, REOPEN_STEP, INVALIDATE_STEP, CANCEL_DRAFT, EXPIRE_DRAFT, COMPLETE_DRAFT, CONVERT_DRAFT']
+  action varchar(50) [not null, note: 'CREATE_APPLICATION, START_STEP, SAVE_STEP, COMPLETE_STEP, REOPEN_STEP, INVALIDATE_STEP, CANCEL_APPLICATION, EXPIRE_APPLICATION, COMPLETE_APPLICATION, SUBMIT_APPLICATION']
   old_status varchar(30)
   new_status varchar(30)
   note text
@@ -434,6 +429,7 @@ Table overall_score_grade_band {
 
 Ref: customer.id < loan_application.customer_id
 Ref: loan_application_state.id < loan_application.current_state_id
+Ref: loan_application_step.code < loan_application.current_step_code
 Ref: asset.id < loan_application.asset_id
 Ref: loan_purpose.id < loan_application.loan_purpose_id
 Ref: loan_term.id < loan_application.loan_term_id
@@ -448,14 +444,11 @@ Ref: loan_application.id < loan_application_state_history.loan_application_id
 Ref: loan_application_state.id < loan_application_state_history.from_state_id
 Ref: loan_application_state.id < loan_application_state_history.to_state_id
 
-Ref: customer.id < loan_application_draft.customer_id
-Ref: loan_application_step.code < loan_application_draft.current_step_code
-Ref: loan_application.id < loan_application_draft.converted_loan_application_id
-Ref: loan_application_draft.id < loan_application_draft_step_data.draft_id
-Ref: loan_application_step.code < loan_application_draft_step_data.step_code
-Ref: loan_application_step.code < loan_application_draft_step_data.invalidated_by_step_code
-Ref: loan_application_draft.id < loan_application_draft_history.draft_id
-Ref: loan_application_step.code < loan_application_draft_history.step_code
+Ref: loan_application.id < loan_application_step_data.loan_application_id
+Ref: loan_application_step.code < loan_application_step_data.step_code
+Ref: loan_application_step.code < loan_application_step_data.invalidated_by_step_code
+Ref: loan_application.id < loan_application_step_history.loan_application_id
+Ref: loan_application_step.code < loan_application_step_history.step_code
 
 Ref: loan_application.id < loan_application_reference_person.loan_application_id
 Ref: loan_application.id < loan_application_document.loan_application_id
