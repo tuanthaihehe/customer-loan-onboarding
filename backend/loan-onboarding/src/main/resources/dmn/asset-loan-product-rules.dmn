@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="Definitions_AssetLoanProductRules"
+             name="Asset Loan Product Rules"
+             namespace="https://f88.com.vn/loan-onboarding/dmn/asset-loan-product-rules">
+
+    <decision id="assetNotPledged" name="AST_NOT_PLEDGED - Asset Not Pledged">
+        <decisionTable id="DecisionTable_AssetNotPledged" hitPolicy="FIRST">
+            <input id="Input_AssetState" label="AssetState">
+                <inputExpression id="InputExpression_AssetState" typeRef="string"><text>assetState</text></inputExpression>
+            </input>
+            <output id="Output_AssetUsable" name="eligible" label="Eligible" typeRef="boolean"/>
+            <output id="Output_AssetNotPledgedReasonCode" name="reasonCode" label="Reason Code" typeRef="string"/>
+            <output id="Output_AssetNotPledgedReasonMessage" name="reasonMessage" label="Reason Message" typeRef="string"/>
+            <rule id="Rule_AssetPledged">
+                <inputEntry id="InputEntry_AssetPledged"><text>"AST_PLEDGED"</text></inputEntry>
+                <outputEntry id="OutputEntry_AssetPledgedEligible"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_AssetPledgedReasonCode"><text>"ASSET_PLEDGED"</text></outputEntry>
+                <outputEntry id="OutputEntry_AssetPledgedReasonMessage"><text>"Tai san dang cam co hieu luc, khong duoc su dung cho ho so moi."</text></outputEntry>
+            </rule>
+            <rule id="Rule_AssetNotPledged">
+                <inputEntry id="InputEntry_AssetNotPledged"><text>-</text></inputEntry>
+                <outputEntry id="OutputEntry_AssetNotPledgedEligible"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_AssetNotPledgedReasonCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_AssetNotPledgedReasonMessage"><text>null</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+
+    <decision id="supportedAssetType" name="AST_SUPPORTED_TYPE - Supported Asset Type">
+        <decisionTable id="DecisionTable_SupportedAssetType" hitPolicy="FIRST">
+            <input id="Input_AssetType" label="AssetType">
+                <inputExpression id="InputExpression_AssetType" typeRef="string"><text>assetType</text></inputExpression>
+            </input>
+            <output id="Output_AssetTypeEligible" name="eligible" label="Eligible" typeRef="boolean"/>
+            <output id="Output_AssetTypeReasonCode" name="reasonCode" label="Reason Code" typeRef="string"/>
+            <output id="Output_AssetTypeReasonMessage" name="reasonMessage" label="Reason Message" typeRef="string"/>
+            <rule id="Rule_SupportedMotorbike">
+                <inputEntry id="InputEntry_SupportedMotorbike"><text>"MOTORBIKE"</text></inputEntry>
+                <outputEntry id="OutputEntry_SupportedMotorbikeEligible"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_SupportedMotorbikeCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_SupportedMotorbikeMessage"><text>null</text></outputEntry>
+            </rule>
+            <rule id="Rule_SupportedCar">
+                <inputEntry id="InputEntry_SupportedCar"><text>"CAR"</text></inputEntry>
+                <outputEntry id="OutputEntry_SupportedCarEligible"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_SupportedCarCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_SupportedCarMessage"><text>null</text></outputEntry>
+            </rule>
+            <rule id="Rule_UnsupportedAssetType">
+                <inputEntry id="InputEntry_UnsupportedAssetType"><text>-</text></inputEntry>
+                <outputEntry id="OutputEntry_UnsupportedAssetTypeEligible"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_UnsupportedAssetTypeCode"><text>"UNSUPPORTED_ASSET_TYPE"</text></outputEntry>
+                <outputEntry id="OutputEntry_UnsupportedAssetTypeMessage"><text>"Loai tai san khong duoc ho tro."</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+
+    <decision id="supportedLoanPurpose" name="APP_SUPPORTED_LOAN_PURPOSE - Supported Loan Purpose">
+        <decisionTable id="DecisionTable_SupportedLoanPurpose" hitPolicy="FIRST">
+            <input id="Input_LoanPurpose" label="LoanPurpose">
+                <inputExpression id="InputExpression_LoanPurpose" typeRef="string"><text>loanPurpose</text></inputExpression>
+            </input>
+            <output id="Output_LoanPurposeEligible" name="eligible" label="Eligible" typeRef="boolean"/>
+            <output id="Output_LoanPurposeReasonCode" name="reasonCode" label="Reason Code" typeRef="string"/>
+            <output id="Output_LoanPurposeReasonMessage" name="reasonMessage" label="Reason Message" typeRef="string"/>
+            <rule id="Rule_ConsumptionPurpose">
+                <inputEntry id="InputEntry_ConsumptionPurpose"><text>"CONSUMPTION"</text></inputEntry>
+                <outputEntry id="OutputEntry_ConsumptionPurposeEligible"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_ConsumptionPurposeCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_ConsumptionPurposeMessage"><text>null</text></outputEntry>
+            </rule>
+            <rule id="Rule_BusinessPurpose">
+                <inputEntry id="InputEntry_BusinessPurpose"><text>"BUSINESS"</text></inputEntry>
+                <outputEntry id="OutputEntry_BusinessPurposeEligible"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_BusinessPurposeCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_BusinessPurposeMessage"><text>null</text></outputEntry>
+            </rule>
+            <rule id="Rule_VehicleRelatedPurpose">
+                <inputEntry id="InputEntry_VehicleRelatedPurpose"><text>"VEHICLE_RELATED"</text></inputEntry>
+                <outputEntry id="OutputEntry_VehicleRelatedPurposeEligible"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_VehicleRelatedPurposeCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_VehicleRelatedPurposeMessage"><text>null</text></outputEntry>
+            </rule>
+            <rule id="Rule_UnsupportedLoanPurpose">
+                <inputEntry id="InputEntry_UnsupportedLoanPurpose"><text>-</text></inputEntry>
+                <outputEntry id="OutputEntry_UnsupportedLoanPurposeEligible"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_UnsupportedLoanPurposeCode"><text>"UNSUPPORTED_LOAN_PURPOSE"</text></outputEntry>
+                <outputEntry id="OutputEntry_UnsupportedLoanPurposeMessage"><text>"Muc dich vay khong duoc ho tro."</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+
+    <decision id="activeLoanProduct" name="PRD_ACTIVE_PRODUCT - Active Loan Product">
+        <decisionTable id="DecisionTable_ActiveLoanProduct" hitPolicy="FIRST">
+            <input id="Input_ProductState" label="ProductState">
+                <inputExpression id="InputExpression_ProductState" typeRef="string"><text>productState</text></inputExpression>
+            </input>
+            <output id="Output_ProductActive" name="eligible" label="Eligible" typeRef="boolean"/>
+            <output id="Output_ProductActiveReasonCode" name="reasonCode" label="Reason Code" typeRef="string"/>
+            <output id="Output_ProductActiveReasonMessage" name="reasonMessage" label="Reason Message" typeRef="string"/>
+            <rule id="Rule_ActiveProduct">
+                <inputEntry id="InputEntry_ActiveProduct"><text>"ACTIVE"</text></inputEntry>
+                <outputEntry id="OutputEntry_ActiveProductEligible"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_ActiveProductCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_ActiveProductMessage"><text>null</text></outputEntry>
+            </rule>
+            <rule id="Rule_InactiveProduct">
+                <inputEntry id="InputEntry_InactiveProduct"><text>-</text></inputEntry>
+                <outputEntry id="OutputEntry_InactiveProductEligible"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_InactiveProductCode"><text>"PRODUCT_NOT_ACTIVE"</text></outputEntry>
+                <outputEntry id="OutputEntry_InactiveProductMessage"><text>"San pham vay khong con hieu luc."</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+
+    <decision id="proposedAmountWithinEligibleLimit" name="APP_PROPOSED_AMOUNT_WITHIN_ELIGIBLE_LIMIT - Proposed Amount Within Eligible Limit">
+        <decisionTable id="DecisionTable_ProposedAmountWithinEligibleLimit" hitPolicy="FIRST">
+            <input id="Input_WithinEligibleLimit" label="ProposedLoanAmount &lt;= FinalValuationAmount * ProductLTVRatio">
+                <inputExpression id="InputExpression_WithinEligibleLimit" typeRef="boolean"><text>proposedLoanAmount &lt;= finalValuationAmount * productLtvRatio</text></inputExpression>
+            </input>
+            <output id="Output_WithinEligibleLimit" name="eligible" label="Eligible" typeRef="boolean"/>
+            <output id="Output_WithinEligibleLimitReasonCode" name="reasonCode" label="Reason Code" typeRef="string"/>
+            <output id="Output_WithinEligibleLimitReasonMessage" name="reasonMessage" label="Reason Message" typeRef="string"/>
+            <rule id="Rule_AmountWithinEligibleLimit">
+                <inputEntry id="InputEntry_AmountWithinEligibleLimit"><text>true</text></inputEntry>
+                <outputEntry id="OutputEntry_AmountWithinEligibleLimitEligible"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_AmountWithinEligibleLimitCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_AmountWithinEligibleLimitMessage"><text>null</text></outputEntry>
+            </rule>
+            <rule id="Rule_AmountExceedsEligibleLimit">
+                <inputEntry id="InputEntry_AmountExceedsEligibleLimit"><text>false</text></inputEntry>
+                <outputEntry id="OutputEntry_AmountExceedsEligibleLimitEligible"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_AmountExceedsEligibleLimitCode"><text>"PROPOSED_AMOUNT_EXCEEDS_ELIGIBLE_LIMIT"</text></outputEntry>
+                <outputEntry id="OutputEntry_AmountExceedsEligibleLimitMessage"><text>"So tien vay de xuat vuot han muc co the vay theo dinh gia va LTV."</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+
+    <decision id="productAmountRange" name="PRD_AMOUNT_RANGE - Product Amount Range">
+        <decisionTable id="DecisionTable_ProductAmountRange" hitPolicy="FIRST">
+            <input id="Input_ProductAmountInRange" label="ProductMinLoanAmount &lt;= ProposedLoanAmount &lt;= ProductMaxLoanAmount">
+                <inputExpression id="InputExpression_ProductAmountInRange" typeRef="boolean"><text>productMinLoanAmount &lt;= proposedLoanAmount and proposedLoanAmount &lt;= productMaxLoanAmount</text></inputExpression>
+            </input>
+            <output id="Output_ProductAmountRangeEligible" name="eligible" label="Eligible" typeRef="boolean"/>
+            <output id="Output_ProductAmountRangeReasonCode" name="reasonCode" label="Reason Code" typeRef="string"/>
+            <output id="Output_ProductAmountRangeReasonMessage" name="reasonMessage" label="Reason Message" typeRef="string"/>
+            <rule id="Rule_ProductAmountInRange">
+                <inputEntry id="InputEntry_ProductAmountInRange"><text>true</text></inputEntry>
+                <outputEntry id="OutputEntry_ProductAmountInRangeEligible"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_ProductAmountInRangeCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_ProductAmountInRangeMessage"><text>null</text></outputEntry>
+            </rule>
+            <rule id="Rule_ProductAmountOutOfRange">
+                <inputEntry id="InputEntry_ProductAmountOutOfRange"><text>false</text></inputEntry>
+                <outputEntry id="OutputEntry_ProductAmountOutOfRangeEligible"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_ProductAmountOutOfRangeCode"><text>"PRODUCT_AMOUNT_OUT_OF_RANGE"</text></outputEntry>
+                <outputEntry id="OutputEntry_ProductAmountOutOfRangeMessage"><text>"So tien vay nam ngoai khoang tien cua san pham."</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+
+    <decision id="productTenorAllowed" name="PRD_TENOR_ALLOWED - Product Tenor Allowed">
+        <decisionTable id="DecisionTable_ProductTenorAllowed" hitPolicy="FIRST">
+            <input id="Input_StandardTenor" label="LoanTermMonths in standard tenors">
+                <inputExpression id="InputExpression_StandardTenor" typeRef="integer"><text>loanTermMonths</text></inputExpression>
+            </input>
+            <input id="Input_ProductTenorSupported" label="LoanTermMonths in ProductAllowedTenors">
+                <inputExpression id="InputExpression_ProductTenorSupported" typeRef="boolean"><text>productTenorSupported</text></inputExpression>
+            </input>
+            <output id="Output_ProductTenorAllowed" name="eligible" label="Eligible" typeRef="boolean"/>
+            <output id="Output_ProductTenorReasonCode" name="reasonCode" label="Reason Code" typeRef="string"/>
+            <output id="Output_ProductTenorReasonMessage" name="reasonMessage" label="Reason Message" typeRef="string"/>
+            <rule id="Rule_ProductTenorAllowed">
+                <inputEntry id="InputEntry_ProductTenorAllowedStandard"><text>6,12,18,24</text></inputEntry>
+                <inputEntry id="InputEntry_ProductTenorAllowedSupported"><text>true</text></inputEntry>
+                <outputEntry id="OutputEntry_ProductTenorAllowedEligible"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_ProductTenorAllowedCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_ProductTenorAllowedMessage"><text>null</text></outputEntry>
+            </rule>
+            <rule id="Rule_ProductTenorNotAllowed">
+                <inputEntry id="InputEntry_ProductTenorNotAllowedStandard"><text>-</text></inputEntry>
+                <inputEntry id="InputEntry_ProductTenorNotAllowedSupported"><text>-</text></inputEntry>
+                <outputEntry id="OutputEntry_ProductTenorNotAllowedEligible"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_ProductTenorNotAllowedCode"><text>"PRODUCT_TENOR_NOT_ALLOWED"</text></outputEntry>
+                <outputEntry id="OutputEntry_ProductTenorNotAllowedMessage"><text>"Ky han vay khong duoc san pham ho tro."</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+
+    <decision id="productScoringMatch" name="PRD_SCORING_MATCH - Product Scoring Match">
+        <decisionTable id="DecisionTable_ProductScoringMatch" hitPolicy="FIRST">
+            <input id="Input_ProductScoreMatched" label="ScoreGrade in ProductAllowedScoreGrades">
+                <inputExpression id="InputExpression_ProductScoreMatched" typeRef="boolean"><text>productScoreMatched</text></inputExpression>
+            </input>
+            <output id="Output_ProductScoreMatched" name="matched" label="Matched" typeRef="boolean"/>
+            <output id="Output_ProductScoreReasonCode" name="reasonCode" label="Reason Code" typeRef="string"/>
+            <output id="Output_ProductScoreReasonMessage" name="reasonMessage" label="Reason Message" typeRef="string"/>
+            <rule id="Rule_ProductScoreMatched">
+                <inputEntry id="InputEntry_ProductScoreMatched"><text>true</text></inputEntry>
+                <outputEntry id="OutputEntry_ProductScoreMatched"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_ProductScoreMatchedCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_ProductScoreMatchedMessage"><text>null</text></outputEntry>
+            </rule>
+            <rule id="Rule_ProductScoreNotMatched">
+                <inputEntry id="InputEntry_ProductScoreNotMatched"><text>false</text></inputEntry>
+                <outputEntry id="OutputEntry_ProductScoreNotMatched"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_ProductScoreNotMatchedCode"><text>"PRODUCT_SCORE_NOT_MATCHED"</text></outputEntry>
+                <outputEntry id="OutputEntry_ProductScoreNotMatchedMessage"><text>"San pham khong phu hop voi score grade cua ho so."</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+</definitions>

@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="Definitions_CustomerKycRules"
+             name="Customer KYC Rules"
+             namespace="https://f88.com.vn/loan-onboarding/dmn/customer-kyc-rules">
+
+    <decision id="customerAgeEligibility" name="CUS_AGE_ELIGIBLE - Customer Age Eligibility">
+        <decisionTable id="DecisionTable_CustomerAgeEligibility" hitPolicy="FIRST">
+            <input id="Input_CustomerAge" label="CustomerAge">
+                <inputExpression id="InputExpression_CustomerAge" typeRef="integer">
+                    <text>age</text>
+                </inputExpression>
+            </input>
+            <output id="Output_AgeEligible" name="eligible" label="Eligible" typeRef="boolean"/>
+            <output id="Output_AgeReasonCode" name="reasonCode" label="Reason Code" typeRef="string"/>
+            <output id="Output_AgeReasonMessage" name="reasonMessage" label="Reason Message" typeRef="string"/>
+            <rule id="Rule_CustomerUnderAge">
+                <inputEntry id="InputEntry_CustomerUnderAge"><text>&lt; 18</text></inputEntry>
+                <outputEntry id="OutputEntry_CustomerUnderAgeEligible"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_CustomerUnderAgeReasonCode"><text>"CUSTOMER_UNDER_AGE"</text></outputEntry>
+                <outputEntry id="OutputEntry_CustomerUnderAgeReasonMessage"><text>"Khach hang chua du 18 tuoi."</text></outputEntry>
+            </rule>
+            <rule id="Rule_CustomerOverAge">
+                <inputEntry id="InputEntry_CustomerOverAge"><text>&gt; 60</text></inputEntry>
+                <outputEntry id="OutputEntry_CustomerOverAgeEligible"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_CustomerOverAgeReasonCode"><text>"CUSTOMER_OVER_AGE"</text></outputEntry>
+                <outputEntry id="OutputEntry_CustomerOverAgeReasonMessage"><text>"Khach hang qua 60 tuoi."</text></outputEntry>
+            </rule>
+            <rule id="Rule_CustomerAgeEligible">
+                <inputEntry id="InputEntry_CustomerAgeEligible"><text>[18..60]</text></inputEntry>
+                <outputEntry id="OutputEntry_CustomerAgeEligible"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_CustomerAgeReasonCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_CustomerAgeReasonMessage"><text>null</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+
+    <decision id="existingCustomerSuggestion" name="CUS_EXISTING_CUSTOMER_SUGGESTION - Existing Customer Suggestion">
+        <decisionTable id="DecisionTable_ExistingCustomerSuggestion" hitPolicy="FIRST">
+            <input id="Input_MatchedFieldCount" label="MatchedFieldCount">
+                <inputExpression id="InputExpression_MatchedFieldCount" typeRef="integer"><text>matchedFieldCount</text></inputExpression>
+            </input>
+            <input id="Input_PhoneMatched" label="PhoneMatched">
+                <inputExpression id="InputExpression_PhoneMatched" typeRef="boolean"><text>phoneMatched</text></inputExpression>
+            </input>
+            <input id="Input_IdentifierMatched" label="IdentifierMatched">
+                <inputExpression id="InputExpression_IdentifierMatched" typeRef="boolean"><text>identifierMatched</text></inputExpression>
+            </input>
+            <output id="Output_ShouldSuggestExistingCustomer" name="shouldSuggest" label="Should Suggest" typeRef="boolean"/>
+            <output id="Output_ExistingCustomerReasonCode" name="reasonCode" label="Reason Code" typeRef="string"/>
+            <output id="Output_ExistingCustomerReasonMessage" name="reasonMessage" label="Reason Message" typeRef="string"/>
+            <rule id="Rule_IdentifierMatched">
+                <inputEntry id="InputEntry_IdentifierMatchedCount"><text>-</text></inputEntry>
+                <inputEntry id="InputEntry_IdentifierMatchedPhone"><text>-</text></inputEntry>
+                <inputEntry id="InputEntry_IdentifierMatchedIdentifier"><text>true</text></inputEntry>
+                <outputEntry id="OutputEntry_IdentifierMatchedSuggest"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_IdentifierMatchedCode"><text>"IDENTIFIER_MATCHED"</text></outputEntry>
+                <outputEntry id="OutputEntry_IdentifierMatchedMessage"><text>"Tim thay Customer cu trung CCCD."</text></outputEntry>
+            </rule>
+            <rule id="Rule_PhoneMatched">
+                <inputEntry id="InputEntry_PhoneMatchedCount"><text>-</text></inputEntry>
+                <inputEntry id="InputEntry_PhoneMatchedPhone"><text>true</text></inputEntry>
+                <inputEntry id="InputEntry_PhoneMatchedIdentifier"><text>-</text></inputEntry>
+                <outputEntry id="OutputEntry_PhoneMatchedSuggest"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_PhoneMatchedCode"><text>"PHONE_MATCHED"</text></outputEntry>
+                <outputEntry id="OutputEntry_PhoneMatchedMessage"><text>"Tim thay Customer cu trung so dien thoai."</text></outputEntry>
+            </rule>
+            <rule id="Rule_FieldCountMatched">
+                <inputEntry id="InputEntry_FieldCountMatchedCount"><text>&gt;= 2</text></inputEntry>
+                <inputEntry id="InputEntry_FieldCountMatchedPhone"><text>-</text></inputEntry>
+                <inputEntry id="InputEntry_FieldCountMatchedIdentifier"><text>-</text></inputEntry>
+                <outputEntry id="OutputEntry_FieldCountMatchedSuggest"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_FieldCountMatchedCode"><text>"CUSTOMER_PROFILE_MATCHED"</text></outputEntry>
+                <outputEntry id="OutputEntry_FieldCountMatchedMessage"><text>"Tim thay Customer cu trung it nhat 2 thong tin dinh danh."</text></outputEntry>
+            </rule>
+            <rule id="Rule_NoExistingCustomerSuggestion">
+                <inputEntry id="InputEntry_NoSuggestionCount"><text>-</text></inputEntry>
+                <inputEntry id="InputEntry_NoSuggestionPhone"><text>-</text></inputEntry>
+                <inputEntry id="InputEntry_NoSuggestionIdentifier"><text>-</text></inputEntry>
+                <outputEntry id="OutputEntry_NoSuggestion"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_NoSuggestionCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_NoSuggestionMessage"><text>null</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+
+    <decision id="blacklistedCustomerSelectionBlock" name="CUS_BLACKLISTED_SELECTION_BLOCK - Blacklisted Customer Selection Block">
+        <decisionTable id="DecisionTable_BlacklistedCustomerSelectionBlock" hitPolicy="FIRST">
+            <input id="Input_CustomerStatus" label="CustomerStatus">
+                <inputExpression id="InputExpression_CustomerStatus" typeRef="string"><text>customerStatus</text></inputExpression>
+            </input>
+            <output id="Output_CustomerSelectable" name="selectable" label="Selectable" typeRef="boolean"/>
+            <output id="Output_BlacklistReasonCode" name="reasonCode" label="Reason Code" typeRef="string"/>
+            <output id="Output_BlacklistReasonMessage" name="reasonMessage" label="Reason Message" typeRef="string"/>
+            <rule id="Rule_BlacklistedCustomer">
+                <inputEntry id="InputEntry_BlacklistedCustomer"><text>"BLACKLISTED"</text></inputEntry>
+                <outputEntry id="OutputEntry_BlacklistedCustomerSelectable"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_BlacklistedCustomerCode"><text>"CUSTOMER_BLACKLISTED"</text></outputEntry>
+                <outputEntry id="OutputEntry_BlacklistedCustomerMessage"><text>"Khong duoc chon Customer dang bi blacklist."</text></outputEntry>
+            </rule>
+            <rule id="Rule_NonBlacklistedCustomer">
+                <inputEntry id="InputEntry_NonBlacklistedCustomer"><text>-</text></inputEntry>
+                <outputEntry id="OutputEntry_NonBlacklistedCustomerSelectable"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_NonBlacklistedCustomerCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_NonBlacklistedCustomerMessage"><text>null</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+
+    <decision id="otpRequirementDecision" name="KYC_OTP_REQUIREMENT - OTP Requirement Decision">
+        <decisionTable id="DecisionTable_OtpRequirementDecision" hitPolicy="FIRST">
+            <input id="Input_CustomerType" label="CustomerType">
+                <inputExpression id="InputExpression_CustomerType" typeRef="string"><text>customerType</text></inputExpression>
+            </input>
+            <input id="Input_PhoneChanged" label="InputPhoneNumber != StoredPhoneNumber">
+                <inputExpression id="InputExpression_PhoneChanged" typeRef="boolean"><text>inputPhoneNumber != storedPhoneNumber</text></inputExpression>
+            </input>
+            <output id="Output_OtpRequired" name="otpRequired" label="OTP Required" typeRef="boolean"/>
+            <output id="Output_OtpRequirementReasonCode" name="reasonCode" label="Reason Code" typeRef="string"/>
+            <output id="Output_OtpRequirementReasonMessage" name="reasonMessage" label="Reason Message" typeRef="string"/>
+            <rule id="Rule_NewCustomerRequiresOtp">
+                <inputEntry id="InputEntry_NewCustomerRequiresOtp"><text>"NEW"</text></inputEntry>
+                <inputEntry id="InputEntry_NewCustomerPhoneChanged"><text>-</text></inputEntry>
+                <outputEntry id="OutputEntry_NewCustomerOtpRequired"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_NewCustomerOtpCode"><text>"NEW_CUSTOMER_OTP_REQUIRED"</text></outputEntry>
+                <outputEntry id="OutputEntry_NewCustomerOtpMessage"><text>"Customer moi bat buoc xac thuc OTP."</text></outputEntry>
+            </rule>
+            <rule id="Rule_ExistingCustomerPhoneChangedRequiresOtp">
+                <inputEntry id="InputEntry_ExistingCustomerType"><text>-</text></inputEntry>
+                <inputEntry id="InputEntry_ExistingCustomerPhoneChanged"><text>true</text></inputEntry>
+                <outputEntry id="OutputEntry_ExistingCustomerPhoneChangedOtpRequired"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_ExistingCustomerPhoneChangedCode"><text>"PHONE_CHANGED_OTP_REQUIRED"</text></outputEntry>
+                <outputEntry id="OutputEntry_ExistingCustomerPhoneChangedMessage"><text>"So dien thoai nhap vao khac so da luu, can xac thuc OTP."</text></outputEntry>
+            </rule>
+            <rule id="Rule_OtpNotRequired">
+                <inputEntry id="InputEntry_OtpNotRequiredCustomerType"><text>-</text></inputEntry>
+                <inputEntry id="InputEntry_OtpNotRequiredPhoneChanged"><text>false</text></inputEntry>
+                <outputEntry id="OutputEntry_OtpNotRequired"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_OtpNotRequiredCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_OtpNotRequiredMessage"><text>null</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+
+    <decision id="otpVerification" name="KYC_OTP_VERIFIED - OTP Verification">
+        <decisionTable id="DecisionTable_OtpVerification" hitPolicy="FIRST">
+            <input id="Input_OtpRequiredFlag" label="OTPRequiredFlag">
+                <inputExpression id="InputExpression_OtpRequiredFlag" typeRef="boolean"><text>otpRequired</text></inputExpression>
+            </input>
+            <input id="Input_OtpVerificationResult" label="OTPVerificationResult">
+                <inputExpression id="InputExpression_OtpVerificationResult" typeRef="string"><text>otpVerificationResult</text></inputExpression>
+            </input>
+            <output id="Output_OtpEligible" name="eligible" label="Eligible" typeRef="boolean"/>
+            <output id="Output_OtpVerificationReasonCode" name="reasonCode" label="Reason Code" typeRef="string"/>
+            <output id="Output_OtpVerificationReasonMessage" name="reasonMessage" label="Reason Message" typeRef="string"/>
+            <rule id="Rule_OtpNotRequiredVerified">
+                <inputEntry id="InputEntry_OtpNotRequiredVerifiedRequired"><text>false</text></inputEntry>
+                <inputEntry id="InputEntry_OtpNotRequiredVerifiedResult"><text>-</text></inputEntry>
+                <outputEntry id="OutputEntry_OtpNotRequiredVerifiedEligible"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_OtpNotRequiredVerifiedCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_OtpNotRequiredVerifiedMessage"><text>null</text></outputEntry>
+            </rule>
+            <rule id="Rule_OtpPassed">
+                <inputEntry id="InputEntry_OtpPassedRequired"><text>true</text></inputEntry>
+                <inputEntry id="InputEntry_OtpPassedResult"><text>"PASSED"</text></inputEntry>
+                <outputEntry id="OutputEntry_OtpPassedEligible"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_OtpPassedCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_OtpPassedMessage"><text>null</text></outputEntry>
+            </rule>
+            <rule id="Rule_OtpFailed">
+                <inputEntry id="InputEntry_OtpFailedRequired"><text>true</text></inputEntry>
+                <inputEntry id="InputEntry_OtpFailedResult"><text>-</text></inputEntry>
+                <outputEntry id="OutputEntry_OtpFailedEligible"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_OtpFailedCode"><text>"OTP_NOT_VERIFIED"</text></outputEntry>
+                <outputEntry id="OutputEntry_OtpFailedMessage"><text>"Customer bat buoc xac thuc OTP truoc khi tiep tuc."</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+</definitions>

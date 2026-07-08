@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="Definitions_SubmissionOperationalRules"
+             name="Submission Operational Rules"
+             namespace="https://f88.com.vn/loan-onboarding/dmn/submission-operational-rules">
+
+    <decision id="ekycVerificationPassed" name="KYC_EKYC_VERIFICATION_PASSED - eKYC Verification Pass">
+        <decisionTable id="DecisionTable_EkycVerificationPassed" hitPolicy="FIRST">
+            <input id="Input_FaceMatchResult" label="FaceMatchResult">
+                <inputExpression id="InputExpression_FaceMatchResult" typeRef="string"><text>faceMatchResult</text></inputExpression>
+            </input>
+            <input id="Input_LivenessCheckResult" label="LivenessCheckResult">
+                <inputExpression id="InputExpression_LivenessCheckResult" typeRef="string"><text>livenessCheckResult</text></inputExpression>
+            </input>
+            <input id="Input_FraudCheckResult" label="FraudCheckResult">
+                <inputExpression id="InputExpression_FraudCheckResult" typeRef="string"><text>fraudCheckResult</text></inputExpression>
+            </input>
+            <output id="Output_EkycEligible" name="eligible" label="Eligible" typeRef="boolean"/>
+            <output id="Output_EkycReasonCode" name="reasonCode" label="Reason Code" typeRef="string"/>
+            <output id="Output_EkycReasonMessage" name="reasonMessage" label="Reason Message" typeRef="string"/>
+            <rule id="Rule_EkycPassed">
+                <inputEntry id="InputEntry_EkycPassedFace"><text>"PASSED"</text></inputEntry>
+                <inputEntry id="InputEntry_EkycPassedLiveness"><text>"PASSED"</text></inputEntry>
+                <inputEntry id="InputEntry_EkycPassedFraud"><text>"PASSED"</text></inputEntry>
+                <outputEntry id="OutputEntry_EkycPassedEligible"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_EkycPassedCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_EkycPassedMessage"><text>null</text></outputEntry>
+            </rule>
+            <rule id="Rule_EkycNotPassed">
+                <inputEntry id="InputEntry_EkycNotPassedFace"><text>-</text></inputEntry>
+                <inputEntry id="InputEntry_EkycNotPassedLiveness"><text>-</text></inputEntry>
+                <inputEntry id="InputEntry_EkycNotPassedFraud"><text>-</text></inputEntry>
+                <outputEntry id="OutputEntry_EkycNotPassedEligible"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_EkycNotPassedCode"><text>"EKYC_NOT_PASSED"</text></outputEntry>
+                <outputEntry id="OutputEntry_EkycNotPassedMessage"><text>"Can dat FaceMatch, Liveness Check va Fraud Check truoc khi gui tham dinh."</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+
+    <decision id="applicationEditable" name="APP_EDITABLE - Application Editability">
+        <decisionTable id="DecisionTable_ApplicationEditable" hitPolicy="FIRST">
+            <input id="Input_ApplicationState" label="ApplicationState">
+                <inputExpression id="InputExpression_ApplicationState" typeRef="string"><text>applicationState</text></inputExpression>
+            </input>
+            <output id="Output_ApplicationEditable" name="editable" label="Editable" typeRef="boolean"/>
+            <output id="Output_ApplicationEditableReasonCode" name="reasonCode" label="Reason Code" typeRef="string"/>
+            <output id="Output_ApplicationEditableReasonMessage" name="reasonMessage" label="Reason Message" typeRef="string"/>
+            <rule id="Rule_ApplicationCreatedEditable">
+                <inputEntry id="InputEntry_ApplicationCreatedEditable"><text>"APP_CREATED"</text></inputEntry>
+                <outputEntry id="OutputEntry_ApplicationCreatedEditable"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_ApplicationCreatedEditableCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_ApplicationCreatedEditableMessage"><text>null</text></outputEntry>
+            </rule>
+            <rule id="Rule_ApplicationInProgressEditable">
+                <inputEntry id="InputEntry_ApplicationInProgressEditable"><text>"APP_IN_PROGRESS"</text></inputEntry>
+                <outputEntry id="OutputEntry_ApplicationInProgressEditable"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_ApplicationInProgressEditableCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_ApplicationInProgressEditableMessage"><text>null</text></outputEntry>
+            </rule>
+            <rule id="Rule_ApplicationNotEditable">
+                <inputEntry id="InputEntry_ApplicationNotEditable"><text>-</text></inputEntry>
+                <outputEntry id="OutputEntry_ApplicationNotEditable"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_ApplicationNotEditableCode"><text>"APPLICATION_NOT_EDITABLE"</text></outputEntry>
+                <outputEntry id="OutputEntry_ApplicationNotEditableMessage"><text>"Chi duoc chinh sua ho so khi trang thai la APP_CREATED hoac APP_IN_PROGRESS."</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+</definitions>

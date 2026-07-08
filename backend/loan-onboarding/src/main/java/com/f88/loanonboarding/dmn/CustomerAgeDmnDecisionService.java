@@ -26,7 +26,7 @@ import com.f88.loanonboarding.exception.BusinessException;
 public class CustomerAgeDmnDecisionService {
 
     private static final String DECISION_KEY = "customerAgeEligibility";
-    private static final String DMN_PATH = "dmn/customer-age-eligibility.dmn";
+    private static final String DMN_PATH = "dmn/customer-kyc-rules.dmn";
     private static final String SAAS_MODE = "SAAS";
 
     private final DmnDecision decision;

@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="https://www.omg.org/spec/DMN/20191111/MODEL/"
+             id="Definitions_ApplicationCompletionRules"
+             name="Application Completion Rules"
+             namespace="https://f88.com.vn/loan-onboarding/dmn/application-completion-rules">
+
+    <decision id="referencePersonRequired" name="APP_REFERENCE_PERSON_REQUIRED - Reference Person Required">
+        <decisionTable id="DecisionTable_ReferencePersonRequired" hitPolicy="FIRST">
+            <input id="Input_ReferencePersonCount" label="ReferencePersonCount">
+                <inputExpression id="InputExpression_ReferencePersonCount" typeRef="integer"><text>referencePersonCount</text></inputExpression>
+            </input>
+            <output id="Output_ReferencePersonEligible" name="eligible" label="Eligible" typeRef="boolean"/>
+            <output id="Output_ReferencePersonReasonCode" name="reasonCode" label="Reason Code" typeRef="string"/>
+            <output id="Output_ReferencePersonReasonMessage" name="reasonMessage" label="Reason Message" typeRef="string"/>
+            <rule id="Rule_ReferencePersonEnough">
+                <inputEntry id="InputEntry_ReferencePersonEnough"><text>&gt;= 3</text></inputEntry>
+                <outputEntry id="OutputEntry_ReferencePersonEnoughEligible"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_ReferencePersonEnoughCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_ReferencePersonEnoughMessage"><text>null</text></outputEntry>
+            </rule>
+            <rule id="Rule_ReferencePersonNotEnough">
+                <inputEntry id="InputEntry_ReferencePersonNotEnough"><text>&lt; 3</text></inputEntry>
+                <outputEntry id="OutputEntry_ReferencePersonNotEnoughEligible"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_ReferencePersonNotEnoughCode"><text>"REFERENCE_PERSON_NOT_ENOUGH"</text></outputEntry>
+                <outputEntry id="OutputEntry_ReferencePersonNotEnoughMessage"><text>"Ho so can it nhat 3 nguoi tham chieu."</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+
+    <decision id="referencePhoneUniqueness" name="APP_REFERENCE_PHONE_UNIQUE - Reference Phone Uniqueness">
+        <decisionTable id="DecisionTable_ReferencePhoneUniqueness" hitPolicy="FIRST">
+            <input id="Input_ReferencePhoneDuplicateExists" label="Reference phone duplicated">
+                <inputExpression id="InputExpression_ReferencePhoneDuplicateExists" typeRef="boolean"><text>referencePhoneDuplicateExists</text></inputExpression>
+            </input>
+            <input id="Input_BorrowerPhoneInReferences" label="BorrowerPhoneNumber in ReferencePhoneNumbers">
+                <inputExpression id="InputExpression_BorrowerPhoneInReferences" typeRef="boolean"><text>borrowerPhoneInReferences</text></inputExpression>
+            </input>
+            <output id="Output_ReferencePhoneUnique" name="eligible" label="Eligible" typeRef="boolean"/>
+            <output id="Output_ReferencePhoneReasonCode" name="reasonCode" label="Reason Code" typeRef="string"/>
+            <output id="Output_ReferencePhoneReasonMessage" name="reasonMessage" label="Reason Message" typeRef="string"/>
+            <rule id="Rule_ReferencePhoneDuplicated">
+                <inputEntry id="InputEntry_ReferencePhoneDuplicated"><text>true</text></inputEntry>
+                <inputEntry id="InputEntry_ReferencePhoneDuplicatedBorrower"><text>-</text></inputEntry>
+                <outputEntry id="OutputEntry_ReferencePhoneDuplicatedEligible"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_ReferencePhoneDuplicatedCode"><text>"REFERENCE_PHONE_DUPLICATED"</text></outputEntry>
+                <outputEntry id="OutputEntry_ReferencePhoneDuplicatedMessage"><text>"So dien thoai nguoi tham chieu bi trung nhau."</text></outputEntry>
+            </rule>
+            <rule id="Rule_BorrowerPhoneInReferences">
+                <inputEntry id="InputEntry_BorrowerPhoneReferenceDuplicated"><text>-</text></inputEntry>
+                <inputEntry id="InputEntry_BorrowerPhoneInReferences"><text>true</text></inputEntry>
+                <outputEntry id="OutputEntry_BorrowerPhoneInReferencesEligible"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_BorrowerPhoneInReferencesCode"><text>"REFERENCE_PHONE_MATCHES_BORROWER"</text></outputEntry>
+                <outputEntry id="OutputEntry_BorrowerPhoneInReferencesMessage"><text>"So dien thoai nguoi tham chieu khong duoc trung so cua Customer vay."</text></outputEntry>
+            </rule>
+            <rule id="Rule_ReferencePhoneUnique">
+                <inputEntry id="InputEntry_ReferencePhoneUniqueDuplicate"><text>false</text></inputEntry>
+                <inputEntry id="InputEntry_ReferencePhoneUniqueBorrower"><text>false</text></inputEntry>
+                <outputEntry id="OutputEntry_ReferencePhoneUniqueEligible"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_ReferencePhoneUniqueCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_ReferencePhoneUniqueMessage"><text>null</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+
+    <decision id="identityIssueDateValid" name="CUS_IDENTITY_ISSUE_DATE_VALID - Identity Issue Date Validity">
+        <decisionTable id="DecisionTable_IdentityIssueDateValid" hitPolicy="FIRST">
+            <input id="Input_IdentityIssueDateValid" label="IdentityDocumentIssueDate &lt;= CurrentDate">
+                <inputExpression id="InputExpression_IdentityIssueDateValid" typeRef="boolean"><text>identityDocumentIssueDate &lt;= currentDate</text></inputExpression>
+            </input>
+            <output id="Output_IdentityIssueDateEligible" name="eligible" label="Eligible" typeRef="boolean"/>
+            <output id="Output_IdentityIssueDateReasonCode" name="reasonCode" label="Reason Code" typeRef="string"/>
+            <output id="Output_IdentityIssueDateReasonMessage" name="reasonMessage" label="Reason Message" typeRef="string"/>
+            <rule id="Rule_IdentityIssueDateValid">
+                <inputEntry id="InputEntry_IdentityIssueDateValid"><text>true</text></inputEntry>
+                <outputEntry id="OutputEntry_IdentityIssueDateValidEligible"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_IdentityIssueDateValidCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_IdentityIssueDateValidMessage"><text>null</text></outputEntry>
+            </rule>
+            <rule id="Rule_IdentityIssueDateFuture">
+                <inputEntry id="InputEntry_IdentityIssueDateFuture"><text>false</text></inputEntry>
+                <outputEntry id="OutputEntry_IdentityIssueDateFutureEligible"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_IdentityIssueDateFutureCode"><text>"IDENTITY_ISSUE_DATE_IN_FUTURE"</text></outputEntry>
+                <outputEntry id="OutputEntry_IdentityIssueDateFutureMessage"><text>"Ngay cap CCCD khong duoc lon hon ngay hien tai."</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+
+    <decision id="assetRegistrationIssueDateValid" name="AST_REGISTRATION_ISSUE_DATE_VALID - Asset Registration Issue Date Validity">
+        <decisionTable id="DecisionTable_AssetRegistrationIssueDateValid" hitPolicy="FIRST">
+            <input id="Input_AssetRegistrationIssueDateValid" label="AssetRegistrationIssueDate &lt;= CurrentDate">
+                <inputExpression id="InputExpression_AssetRegistrationIssueDateValid" typeRef="boolean"><text>assetRegistrationIssueDate &lt;= currentDate</text></inputExpression>
+            </input>
+            <output id="Output_AssetRegistrationIssueDateEligible" name="eligible" label="Eligible" typeRef="boolean"/>
+            <output id="Output_AssetRegistrationIssueDateReasonCode" name="reasonCode" label="Reason Code" typeRef="string"/>
+            <output id="Output_AssetRegistrationIssueDateReasonMessage" name="reasonMessage" label="Reason Message" typeRef="string"/>
+            <rule id="Rule_AssetRegistrationIssueDateValid">
+                <inputEntry id="InputEntry_AssetRegistrationIssueDateValid"><text>true</text></inputEntry>
+                <outputEntry id="OutputEntry_AssetRegistrationIssueDateValidEligible"><text>true</text></outputEntry>
+                <outputEntry id="OutputEntry_AssetRegistrationIssueDateValidCode"><text>null</text></outputEntry>
+                <outputEntry id="OutputEntry_AssetRegistrationIssueDateValidMessage"><text>null</text></outputEntry>
+            </rule>
+            <rule id="Rule_AssetRegistrationIssueDateFuture">
+                <inputEntry id="InputEntry_AssetRegistrationIssueDateFuture"><text>false</text></inputEntry>
+                <outputEntry id="OutputEntry_AssetRegistrationIssueDateFutureEligible"><text>false</text></outputEntry>
+                <outputEntry id="OutputEntry_AssetRegistrationIssueDateFutureCode"><text>"ASSET_REGISTRATION_ISSUE_DATE_IN_FUTURE"</text></outputEntry>
+                <outputEntry id="OutputEntry_AssetRegistrationIssueDateFutureMessage"><text>"Ngay cap dang ky xe khong duoc lon hon ngay hien tai."</text></outputEntry>
+            </rule>
+        </decisionTable>
+    </decision>
+</definitions>

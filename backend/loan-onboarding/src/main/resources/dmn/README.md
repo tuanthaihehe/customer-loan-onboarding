@@ -1,77 +1,65 @@
 # DMN Decision Files
 
-Các file trong thư mục này là DMN decision table để import/tạo trên Camunda Web Modeler.
+Updated from `Rule.xlsx` on 2026-07-08.
 
-Hiện tại chỉ `customer-age-eligibility.dmn` đã được tích hợp vào code. Các file còn lại là bản chuẩn bị, chưa được backend gọi trực tiếp.
+The old per-rule DMN files were removed. The current structure groups all rules by business stage so each file can be copied/imported into Camunda Modeler as one DMN diagram with multiple decision tables.
 
-## Recommended Camunda Import Files
+## Files
 
-Nên ưu tiên copy/import các file gom nhóm dưới đây lên Camunda Web Modeler.
-
-Mỗi file là một DMN Diagram và bên trong có nhiều Decision Table cùng nhóm nghiệp vụ.
-
-| File | DMN Diagram | Decisions |
+| File | Business stage | Decisions |
 | --- | --- | --- |
-| `customer-rules.dmn` | Customer Rules | `customerAgeEligibility`, `customerBlacklistCheck` |
-| `asset-rules.dmn` | Asset Rules | `assetRequiredCheck`, `assetDuplicateCheck` |
-| `loan-request-rules.dmn` | Loan Request Rules | `loanPurposeEligibility`, `loanTenureEligibility`, `requestedAmountLimit` |
-| `asset-valuation-rules.dmn` | Asset Valuation Rules | `assetValuationDeductionLimit`, `loanableAmountCheck`, `ltvLimitCheck` |
-| `loan-product-recommendation-rules.dmn` | Loan Product Recommendation Rules | `loanProductPurposeEligibility`, `loanProductAssetTypeEligibility`, `loanProductTenorEligibility`, `loanProductScoreEligibility`, `loanProductMinAmountEligibility` |
+| `customer-kyc-rules.dmn` | Customer identification and KYC | `customerAgeEligibility`, `existingCustomerSuggestion`, `blacklistedCustomerSelectionBlock`, `otpRequirementDecision`, `otpVerification` |
+| `asset-loan-product-rules.dmn` | Asset, loan request, loan product recommendation | `assetNotPledged`, `supportedAssetType`, `supportedLoanPurpose`, `activeLoanProduct`, `proposedAmountWithinEligibleLimit`, `productAmountRange`, `productTenorAllowed`, `productScoringMatch` |
+| `application-completion-rules.dmn` | Application completion | `referencePersonRequired`, `referencePhoneUniqueness`, `identityIssueDateValid`, `assetRegistrationIssueDateValid` |
+| `submission-operational-rules.dmn` | Submission and operational controls | `ekycVerificationPassed`, `applicationEditable` |
 
-Các file nhỏ bên dưới vẫn được giữ lại để dễ đọc, test riêng từng rule, hoặc copy từng Decision khi cần.
+## Important Decision IDs
 
-## Customer
+`customerAgeEligibility` is still used by backend local DMN evaluation through `CustomerAgeDmnDecisionService`.
 
-| File | Decision ID | Inputs |
+When deploying to Camunda SaaS, keep the decision ID exactly:
+
+```text
+customerAgeEligibility
+```
+
+The configured property is:
+
+```properties
+app.camunda.dmn.customer-age-decision-id=customerAgeEligibility
+```
+
+## Input Naming Convention
+
+The DMN files use lower camel case input variables:
+
+| Rule Code | Decision ID | Main inputs |
 | --- | --- | --- |
-| `customer-age-eligibility.dmn` | `customerAgeEligibility` | `age` |
-| `customer-blacklist-check.dmn` | `customerBlacklistCheck` | `blacklist` |
+| `CUS_AGE_ELIGIBLE` | `customerAgeEligibility` | `age` |
+| `CUS_EXISTING_CUSTOMER_SUGGESTION` | `existingCustomerSuggestion` | `matchedFieldCount`, `phoneMatched`, `identifierMatched` |
+| `CUS_BLACKLISTED_SELECTION_BLOCK` | `blacklistedCustomerSelectionBlock` | `customerStatus` |
+| `KYC_OTP_REQUIREMENT` | `otpRequirementDecision` | `customerType`, `inputPhoneNumber`, `storedPhoneNumber` |
+| `KYC_OTP_VERIFIED` | `otpVerification` | `otpRequired`, `otpVerificationResult` |
+| `AST_NOT_PLEDGED` | `assetNotPledged` | `assetState` |
+| `AST_SUPPORTED_TYPE` | `supportedAssetType` | `assetType` |
+| `APP_SUPPORTED_LOAN_PURPOSE` | `supportedLoanPurpose` | `loanPurpose` |
+| `PRD_ACTIVE_PRODUCT` | `activeLoanProduct` | `productState` |
+| `APP_PROPOSED_AMOUNT_WITHIN_ELIGIBLE_LIMIT` | `proposedAmountWithinEligibleLimit` | `proposedLoanAmount`, `finalValuationAmount`, `productLtvRatio` |
+| `PRD_AMOUNT_RANGE` | `productAmountRange` | `proposedLoanAmount`, `productMinLoanAmount`, `productMaxLoanAmount` |
+| `PRD_TENOR_ALLOWED` | `productTenorAllowed` | `loanTermMonths`, `productTenorSupported` |
+| `APP_REFERENCE_PERSON_REQUIRED` | `referencePersonRequired` | `referencePersonCount` |
+| `APP_REFERENCE_PHONE_UNIQUE` | `referencePhoneUniqueness` | `referencePhoneDuplicateExists`, `borrowerPhoneInReferences` |
+| `CUS_IDENTITY_ISSUE_DATE_VALID` | `identityIssueDateValid` | `identityDocumentIssueDate`, `currentDate` |
+| `AST_REGISTRATION_ISSUE_DATE_VALID` | `assetRegistrationIssueDateValid` | `assetRegistrationIssueDate`, `currentDate` |
+| `PRD_SCORING_MATCH` | `productScoringMatch` | `productScoreMatched` |
+| `KYC_EKYC_VERIFICATION_PASSED` | `ekycVerificationPassed` | `faceMatchResult`, `livenessCheckResult`, `fraudCheckResult` |
+| `APP_EDITABLE` | `applicationEditable` | `applicationState` |
 
-## Asset
+For list matching rules such as product tenor and score grade, backend should calculate boolean inputs before calling DMN:
 
-| File | Decision ID | Inputs |
-| --- | --- | --- |
-| `asset-required-check.dmn` | `assetRequiredCheck` | `assetType`, `licensePlate` |
-| `asset-duplicate-check.dmn` | `assetDuplicateCheck` | `duplicatedAsset` |
+```text
+productTenorSupported = loanTermMonths IN ProductAllowedTenors
+productScoreMatched = scoreGrade IN ProductAllowedScoreGrades
+```
 
-## Loan Request
-
-| File | Decision ID | Inputs |
-| --- | --- | --- |
-| `loan-purpose-eligibility.dmn` | `loanPurposeEligibility` | `loanPurpose` |
-| `loan-tenure-eligibility.dmn` | `loanTenureEligibility` | `requestedTenure` |
-| `requested-amount-limit.dmn` | `requestedAmountLimit` | `requestedAmount` |
-
-## Asset Valuation
-
-| File | Decision ID | Inputs |
-| --- | --- | --- |
-| `asset-valuation-deduction-limit.dmn` | `assetValuationDeductionLimit` | `marketValue`, `totalDeductionAmount` |
-| `loanable-amount-check.dmn` | `loanableAmountCheck` | `assetFinalValue`, `loanableAmount` |
-| `ltv-limit-check.dmn` | `ltvLimitCheck` | `ltvRatio` |
-
-## Loan Product Recommendation
-
-| File | Decision ID | Inputs |
-| --- | --- | --- |
-| `loan-product-purpose-eligibility.dmn` | `loanProductPurposeEligibility` | `loanPurpose`, `appliesToAllLoanPurposes`, `allowedLoanPurposes` |
-| `loan-product-asset-type-eligibility.dmn` | `loanProductAssetTypeEligibility` | `assetType`, `allowedAssetTypes` |
-| `loan-product-tenor-eligibility.dmn` | `loanProductTenorEligibility` | `requestedTenure`, `allowedTenors` |
-| `loan-product-score-eligibility.dmn` | `loanProductScoreEligibility` | `scoreGrade`, `allowedScoreGrades` |
-| `loan-product-min-amount-eligibility.dmn` | `loanProductMinAmountEligibility` | `minLoanAmount`, `effectiveMaxLoanAmount` |
-
-## Standard Outputs
-
-Các DMN rule mới đều trả về cùng một cấu trúc:
-
-| Output | Type | Meaning |
-| --- | --- | --- |
-| `passed` | boolean | `true` nếu rule đạt, `false` nếu bị chặn |
-| `reasonCode` | string | Mã rule/lý do fail, `null` nếu đạt |
-| `reasonMessage` | string | Nội dung lỗi hiển thị/log, `null` nếu đạt |
-
-## Notes
-
-- Các file DMN không chứa block `DMNDI` layout để tránh lỗi parse khi deploy/import.
-- Các message tiếng Việt trong DMN dùng ASCII không dấu để giảm rủi ro encoding khi copy/import.
-- Các input dạng danh sách như `allowedLoanPurposes`, `allowedAssetTypes`, `allowedTenors`, `allowedScoreGrades` dùng FEEL `list contains(...)`.
+This keeps the DMN easy to evaluate from both backend and Camunda SaaS without ambiguity around list serialization.
