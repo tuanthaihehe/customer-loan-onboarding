@@ -347,7 +347,68 @@ Lỗi S3:
 }
 ```
 
-## API 2. Hoàn thành bước upload chứng từ
+## API 2. Lấy danh sách chứng từ của hồ sơ vay
+
+```http
+GET /api/v1/loan-applications/onboarding/{applicationCode}/documents
+```
+
+API này trả về danh sách chứng từ đã upload và đang được lưu reference trong `loan_application_document`.
+
+### Path params
+
+| Tên | Bắt buộc | Mô tả |
+| --- | --- | --- |
+| `applicationCode` | Có | Mã hồ sơ vay, ví dụ `APP-2026-6B07A687`. |
+
+### Response thành công
+
+```json
+{
+  "success": true,
+  "message": "Success",
+  "data": {
+    "applicationCode": "APP-2026-6B07A687",
+    "documentCount": 2,
+    "documents": [
+      {
+        "documentId": "7ffd2075-a994-42fd-bb37-562f49a914d3",
+        "documentTypeCode": "CITIZEN_ID_FRONT",
+        "documentTypeName": "CCCD mặt trước",
+        "fileUrl": "https://bucket-name.s3.ap-southeast-1.amazonaws.com/loan-applications/APP-2026-6B07A687/documents/CITIZEN_ID_FRONT/46714774-aa6d-4ea2-ab4d-bbf77945beee-front.jpg",
+        "fileName": "front.jpg",
+        "uploadedAt": "2026-07-08T10:00:00",
+        "uploadedBy": "staff_001"
+      },
+      {
+        "documentId": "6cb9a7cb-14a2-4c4d-91ea-87f4bd02f72e",
+        "documentTypeCode": "CITIZEN_ID_BACK",
+        "documentTypeName": "CCCD mặt sau",
+        "fileUrl": "https://bucket-name.s3.ap-southeast-1.amazonaws.com/loan-applications/APP-2026-6B07A687/documents/CITIZEN_ID_BACK/8cf144b2-back.jpg",
+        "fileName": "back.jpg",
+        "uploadedAt": "2026-07-08T10:01:00",
+        "uploadedBy": "staff_001"
+      }
+    ]
+  },
+  "errorCode": null,
+  "timestamp": "2026-07-08T10:02:00"
+}
+```
+
+### Response khi hồ sơ không tồn tại
+
+```json
+{
+  "success": false,
+  "message": "Không tìm thấy hồ sơ vay",
+  "data": null,
+  "errorCode": "APP_404",
+  "timestamp": "2026-07-08T10:00:00"
+}
+```
+
+## API 3. Hoàn thành bước upload chứng từ
 
 ```http
 POST /api/v1/loan-applications/onboarding/{applicationCode}/steps/UPLOAD_COMPLETE/complete
@@ -391,7 +452,7 @@ Response phụ thuộc DTO `LoanApplicationStepActionResponse`, dạng tổng qu
 }
 ```
 
-## API 3. Submit hồ sơ
+## API 4. Submit hồ sơ
 
 ```http
 POST /api/v1/loan-applications/onboarding/{applicationCode}/submit

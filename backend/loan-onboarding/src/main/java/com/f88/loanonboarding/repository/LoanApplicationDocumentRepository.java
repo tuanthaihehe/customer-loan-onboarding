@@ -14,7 +14,7 @@ import com.f88.loanonboarding.entity.LoanApplication;
 public interface LoanApplicationDocumentRepository extends JpaRepository<LoanApplicationDocument, UUID> {
 
     @EntityGraph(attributePaths = "documentType")
-    List<LoanApplicationDocument> findByLoanApplicationId(UUID loanApplicationId);
+    List<LoanApplicationDocument> findByLoanApplicationIdOrderByUploadedAtDesc(UUID loanApplicationId);
 
     Optional<LoanApplicationDocument> findByLoanApplicationAndDocumentType(
             LoanApplication loanApplication,

@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.f88.loanonboarding.common.error.ErrorCode;
+import com.f88.loanonboarding.dto.response.loan.LoanApplicationDocumentListResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDocumentUploadResponse;
 import com.f88.loanonboarding.entity.DocumentType;
 import com.f88.loanonboarding.entity.LoanApplication;
@@ -116,6 +117,25 @@ public class LoanApplicationDocumentServiceImpl implements LoanApplicationDocume
         );
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public LoanApplicationDocumentListResponse findDocuments(String applicationCode) {
+        LoanApplication application = loanApplicationRepository.findByLoanApplicationCode(applicationCode)
+                .orElseThrow(() -> new BusinessException(ErrorCode.LOAN_APPLICATION_NOT_FOUND));
+
+        List<LoanApplicationDocumentListResponse.DocumentItem> documents = documentRepository
+                .findByLoanApplicationIdOrderByUploadedAtDesc(application.getId())
+                .stream()
+                .map(this::toListDocumentItem)
+                .toList();
+
+        return new LoanApplicationDocumentListResponse(
+                application.getLoanApplicationCode(),
+                documents.size(),
+                documents
+        );
+    }
+
     private void validateFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "File chứng từ không được rỗng.");
@@ -152,6 +172,18 @@ public class LoanApplicationDocumentServiceImpl implements LoanApplicationDocume
                 document.getFileUrl(),
                 document.getFileName(),
                 document.getUploadedAt()
+        );
+    }
+
+    private LoanApplicationDocumentListResponse.DocumentItem toListDocumentItem(LoanApplicationDocument document) {
+        return new LoanApplicationDocumentListResponse.DocumentItem(
+                document.getId(),
+                document.getDocumentType().getCode(),
+                document.getDocumentType().getName(),
+                document.getFileUrl(),
+                document.getFileName(),
+                document.getUploadedAt(),
+                document.getUploadedBy()
         );
     }
 }

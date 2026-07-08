@@ -20,6 +20,7 @@ import com.f88.loanonboarding.dto.response.loan.LoanApplicationOnboardingDetailR
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationStepActionResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationSubmitResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationOnboardingSummaryResponse;
+import com.f88.loanonboarding.dto.response.loan.LoanApplicationDocumentListResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDocumentUploadResponse;
 import com.f88.loanonboarding.enums.LoanApplicationOnboardingStatus;
 import com.f88.loanonboarding.service.LoanApplicationDocumentService;
@@ -97,6 +98,15 @@ public class LoanApplicationOnboardingController {
                 "Documents uploaded",
                 documentService.uploadDocuments(applicationCode, documentTypeCodes, files, uploadedBy)
         );
+    }
+
+    @Operation(
+            summary = "Lấy danh sách chứng từ của hồ sơ vay",
+            description = "Trả về các chứng từ đã upload và đang được lưu reference trong loan_application_document theo applicationCode."
+    )
+    @GetMapping("/{applicationCode}/documents")
+    public ApiResponse<LoanApplicationDocumentListResponse> findDocuments(@PathVariable String applicationCode) {
+        return ApiResponse.success(documentService.findDocuments(applicationCode));
     }
 
     @Operation(

@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -153,6 +154,39 @@ class LoanApplicationDocumentServiceImplTest {
                 null
         )).isInstanceOf(BusinessException.class)
                 .hasMessageContaining("Không được upload chứng từ");
+    }
+
+    @Test
+    void findDocumentsReturnsDocumentReferencesForApplication() {
+        LoanApplication application = application("APP-2026-000001");
+        DocumentType documentType = documentType("CITIZEN_ID_FRONT", "CCCD mặt trước");
+        LoanApplicationDocument document = new LoanApplicationDocument();
+        document.setId(UUID.randomUUID());
+        document.setLoanApplication(application);
+        document.setDocumentType(documentType);
+        document.setFileUrl("https://bucket/front.jpg");
+        document.setFileName("front.jpg");
+        document.setUploadedAt(LocalDateTime.of(2026, 7, 8, 10, 0));
+        document.setUploadedBy("tester");
+
+        when(loanApplicationRepository.findByLoanApplicationCode("APP-2026-000001"))
+                .thenReturn(Optional.of(application));
+        when(documentRepository.findByLoanApplicationIdOrderByUploadedAtDesc(application.getId()))
+                .thenReturn(List.of(document));
+
+        var response = service.findDocuments("APP-2026-000001");
+
+        assertThat(response.applicationCode()).isEqualTo("APP-2026-000001");
+        assertThat(response.documentCount()).isEqualTo(1);
+        assertThat(response.documents()).singleElement()
+                .satisfies(item -> {
+                    assertThat(item.documentId()).isEqualTo(document.getId());
+                    assertThat(item.documentTypeCode()).isEqualTo("CITIZEN_ID_FRONT");
+                    assertThat(item.documentTypeName()).isEqualTo("CCCD mặt trước");
+                    assertThat(item.fileUrl()).isEqualTo("https://bucket/front.jpg");
+                    assertThat(item.fileName()).isEqualTo("front.jpg");
+                    assertThat(item.uploadedBy()).isEqualTo("tester");
+                });
     }
 
     private LoanApplication application(String applicationCode) {
