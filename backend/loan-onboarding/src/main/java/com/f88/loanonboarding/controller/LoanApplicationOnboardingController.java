@@ -8,7 +8,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.f88.loanonboarding.common.response.ApiResponse;
 import com.f88.loanonboarding.dto.request.loan.CancelLoanApplicationOnboardingRequest;
@@ -18,7 +20,9 @@ import com.f88.loanonboarding.dto.response.loan.LoanApplicationOnboardingDetailR
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationStepActionResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationSubmitResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationOnboardingSummaryResponse;
+import com.f88.loanonboarding.dto.response.loan.LoanApplicationDocumentUploadResponse;
 import com.f88.loanonboarding.enums.LoanApplicationOnboardingStatus;
+import com.f88.loanonboarding.service.LoanApplicationDocumentService;
 import com.f88.loanonboarding.service.LoanApplicationOnboardingService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -30,9 +34,14 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class LoanApplicationOnboardingController {
 
     private final LoanApplicationOnboardingService onboardingService;
+    private final LoanApplicationDocumentService documentService;
 
-    public LoanApplicationOnboardingController(LoanApplicationOnboardingService onboardingService) {
+    public LoanApplicationOnboardingController(
+            LoanApplicationOnboardingService onboardingService,
+            LoanApplicationDocumentService documentService
+    ) {
         this.onboardingService = onboardingService;
+        this.documentService = documentService;
     }
 
     @Operation(
@@ -71,6 +80,23 @@ public class LoanApplicationOnboardingController {
             @RequestBody CompleteLoanApplicationStepRequest request
     ) {
         return ApiResponse.success("Application step completed", onboardingService.completeStep(applicationCode, stepCode, request));
+    }
+
+    @Operation(
+            summary = "Upload chứng từ hồ sơ vay lên S3",
+            description = "Nhận multipart files kèm documentTypeCodes, upload file lên S3 và lưu reference vào loan_application_document theo từng loại chứng từ."
+    )
+    @PostMapping(value = "/{applicationCode}/documents", consumes = "multipart/form-data")
+    public ApiResponse<LoanApplicationDocumentUploadResponse> uploadDocuments(
+            @PathVariable String applicationCode,
+            @RequestParam("documentTypeCodes") List<String> documentTypeCodes,
+            @RequestPart("files") List<MultipartFile> files,
+            @RequestParam(value = "uploadedBy", required = false) String uploadedBy
+    ) {
+        return ApiResponse.success(
+                "Documents uploaded",
+                documentService.uploadDocuments(applicationCode, documentTypeCodes, files, uploadedBy)
+        );
     }
 
     @Operation(

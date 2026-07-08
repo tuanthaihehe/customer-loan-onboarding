@@ -38,11 +38,35 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-123456}
       SERVER_PORT: 8080
       FPTAI_API_KEY: ${FPTAI_API_KEY}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION:-ap-southeast-1}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET}
+      AWS_S3_ENDPOINT: ${AWS_S3_ENDPOINT:-}
+      AWS_S3_PUBLIC_URL_BASE: ${AWS_S3_PUBLIC_URL_BASE:-}
+      AWS_S3_PATH_STYLE_ACCESS_ENABLED: ${AWS_S3_PATH_STYLE_ACCESS_ENABLED:-false}
     ports:
       - "${SERVER_PORT:-8080}:8080"
     depends_on:
       postgres:
         condition: service_healthy
+
+  # ─────────────────────────────────────────────
+  # Frontend React/Vite — LOS Web
+  # App: http://localhost:5173
+  # ─────────────────────────────────────────────
+  frontend:
+    build:
+      context: ../FE-F88-CLO/customer_loan_ob
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api/v1}
+    container_name: los-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    depends_on:
+      - backend
 
 volumes:
   postgres_data:
