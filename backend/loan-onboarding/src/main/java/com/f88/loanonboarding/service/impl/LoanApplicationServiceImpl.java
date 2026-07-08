@@ -19,11 +19,18 @@ import com.f88.loanonboarding.dto.request.loan.CancelLoanApplicationRequest;
 import com.f88.loanonboarding.dto.request.loan.CreateLoanApplicationRequest;
 import com.f88.loanonboarding.dto.request.loan.UpdateLoanApplicationRequest;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationDetailResponse;
+import com.f88.loanonboarding.dto.response.loan.LoanApplicationDocumentListResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationListItemResponse;
+import com.f88.loanonboarding.dto.response.loan.LoanApplicationOnboardingAssetResponse;
+import com.f88.loanonboarding.dto.response.loan.LoanApplicationOnboardingCustomerResponse;
+import com.f88.loanonboarding.dto.response.loan.LoanApplicationOnboardingLoanInfoResponse;
+import com.f88.loanonboarding.dto.response.loan.LoanApplicationOnboardingReferencePersonResponse;
+import com.f88.loanonboarding.dto.response.loan.LoanApplicationOnboardingValuationResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationSummaryResponse;
 import com.f88.loanonboarding.dto.response.loan.StepCompletionResponse;
 import com.f88.loanonboarding.dto.response.loan.SubmitForApprovalResponse;
 import com.f88.loanonboarding.entity.Asset;
+import com.f88.loanonboarding.entity.AssetValuation;
 import com.f88.loanonboarding.entity.Customer;
 import com.f88.loanonboarding.entity.LoanApplication;
 import com.f88.loanonboarding.entity.LoanPurpose;
@@ -33,7 +40,10 @@ import com.f88.loanonboarding.entity.LoanApplicationStateHistory;
 import com.f88.loanonboarding.entity.LoanProduct;
 import com.f88.loanonboarding.enums.AssetType;
 import com.f88.loanonboarding.exception.BusinessException;
+import com.f88.loanonboarding.repository.AssetValuationRepository;
 import com.f88.loanonboarding.repository.CustomerRepository;
+import com.f88.loanonboarding.repository.LoanApplicationDocumentRepository;
+import com.f88.loanonboarding.repository.LoanApplicationReferencePersonRepository;
 import com.f88.loanonboarding.repository.LoanApplicationRepository;
 import com.f88.loanonboarding.repository.LoanPurposeRepository;
 import com.f88.loanonboarding.repository.LoanApplicationStateHistoryRepository;
@@ -47,6 +57,7 @@ import com.f88.loanonboarding.rule.RuleEvaluationService;
 import com.f88.loanonboarding.rule.loan.LoanPurposeRule;
 import com.f88.loanonboarding.rule.loan.LoanTenureRule;
 import com.f88.loanonboarding.rule.loan.RequestedAmountRule;
+import com.f88.loanonboarding.service.DocumentStorageService;
 import com.f88.loanonboarding.service.LoanApplicationService;
 
 @Service
@@ -76,6 +87,10 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     private final LoanApplicationStateTransitionRepository transitionRepository;
     private final LoanApplicationStepDataRepository stepDataRepository;
     private final LoanProductRepository loanProductRepository;
+    private final LoanApplicationReferencePersonRepository referencePersonRepository;
+    private final LoanApplicationDocumentRepository documentRepository;
+    private final AssetValuationRepository assetValuationRepository;
+    private final DocumentStorageService documentStorageService;
     private final RuleEvaluationService ruleEvaluationService;
     private final ObjectMapper objectMapper;
 
@@ -89,6 +104,10 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
             LoanApplicationStateTransitionRepository transitionRepository,
             LoanApplicationStepDataRepository stepDataRepository,
             LoanProductRepository loanProductRepository,
+            LoanApplicationReferencePersonRepository referencePersonRepository,
+            LoanApplicationDocumentRepository documentRepository,
+            AssetValuationRepository assetValuationRepository,
+            DocumentStorageService documentStorageService,
             RuleEvaluationService ruleEvaluationService,
             ObjectMapper objectMapper
     ) {
@@ -101,6 +120,10 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
         this.transitionRepository = transitionRepository;
         this.stepDataRepository = stepDataRepository;
         this.loanProductRepository = loanProductRepository;
+        this.referencePersonRepository = referencePersonRepository;
+        this.documentRepository = documentRepository;
+        this.assetValuationRepository = assetValuationRepository;
+        this.documentStorageService = documentStorageService;
         this.ruleEvaluationService = ruleEvaluationService;
         this.objectMapper = objectMapper;
     }
@@ -138,8 +161,15 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
     public LoanApplicationDetailResponse getDetail(String applicationCode) {
         LoanApplication application = findApplication(applicationCode);
         return new LoanApplicationDetailResponse(
+                application.getId(),
                 application.getLoanApplicationCode(),
                 toStateEnum(application.getCurrentState()),
+                stateDisplayName(application.getCurrentState().getCode()),
+                application.getCurrentStep() == null ? null : application.getCurrentStep().getCode(),
+                application.getCurrentStep() == null ? null : application.getCurrentStep().getName(),
+                application.getExpiredAt(),
+                application.getCreatedAt(),
+                application.getUpdatedAt(),
                 application.getCustomer().getCustomerCode(),
                 mapOf(
                         "fullName", application.getCustomer().getFullName(),
@@ -155,7 +185,13 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 toAssetSnapshot(application.getAsset()),
                 Map.of(),
                 Map.of("source", "database"),
-                latestChangedAt(application)
+                latestChangedAt(application),
+                toCustomerResponse(application.getCustomer()),
+                toLoanInfoResponse(application),
+                toAssetResponse(application.getAsset()),
+                toValuationResponse(application.getAsset()),
+                toReferenceResponses(application),
+                toDocumentResponses(application)
         );
     }
 
@@ -456,6 +492,152 @@ public class LoanApplicationServiceImpl implements LoanApplicationService {
                 "vehicleColor", variant.getVehicleColor().getCode(),
                 "assetState", asset.getStatus()
         );
+    }
+
+    private LoanApplicationOnboardingCustomerResponse toCustomerResponse(Customer customer) {
+        return new LoanApplicationOnboardingCustomerResponse(
+                customer.getId(),
+                customer.getCustomerCode(),
+                customer.getFullName(),
+                customer.getPhoneNumber(),
+                customer.getIdentityNumber(),
+                customer.getDateOfBirth(),
+                enumName(customer.getGender()),
+                customer.getEmail(),
+                enumName(customer.getMaritalStatus()),
+                customer.getPermanentAddress(),
+                enumName(customer.getStatus())
+        );
+    }
+
+    private LoanApplicationOnboardingLoanInfoResponse toLoanInfoResponse(LoanApplication application) {
+        var loanPurpose = application.getLoanPurpose();
+        var loanTerm = application.getLoanTerm();
+        var occupation = application.getOccupation();
+        var incomeSource = application.getIncomeSource();
+        var bank = application.getDisbursementBank();
+        var loanProduct = application.getLoanProduct();
+
+        return new LoanApplicationOnboardingLoanInfoResponse(
+                application.getRequestedAmount(),
+                application.getLoanTermMonths(),
+                application.getBranch(),
+                application.getCurrentAddress(),
+                application.getWorkplaceName(),
+                application.getWorkplaceAddress(),
+                application.getMonthlyIncomeAmount(),
+                loanPurpose == null ? null : loanPurpose.getCode(),
+                loanPurpose == null ? null : loanPurpose.getName(),
+                loanTerm == null ? null : loanTerm.getCode(),
+                loanTerm == null ? null : loanTerm.getName(),
+                occupation == null ? null : occupation.getCode(),
+                occupation == null ? null : occupation.getName(),
+                incomeSource == null ? null : incomeSource.getCode(),
+                incomeSource == null ? null : incomeSource.getName(),
+                bank == null ? null : bank.getCode(),
+                bank == null ? null : bank.getName(),
+                application.getDisbursementAccountNumber(),
+                application.getDisbursementAccountName(),
+                loanProduct == null ? null : loanProduct.getProductCode(),
+                loanProduct == null ? null : loanProduct.getProductName(),
+                loanProduct == null ? null : loanProduct.getMonthlyInterestRatePercent(),
+                loanProduct == null ? null : loanProduct.getMaxLtvPercent()
+        );
+    }
+
+    private LoanApplicationOnboardingAssetResponse toAssetResponse(Asset asset) {
+        if (asset == null) {
+            return null;
+        }
+
+        var variant = asset.getVehicleVariant();
+        var vehicleYear = variant.getVehicleYear();
+        var vehicleVersion = vehicleYear.getVehicleVersion();
+        var vehicleModel = vehicleVersion.getVehicleModel();
+        var vehicleBrand = vehicleModel.getVehicleBrand();
+        var vehicleType = vehicleBrand.getVehicleType();
+        var vehicleColor = variant.getVehicleColor();
+
+        return new LoanApplicationOnboardingAssetResponse(
+                asset.getId(),
+                asset.getAssetCode(),
+                asset.getLicensePlate(),
+                enumName(asset.getStatus()),
+                asset.getFrameNumber(),
+                asset.getEngineNumber(),
+                asset.getRegistrationNumber(),
+                asset.getRegistrationIssueDate(),
+                vehicleType.getCode(),
+                vehicleType.getName(),
+                vehicleBrand.getCode(),
+                vehicleBrand.getName(),
+                vehicleModel.getCode(),
+                vehicleModel.getName(),
+                vehicleVersion.getCode(),
+                vehicleVersion.getName(),
+                vehicleYear.getManufactureYear(),
+                vehicleColor.getCode(),
+                vehicleColor.getName(),
+                variant.getCode(),
+                variant.getName()
+        );
+    }
+
+    private LoanApplicationOnboardingValuationResponse toValuationResponse(Asset asset) {
+        if (asset == null) {
+            return null;
+        }
+
+        return assetValuationRepository.findTopByAssetOrderByValuedAtDesc(asset)
+                .map(this::toValuationResponse)
+                .orElse(null);
+    }
+
+    private LoanApplicationOnboardingValuationResponse toValuationResponse(AssetValuation valuation) {
+        return new LoanApplicationOnboardingValuationResponse(
+                valuation.getId(),
+                valuation.getMarketPriceAmount(),
+                valuation.getTotalDeductionAmount(),
+                valuation.getFinalValueAmount(),
+                valuation.getCurrencyCode(),
+                valuation.getValuationSource(),
+                valuation.getValuedAt(),
+                valuation.getValuedBy(),
+                valuation.getNote()
+        );
+    }
+
+    private List<LoanApplicationOnboardingReferencePersonResponse> toReferenceResponses(LoanApplication application) {
+        return referencePersonRepository.findByLoanApplicationId(application.getId())
+                .stream()
+                .map(reference -> new LoanApplicationOnboardingReferencePersonResponse(
+                        reference.getId(),
+                        reference.getFullName(),
+                        reference.getPhoneNumber(),
+                        reference.getAddress(),
+                        enumName(reference.getRelationshipType()),
+                        reference.getNote()
+                ))
+                .toList();
+    }
+
+    private List<LoanApplicationDocumentListResponse.DocumentItem> toDocumentResponses(LoanApplication application) {
+        return documentRepository.findByLoanApplicationIdOrderByUploadedAtDesc(application.getId())
+                .stream()
+                .map(document -> new LoanApplicationDocumentListResponse.DocumentItem(
+                        document.getId(),
+                        document.getDocumentType().getCode(),
+                        document.getDocumentType().getName(),
+                        documentStorageService.createReadUrl(document.getFileUrl()),
+                        document.getFileName(),
+                        document.getUploadedAt(),
+                        document.getUploadedBy()
+                ))
+                .toList();
+    }
+
+    private String enumName(Enum<?> value) {
+        return value == null ? null : value.name();
     }
 
     private String nextApplicationCode() {

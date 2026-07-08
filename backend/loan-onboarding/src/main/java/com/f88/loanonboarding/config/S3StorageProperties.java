@@ -10,6 +10,7 @@ public record S3StorageProperties(
         String bucket,
         String endpoint,
         String publicUrlBase,
-        boolean pathStyleAccessEnabled
+        boolean pathStyleAccessEnabled,
+        long presignedUrlDurationMinutes
 ) {
 }

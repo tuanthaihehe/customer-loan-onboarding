@@ -17,6 +17,11 @@ public record LoanApplicationOnboardingDetailResponse(
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         LoanApplicationOnboardingCustomerResponse customer,
-        List<LoanApplicationStepResponse> steps
+        List<LoanApplicationStepResponse> steps,
+        LoanApplicationOnboardingLoanInfoResponse loanInfo,
+        LoanApplicationOnboardingAssetResponse asset,
+        LoanApplicationOnboardingValuationResponse valuation,
+        List<LoanApplicationOnboardingReferencePersonResponse> references,
+        List<LoanApplicationDocumentListResponse.DocumentItem> documents
 ) {
 }

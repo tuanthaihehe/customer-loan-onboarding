@@ -19,6 +19,12 @@ public interface CustomerRepository extends JpaRepository<Customer, UUID> {
 
     boolean existsByPhoneNumber(String phoneNumber);
 
+    boolean existsByIdentityNumberAndIdNot(String identityNumber, UUID id);
+
+    boolean existsByPhoneNumberAndIdNot(String phoneNumber, UUID id);
+
+    boolean existsByEmailAndIdNot(String email, UUID id);
+
     Optional<Customer> findTopByCustomerCodeStartingWithOrderByCustomerCodeDesc(String prefix);
 
     @Query("""

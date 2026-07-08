@@ -9,6 +9,11 @@ public record LoanApplicationOnboardingCustomerResponse(
         String fullName,
         String phoneNumber,
         String identityNumber,
-        LocalDate dateOfBirth
+        LocalDate dateOfBirth,
+        String gender,
+        String email,
+        String maritalStatus,
+        String permanentAddress,
+        String status
 ) {
 }

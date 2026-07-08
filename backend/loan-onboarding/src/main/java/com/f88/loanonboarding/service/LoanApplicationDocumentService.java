@@ -17,4 +17,6 @@ public interface LoanApplicationDocumentService {
     );
 
     LoanApplicationDocumentListResponse findDocuments(String applicationCode);
+
+    void deleteDocument(String applicationCode, String documentId);
 }

@@ -2,6 +2,7 @@ package com.f88.loanonboarding.controller;
 
 import java.util.List;
 
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -107,6 +108,19 @@ public class LoanApplicationOnboardingController {
     @GetMapping("/{applicationCode}/documents")
     public ApiResponse<LoanApplicationDocumentListResponse> findDocuments(@PathVariable String applicationCode) {
         return ApiResponse.success(documentService.findDocuments(applicationCode));
+    }
+
+    @Operation(
+            summary = "Xóa chứng từ của hồ sơ vay",
+            description = "Xóa reference trong loan_application_document và object tương ứng trên S3 nếu storage hiện tại hỗ trợ."
+    )
+    @DeleteMapping("/{applicationCode}/documents/{documentId}")
+    public ApiResponse<Void> deleteDocument(
+            @PathVariable String applicationCode,
+            @PathVariable String documentId
+    ) {
+        documentService.deleteDocument(applicationCode, documentId);
+        return ApiResponse.success("Document deleted", null);
     }
 
     @Operation(

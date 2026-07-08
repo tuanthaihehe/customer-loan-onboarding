@@ -1,10 +1,13 @@
 package com.f88.loanonboarding.service.impl;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Year;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -18,28 +21,55 @@ import com.f88.loanonboarding.common.error.ErrorCode;
 import com.f88.loanonboarding.dto.request.loan.CancelLoanApplicationOnboardingRequest;
 import com.f88.loanonboarding.dto.request.loan.CompleteLoanApplicationStepRequest;
 import com.f88.loanonboarding.dto.request.loan.CreateLoanApplicationOnboardingRequest;
+import com.f88.loanonboarding.dto.response.loan.LoanApplicationDocumentListResponse;
+import com.f88.loanonboarding.dto.response.loan.LoanApplicationOnboardingAssetResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationOnboardingCustomerResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationOnboardingDetailResponse;
+import com.f88.loanonboarding.dto.response.loan.LoanApplicationOnboardingLoanInfoResponse;
+import com.f88.loanonboarding.dto.response.loan.LoanApplicationOnboardingReferencePersonResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationStepActionResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationStepResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationSubmitResponse;
 import com.f88.loanonboarding.dto.response.loan.LoanApplicationOnboardingSummaryResponse;
+import com.f88.loanonboarding.dto.response.loan.LoanApplicationOnboardingValuationResponse;
+import com.f88.loanonboarding.entity.Asset;
+import com.f88.loanonboarding.entity.AssetValuation;
 import com.f88.loanonboarding.entity.Customer;
 import com.f88.loanonboarding.entity.LoanApplication;
+import com.f88.loanonboarding.entity.LoanApplicationDocument;
+import com.f88.loanonboarding.entity.LoanApplicationReferencePerson;
 import com.f88.loanonboarding.entity.LoanApplicationState;
 import com.f88.loanonboarding.entity.LoanApplicationStateHistory;
 import com.f88.loanonboarding.entity.LoanApplicationStep;
 import com.f88.loanonboarding.entity.LoanApplicationStepData;
 import com.f88.loanonboarding.entity.LoanApplicationStepHistory;
+import com.f88.loanonboarding.entity.LoanProduct;
 import com.f88.loanonboarding.entity.LoanPurpose;
 import com.f88.loanonboarding.entity.LoanTerm;
+import com.f88.loanonboarding.entity.VehicleBrand;
+import com.f88.loanonboarding.entity.VehicleColor;
+import com.f88.loanonboarding.entity.VehicleModel;
+import com.f88.loanonboarding.entity.VehicleType;
+import com.f88.loanonboarding.entity.VehicleVariant;
+import com.f88.loanonboarding.entity.VehicleVersion;
+import com.f88.loanonboarding.entity.VehicleYear;
 import com.f88.loanonboarding.enums.LoanApplicationOnboardingStatus;
 import com.f88.loanonboarding.enums.LoanApplicationStepDataStatus;
 import com.f88.loanonboarding.enums.LoanApplicationStepHistoryAction;
 import com.f88.loanonboarding.enums.LoanApplicationStepStatus;
+import com.f88.loanonboarding.enums.AssetStatus;
+import com.f88.loanonboarding.enums.Gender;
+import com.f88.loanonboarding.enums.MaritalStatus;
+import com.f88.loanonboarding.enums.ReferenceRelationshipType;
 import com.f88.loanonboarding.exception.BusinessException;
+import com.f88.loanonboarding.repository.AssetRepository;
+import com.f88.loanonboarding.repository.AssetValuationRepository;
+import com.f88.loanonboarding.repository.BankRepository;
 import com.f88.loanonboarding.repository.CustomerRepository;
+import com.f88.loanonboarding.repository.IncomeSourceRepository;
+import com.f88.loanonboarding.repository.LoanApplicationDocumentRepository;
 import com.f88.loanonboarding.repository.LoanApplicationRepository;
+import com.f88.loanonboarding.repository.LoanApplicationReferencePersonRepository;
 import com.f88.loanonboarding.repository.LoanApplicationStateHistoryRepository;
 import com.f88.loanonboarding.repository.LoanApplicationStateRepository;
 import com.f88.loanonboarding.repository.LoanApplicationStateTransitionRepository;
@@ -49,12 +79,16 @@ import com.f88.loanonboarding.repository.LoanApplicationStepRepository;
 import com.f88.loanonboarding.repository.LoanProductRepository;
 import com.f88.loanonboarding.repository.LoanPurposeRepository;
 import com.f88.loanonboarding.repository.LoanTermRepository;
+import com.f88.loanonboarding.repository.OccupationRepository;
+import com.f88.loanonboarding.repository.VehicleVariantRepository;
+import com.f88.loanonboarding.service.DocumentStorageService;
 import com.f88.loanonboarding.service.LoanApplicationOnboardingService;
 
 @Service
 public class LoanApplicationOnboardingServiceImpl implements LoanApplicationOnboardingService {
 
     private static final String STEP_CUSTOMER_IDENTIFY = "CUSTOMER_IDENTIFY";
+    private static final String STEP_UPLOAD_COMPLETE = "UPLOAD_COMPLETE";
     private static final String STATE_CREATED = "APP_CREATED";
     private static final String STATE_IN_PROGRESS = "APP_IN_PROGRESS";
     private static final String STATE_COMPLETED = "APP_COMPLETED";
@@ -73,6 +107,15 @@ public class LoanApplicationOnboardingServiceImpl implements LoanApplicationOnbo
     private final LoanPurposeRepository loanPurposeRepository;
     private final LoanTermRepository loanTermRepository;
     private final LoanProductRepository loanProductRepository;
+    private final OccupationRepository occupationRepository;
+    private final IncomeSourceRepository incomeSourceRepository;
+    private final BankRepository bankRepository;
+    private final AssetRepository assetRepository;
+    private final VehicleVariantRepository vehicleVariantRepository;
+    private final LoanApplicationReferencePersonRepository referencePersonRepository;
+    private final LoanApplicationDocumentRepository documentRepository;
+    private final AssetValuationRepository assetValuationRepository;
+    private final DocumentStorageService documentStorageService;
     private final ObjectMapper objectMapper;
 
     public LoanApplicationOnboardingServiceImpl(
@@ -87,6 +130,15 @@ public class LoanApplicationOnboardingServiceImpl implements LoanApplicationOnbo
             LoanPurposeRepository loanPurposeRepository,
             LoanTermRepository loanTermRepository,
             LoanProductRepository loanProductRepository,
+            OccupationRepository occupationRepository,
+            IncomeSourceRepository incomeSourceRepository,
+            BankRepository bankRepository,
+            AssetRepository assetRepository,
+            VehicleVariantRepository vehicleVariantRepository,
+            LoanApplicationReferencePersonRepository referencePersonRepository,
+            LoanApplicationDocumentRepository documentRepository,
+            AssetValuationRepository assetValuationRepository,
+            DocumentStorageService documentStorageService,
             ObjectMapper objectMapper
     ) {
         this.customerRepository = customerRepository;
@@ -100,6 +152,15 @@ public class LoanApplicationOnboardingServiceImpl implements LoanApplicationOnbo
         this.loanPurposeRepository = loanPurposeRepository;
         this.loanTermRepository = loanTermRepository;
         this.loanProductRepository = loanProductRepository;
+        this.occupationRepository = occupationRepository;
+        this.incomeSourceRepository = incomeSourceRepository;
+        this.bankRepository = bankRepository;
+        this.assetRepository = assetRepository;
+        this.vehicleVariantRepository = vehicleVariantRepository;
+        this.referencePersonRepository = referencePersonRepository;
+        this.documentRepository = documentRepository;
+        this.assetValuationRepository = assetValuationRepository;
+        this.documentStorageService = documentStorageService;
         this.objectMapper = objectMapper;
     }
 
@@ -179,7 +240,7 @@ public class LoanApplicationOnboardingServiceImpl implements LoanApplicationOnbo
         stepData.setPayload(toJson(request.payload()));
         stepData.setCompletedAt(now);
         stepData.setUpdatedAt(now);
-        stepData.setRequiresReview(false);
+        clearReviewMetadata(stepData);
         stepData.setReviewedAt(now);
         stepDataRepository.saveAndFlush(stepData);
 
@@ -189,13 +250,14 @@ public class LoanApplicationOnboardingServiceImpl implements LoanApplicationOnbo
         LoanApplicationStep nextStep = nextStep(steps, stepData.getStep());
         boolean allCompleted = allStepsCompleted(applicationCode);
         LoanApplicationState previousState = application.getCurrentState();
+        boolean alreadyCompleted = STATE_COMPLETED.equals(previousState.getCode());
         if (nextStep != null) {
             application.setCurrentStep(nextStep);
         }
         if (STATE_CREATED.equals(previousState.getCode()) && STEP_CUSTOMER_IDENTIFY.equals(stepCode)) {
             transitionState(application, STATE_IN_PROGRESS, "IDENTIFY_COMPLETE", "Customer identify completed");
         }
-        if (allCompleted) {
+        if (allCompleted && !alreadyCompleted) {
             transitionState(application, STATE_COMPLETED, "COMPLETE_APPLICATION", "All application steps completed");
         }
         application.setUpdatedAt(now);
@@ -203,7 +265,7 @@ public class LoanApplicationOnboardingServiceImpl implements LoanApplicationOnbo
 
         markDownstreamRequiresReview(application, stepData.getStep(), now);
         saveStepHistory(application, stepData.getStep(), LoanApplicationStepHistoryAction.COMPLETE_STEP, oldStatus.name(), "COMPLETED", "Complete application step", toJson(request.payload()));
-        if (allCompleted) {
+        if (allCompleted && !alreadyCompleted) {
             saveStepHistory(application, null, LoanApplicationStepHistoryAction.COMPLETE_APPLICATION, previousState.getCode(), STATE_COMPLETED, "Application completed", EMPTY_JSON);
         }
 
@@ -305,6 +367,13 @@ public class LoanApplicationOnboardingServiceImpl implements LoanApplicationOnbo
         }
     }
 
+    private void clearReviewMetadata(LoanApplicationStepData stepData) {
+        stepData.setRequiresReview(false);
+        stepData.setInvalidatedAt(null);
+        stepData.setInvalidatedByStep(null);
+        stepData.setInvalidatedReason(null);
+    }
+
     private boolean allStepsCompleted(String applicationCode) {
         return stepDataRepository.findByLoanApplication_LoanApplicationCodeOrderByStep_StepOrderAsc(applicationCode)
                 .stream()
@@ -317,6 +386,7 @@ public class LoanApplicationOnboardingServiceImpl implements LoanApplicationOnbo
             throw new BusinessException(ErrorCode.INVALID_LOAN_APPLICATION_STATE, "Application must be APP_COMPLETED before submit.");
         }
         List<LoanApplicationStepData> steps = stepDataRepository.findByLoanApplication_LoanApplicationCodeOrderByStep_StepOrderAsc(applicationCode);
+        normalizeCompletedUploadStepReview(steps);
         List<String> incompleteSteps = steps.stream()
                 .filter(step -> step.getStatus() != LoanApplicationStepStatus.COMPLETED)
                 .map(step -> step.getStep().getCode())
@@ -331,6 +401,21 @@ public class LoanApplicationOnboardingServiceImpl implements LoanApplicationOnbo
         if (!reviewSteps.isEmpty()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "Application has steps requiring review: " + String.join(", ", reviewSteps));
         }
+    }
+
+    private void normalizeCompletedUploadStepReview(List<LoanApplicationStepData> steps) {
+        steps.stream()
+                .filter(step -> STEP_UPLOAD_COMPLETE.equals(step.getStep().getCode()))
+                .filter(step -> step.getStatus() == LoanApplicationStepStatus.COMPLETED)
+                .filter(LoanApplicationStepData::isRequiresReview)
+                .findFirst()
+                .ifPresent(step -> {
+                    LocalDateTime now = LocalDateTime.now();
+                    clearReviewMetadata(step);
+                    step.setReviewedAt(now);
+                    step.setUpdatedAt(now);
+                    stepDataRepository.saveAndFlush(step);
+                });
     }
 
     private void transitionState(LoanApplication application, String toStateCode, String actionCode, String note) {
@@ -353,6 +438,9 @@ public class LoanApplicationOnboardingServiceImpl implements LoanApplicationOnbo
         List<LoanApplicationStepData> steps = stepDataRepository.findByLoanApplication_LoanApplicationCodeOrderByStep_StepOrderAsc(applicationCode);
         JsonNode preliminary = payloadByStep(steps, "PRELIMINARY_INFO");
         JsonNode mergedProposal = payloadByStep(steps, "CUSTOMER_ASSET_LOAN_PROPOSAL");
+
+        applyCustomerPayload(application.getCustomer(), preliminary, mergedProposal);
+        applyCustomerDetailPayload(application, preliminary, mergedProposal);
 
         BigDecimal requestedAmount = firstNumber(
                 at(mergedProposal, "selected_loan_offer", "final_requested_amount"),
@@ -410,6 +498,257 @@ public class LoanApplicationOnboardingServiceImpl implements LoanApplicationOnbo
         if (productCode != null) {
             loanProductRepository.findByProductCode(productCode).ifPresent(application::setLoanProduct);
         }
+
+        applyAssetPayload(application, preliminary, mergedProposal);
+        applyReferencePersonsPayload(application, mergedProposal);
+        applyValuationPayload(application, preliminary, mergedProposal);
+        loanApplicationRepository.save(application);
+    }
+
+    private void applyCustomerPayload(Customer customer, JsonNode preliminary, JsonNode mergedProposal) {
+        JsonNode applicantSnapshot = at(preliminary, "applicantSnapshot");
+        JsonNode customerDetail = at(mergedProposal, "customerDetail");
+
+        String fullName = firstText(at(customerDetail, "fullName"), at(applicantSnapshot, "fullName"));
+        if (fullName != null) {
+            customer.setFullName(fullName);
+        }
+        String identityNumber = firstText(at(customerDetail, "identityNumber"), at(applicantSnapshot, "identifierNumber"));
+        if (identityNumber != null && !customerRepository.existsByIdentityNumberAndIdNot(identityNumber, customer.getId())) {
+            customer.setIdentityNumber(identityNumber);
+        }
+        String phoneNumber = firstText(at(customerDetail, "phoneNumber"), at(applicantSnapshot, "phoneNumber"));
+        if (phoneNumber != null && !customerRepository.existsByPhoneNumberAndIdNot(phoneNumber, customer.getId())) {
+            customer.setPhoneNumber(phoneNumber);
+        }
+        LocalDate dateOfBirth = firstDate(at(customerDetail, "dateOfBirth"), at(applicantSnapshot, "dateOfBirth"));
+        if (dateOfBirth != null) {
+            customer.setDateOfBirth(dateOfBirth);
+        }
+        Gender gender = enumValue(Gender.class, firstText(at(customerDetail, "gender"), at(applicantSnapshot, "gender")));
+        if (gender != null) {
+            customer.setGender(gender);
+        }
+        String email = firstText(at(customerDetail, "email"));
+        if (email != null && !customerRepository.existsByEmailAndIdNot(email, customer.getId())) {
+            customer.setEmail(email);
+        }
+        MaritalStatus maritalStatus = enumValue(MaritalStatus.class, firstText(at(customerDetail, "maritalStatus")));
+        if (maritalStatus != null) {
+            customer.setMaritalStatus(maritalStatus);
+        }
+        String permanentAddress = firstText(at(customerDetail, "permanentAddress"));
+        if (permanentAddress != null) {
+            customer.setPermanentAddress(permanentAddress);
+        }
+        customerRepository.save(customer);
+    }
+
+    private void applyCustomerDetailPayload(LoanApplication application, JsonNode preliminary, JsonNode mergedProposal) {
+        JsonNode customerDetail = at(mergedProposal, "customerDetail");
+        JsonNode applicantSnapshot = at(preliminary, "applicantSnapshot");
+
+        String currentAddress = firstText(at(customerDetail, "currentAddress"));
+        if (currentAddress != null) {
+            application.setCurrentAddress(currentAddress);
+        }
+        String workplaceName = firstText(at(customerDetail, "workplaceName"));
+        if (workplaceName != null) {
+            application.setWorkplaceName(workplaceName);
+        }
+        String workplaceAddress = firstText(at(customerDetail, "workplaceAddress"));
+        if (workplaceAddress != null) {
+            application.setWorkplaceAddress(workplaceAddress);
+        }
+        BigDecimal monthlyIncome = firstNumber(
+                at(customerDetail, "monthlyIncomeAmount"),
+                at(applicantSnapshot, "monthlyIncome")
+        );
+        if (monthlyIncome != null) {
+            application.setMonthlyIncomeAmount(monthlyIncome);
+        }
+        String occupationCode = firstText(at(customerDetail, "occupationCode"), at(applicantSnapshot, "occupation"));
+        if (occupationCode != null) {
+            occupationRepository.findByCode(occupationCode).ifPresent(application::setOccupation);
+        }
+        String incomeSourceCode = firstText(at(customerDetail, "incomeSourceCode"));
+        if (incomeSourceCode != null) {
+            incomeSourceRepository.findByCode(incomeSourceCode).ifPresent(application::setIncomeSource);
+        }
+        String bankCode = firstText(at(customerDetail, "disbursementBankCode"));
+        if (bankCode != null) {
+            bankRepository.findByCode(bankCode).ifPresent(application::setDisbursementBank);
+        }
+        String accountNumber = firstText(at(customerDetail, "disbursementAccountNumber"));
+        if (accountNumber != null) {
+            application.setDisbursementAccountNumber(accountNumber);
+        }
+        String accountName = firstText(at(customerDetail, "disbursementAccountName"));
+        if (accountName != null) {
+            application.setDisbursementAccountName(accountName);
+        }
+    }
+
+    private void applyAssetPayload(LoanApplication application, JsonNode preliminary, JsonNode mergedProposal) {
+        JsonNode assetDetail = at(mergedProposal, "assetDetail");
+        JsonNode assetSnapshot = at(preliminary, "assetSnapshot");
+        String licensePlate = normalizeLicensePlate(firstText(at(assetDetail, "licensePlate")));
+        String vehicleVariantCode = firstText(at(assetDetail, "vehicleVariant"), at(assetSnapshot, "vehicleVariant"));
+
+        if (licensePlate == null || vehicleVariantCode == null) {
+            return;
+        }
+
+        VehicleVariant variant = vehicleVariantRepository.findByCode(vehicleVariantCode)
+                .orElseThrow(() -> new BusinessException(
+                        ErrorCode.RESOURCE_NOT_FOUND,
+                        "Không tìm thấy phiên bản xe trong database: " + vehicleVariantCode
+                ));
+        Asset asset = assetRepository.findByLicensePlate(licensePlate)
+                .orElseGet(() -> createAsset(licensePlate, variant));
+        asset.setVehicleVariant(variant);
+
+        String frameNumber = normalizeIdentifier(firstText(at(assetDetail, "frameNumber")));
+        if (canUseUniqueAssetIdentifier(frameNumber, findAssetByFrameNumber(frameNumber), asset)) {
+            asset.setFrameNumber(frameNumber);
+        }
+        String engineNumber = normalizeIdentifier(firstText(at(assetDetail, "engineNumber")));
+        if (canUseUniqueAssetIdentifier(engineNumber, findAssetByEngineNumber(engineNumber), asset)) {
+            asset.setEngineNumber(engineNumber);
+        }
+        String registrationNumber = normalizeIdentifier(firstText(at(assetDetail, "registrationNumber")));
+        if (canUseUniqueAssetIdentifier(registrationNumber, findAssetByRegistrationNumber(registrationNumber), asset)) {
+            asset.setRegistrationNumber(registrationNumber);
+        }
+        LocalDate registrationIssueDate = firstDate(at(assetDetail, "registrationIssueDate"));
+        if (registrationIssueDate != null) {
+            asset.setRegistrationIssueDate(registrationIssueDate);
+        }
+
+        application.setAsset(assetRepository.save(asset));
+    }
+
+    private void applyReferencePersonsPayload(LoanApplication application, JsonNode mergedProposal) {
+        JsonNode references = at(mergedProposal, "referencePersons");
+        if (references == null || !references.isArray()) {
+            return;
+        }
+
+        referencePersonRepository.deleteByLoanApplicationId(application.getId());
+        referencePersonRepository.flush();
+        LocalDateTime now = LocalDateTime.now();
+        Set<String> seenPhoneNumbers = new HashSet<>();
+        for (JsonNode item : references) {
+            String fullName = firstText(at(item, "fullName"));
+            String phoneNumber = firstText(at(item, "phoneNumber"));
+            ReferenceRelationshipType relationshipType = enumValue(
+                    ReferenceRelationshipType.class,
+                    firstText(at(item, "relationshipType"))
+            );
+            if (fullName == null || phoneNumber == null || relationshipType == null) {
+                continue;
+            }
+            String normalizedPhoneNumber = phoneNumber.trim();
+            if (!seenPhoneNumbers.add(normalizedPhoneNumber)) {
+                continue;
+            }
+
+            LoanApplicationReferencePerson referencePerson = new LoanApplicationReferencePerson();
+            referencePerson.setLoanApplication(application);
+            referencePerson.setFullName(fullName);
+            referencePerson.setPhoneNumber(normalizedPhoneNumber);
+            referencePerson.setRelationshipType(relationshipType);
+            referencePerson.setAddress(firstText(at(item, "address")));
+            referencePerson.setNote(firstText(at(item, "note")));
+            referencePerson.setCreatedAt(now);
+            referencePerson.setUpdatedAt(now);
+            referencePersonRepository.save(referencePerson);
+        }
+    }
+
+    private void applyValuationPayload(LoanApplication application, JsonNode preliminary, JsonNode mergedProposal) {
+        Asset asset = application.getAsset();
+        if (asset == null) {
+            return;
+        }
+
+        BigDecimal marketValue = firstNumber(
+                at(mergedProposal, "valuation", "marketValue"),
+                at(mergedProposal, "valuation", "marketPriceAmount"),
+                at(mergedProposal, "valuation", "marketPrice", "priceAmount"),
+                at(mergedProposal, "valuation", "preview", "marketValue"),
+                at(preliminary, "valuation", "marketValue"),
+                at(preliminary, "valuation", "marketPrice", "priceAmount")
+        );
+        BigDecimal totalDeduction = firstNumber(
+                at(mergedProposal, "valuation", "totalDeductionAmount"),
+                at(mergedProposal, "valuation", "preview", "totalDeductionAmount"),
+                at(preliminary, "valuation", "totalDeductionAmount")
+        );
+        BigDecimal finalValue = firstNumber(
+                at(mergedProposal, "valuation", "finalValue"),
+                at(mergedProposal, "valuation", "finalValueAmount"),
+                at(mergedProposal, "valuation", "preview", "finalValue"),
+                at(preliminary, "valuation", "finalValue")
+        );
+
+        if (marketValue == null || finalValue == null) {
+            return;
+        }
+
+        AssetValuation valuation = assetValuationRepository.findTopByAssetOrderByValuedAtDesc(asset)
+                .orElseGet(AssetValuation::new);
+        valuation.setAsset(asset);
+        valuation.setMarketPriceAmount(marketValue);
+        valuation.setTotalDeductionAmount(totalDeduction == null ? BigDecimal.ZERO : totalDeduction);
+        valuation.setFinalValueAmount(finalValue);
+        valuation.setCurrencyCode("VND");
+        valuation.setValuationSource("ONBOARDING_STEP_PAYLOAD");
+        valuation.setValuedAt(LocalDateTime.now());
+        assetValuationRepository.save(valuation);
+    }
+
+    private Asset createAsset(String licensePlate, VehicleVariant variant) {
+        Asset asset = new Asset();
+        asset.setAssetCode(nextAssetCode());
+        asset.setLicensePlate(licensePlate);
+        asset.setVehicleVariant(variant);
+        asset.setStatus(AssetStatus.AVAILABLE);
+        return asset;
+    }
+
+    private String nextAssetCode() {
+        String prefix = "AST-" + Year.now().getValue() + "-";
+        long sequence = assetRepository.countByAssetCodeStartingWith(prefix) + 1;
+        return prefix + String.format("%06d", sequence);
+    }
+
+    private boolean canUseUniqueAssetIdentifier(String value, Asset existing, Asset current) {
+        return value != null && (existing == null || existing.getId().equals(current.getId()));
+    }
+
+    private Asset findAssetByFrameNumber(String frameNumber) {
+        return frameNumber == null ? null : assetRepository.findByFrameNumber(frameNumber).orElse(null);
+    }
+
+    private Asset findAssetByEngineNumber(String engineNumber) {
+        return engineNumber == null ? null : assetRepository.findByEngineNumber(engineNumber).orElse(null);
+    }
+
+    private Asset findAssetByRegistrationNumber(String registrationNumber) {
+        return registrationNumber == null ? null : assetRepository.findByRegistrationNumber(registrationNumber).orElse(null);
+    }
+
+    private String normalizeLicensePlate(String value) {
+        String normalized = normalizeIdentifier(value);
+        return normalized == null ? null : normalized.replaceAll("\\s+", "");
+    }
+
+    private String normalizeIdentifier(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim().toUpperCase();
     }
 
     private JsonNode payloadByStep(List<LoanApplicationStepData> steps, String stepCode) {
@@ -437,7 +776,12 @@ public class LoanApplicationOnboardingServiceImpl implements LoanApplicationOnbo
                 application.getCreatedAt(),
                 application.getUpdatedAt(),
                 toCustomerResponse(application.getCustomer()),
-                steps
+                steps,
+                toLoanInfoResponse(application),
+                toAssetResponse(application.getAsset()),
+                toValuationResponse(application.getAsset()),
+                toReferenceResponses(application),
+                toDocumentResponses(application)
         );
     }
 
@@ -464,8 +808,149 @@ public class LoanApplicationOnboardingServiceImpl implements LoanApplicationOnbo
                 customer.getFullName(),
                 customer.getPhoneNumber(),
                 customer.getIdentityNumber(),
-                customer.getDateOfBirth()
+                customer.getDateOfBirth(),
+                customer.getGender() == null ? null : customer.getGender().name(),
+                customer.getEmail(),
+                customer.getMaritalStatus() == null ? null : customer.getMaritalStatus().name(),
+                customer.getPermanentAddress(),
+                customer.getStatus() == null ? null : customer.getStatus().name()
         );
+    }
+
+    private LoanApplicationOnboardingLoanInfoResponse toLoanInfoResponse(LoanApplication application) {
+        LoanPurpose loanPurpose = application.getLoanPurpose();
+        LoanTerm loanTerm = application.getLoanTerm();
+        LoanProduct loanProduct = application.getLoanProduct();
+
+        return new LoanApplicationOnboardingLoanInfoResponse(
+                application.getRequestedAmount(),
+                application.getLoanTermMonths(),
+                application.getBranch(),
+                application.getCurrentAddress(),
+                application.getWorkplaceName(),
+                application.getWorkplaceAddress(),
+                application.getMonthlyIncomeAmount(),
+                loanPurpose == null ? null : loanPurpose.getCode(),
+                loanPurpose == null ? null : loanPurpose.getName(),
+                loanTerm == null ? null : loanTerm.getCode(),
+                loanTerm == null ? null : loanTerm.getName(),
+                application.getOccupation() == null ? null : application.getOccupation().getCode(),
+                application.getOccupation() == null ? null : application.getOccupation().getName(),
+                application.getIncomeSource() == null ? null : application.getIncomeSource().getCode(),
+                application.getIncomeSource() == null ? null : application.getIncomeSource().getName(),
+                application.getDisbursementBank() == null ? null : application.getDisbursementBank().getCode(),
+                application.getDisbursementBank() == null ? null : application.getDisbursementBank().getName(),
+                application.getDisbursementAccountNumber(),
+                application.getDisbursementAccountName(),
+                loanProduct == null ? null : loanProduct.getProductCode(),
+                loanProduct == null ? null : loanProduct.getProductName(),
+                loanProduct == null ? null : loanProduct.getMonthlyInterestRatePercent(),
+                loanProduct == null ? null : loanProduct.getMaxLtvPercent()
+        );
+    }
+
+    private LoanApplicationOnboardingAssetResponse toAssetResponse(Asset asset) {
+        if (asset == null) {
+            return null;
+        }
+
+        VehicleVariant variant = asset.getVehicleVariant();
+        VehicleColor color = variant == null ? null : variant.getVehicleColor();
+        VehicleYear year = variant == null ? null : variant.getVehicleYear();
+        VehicleVersion version = year == null ? null : year.getVehicleVersion();
+        VehicleModel model = version == null ? null : version.getVehicleModel();
+        VehicleBrand brand = model == null ? null : model.getVehicleBrand();
+        VehicleType type = brand == null ? null : brand.getVehicleType();
+
+        return new LoanApplicationOnboardingAssetResponse(
+                asset.getId(),
+                asset.getAssetCode(),
+                asset.getLicensePlate(),
+                asset.getStatus() == null ? null : asset.getStatus().name(),
+                asset.getFrameNumber(),
+                asset.getEngineNumber(),
+                asset.getRegistrationNumber(),
+                asset.getRegistrationIssueDate(),
+                type == null ? null : type.getCode(),
+                type == null ? null : type.getName(),
+                brand == null ? null : brand.getCode(),
+                brand == null ? null : brand.getName(),
+                model == null ? null : model.getCode(),
+                model == null ? null : model.getName(),
+                version == null ? null : version.getCode(),
+                version == null ? null : version.getName(),
+                year == null ? null : year.getManufactureYear(),
+                color == null ? null : color.getCode(),
+                color == null ? null : color.getName(),
+                variant == null ? null : variant.getCode(),
+                variant == null ? null : variant.getName()
+        );
+    }
+
+    private LoanApplicationOnboardingValuationResponse toValuationResponse(Asset asset) {
+        if (asset == null) {
+            return null;
+        }
+
+        return assetValuationRepository.findTopByAssetOrderByValuedAtDesc(asset)
+                .map(this::toValuationResponse)
+                .orElse(null);
+    }
+
+    private LoanApplicationOnboardingValuationResponse toValuationResponse(AssetValuation valuation) {
+        return new LoanApplicationOnboardingValuationResponse(
+                valuation.getId(),
+                valuation.getMarketPriceAmount(),
+                valuation.getTotalDeductionAmount(),
+                valuation.getFinalValueAmount(),
+                valuation.getCurrencyCode(),
+                valuation.getValuationSource(),
+                valuation.getValuedAt(),
+                valuation.getValuedBy(),
+                valuation.getNote()
+        );
+    }
+
+    private List<LoanApplicationOnboardingReferencePersonResponse> toReferenceResponses(LoanApplication application) {
+        return referencePersonRepository.findByLoanApplicationId(application.getId())
+                .stream()
+                .map(this::toReferenceResponse)
+                .toList();
+    }
+
+    private LoanApplicationOnboardingReferencePersonResponse toReferenceResponse(LoanApplicationReferencePerson referencePerson) {
+        return new LoanApplicationOnboardingReferencePersonResponse(
+                referencePerson.getId(),
+                referencePerson.getFullName(),
+                referencePerson.getPhoneNumber(),
+                referencePerson.getAddress(),
+                referencePerson.getRelationshipType() == null ? null : referencePerson.getRelationshipType().name(),
+                referencePerson.getNote()
+        );
+    }
+
+    private List<LoanApplicationDocumentListResponse.DocumentItem> toDocumentResponses(LoanApplication application) {
+        return documentRepository.findByLoanApplicationIdOrderByUploadedAtDesc(application.getId())
+                .stream()
+                .map(this::toDocumentResponse)
+                .toList();
+    }
+
+    private LoanApplicationDocumentListResponse.DocumentItem toDocumentResponse(LoanApplicationDocument document) {
+        return new LoanApplicationDocumentListResponse.DocumentItem(
+                document.getId(),
+                document.getDocumentType().getCode(),
+                document.getDocumentType().getName(),
+                resolveDocumentReadUrl(document.getFileUrl()),
+                document.getFileName(),
+                document.getUploadedAt(),
+                document.getUploadedBy()
+        );
+    }
+
+    private String resolveDocumentReadUrl(String storedUrl) {
+        String readUrl = documentStorageService.createReadUrl(storedUrl);
+        return readUrl == null || readUrl.isBlank() ? storedUrl : readUrl;
     }
 
     private LoanApplicationStepResponse toStepResponse(LoanApplicationStepData stepData) {
@@ -642,5 +1127,28 @@ public class LoanApplicationOnboardingServiceImpl implements LoanApplicationOnbo
             }
         }
         return null;
+    }
+
+    private LocalDate firstDate(JsonNode... nodes) {
+        String value = firstText(nodes);
+        if (value == null) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(value);
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private <T extends Enum<T>> T enumValue(Class<T> enumClass, String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return Enum.valueOf(enumClass, value.trim().toUpperCase());
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
     }
 }

@@ -5,4 +5,11 @@ import org.springframework.web.multipart.MultipartFile;
 public interface DocumentStorageService {
 
     StoredDocumentFile store(String applicationCode, String documentTypeCode, MultipartFile file);
+
+    default String createReadUrl(String storedUrl) {
+        return storedUrl;
+    }
+
+    default void delete(String storedUrl) {
+    }
 }

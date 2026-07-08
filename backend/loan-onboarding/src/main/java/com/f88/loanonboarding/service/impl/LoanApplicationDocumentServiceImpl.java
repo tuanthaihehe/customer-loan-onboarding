@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -136,6 +137,24 @@ public class LoanApplicationDocumentServiceImpl implements LoanApplicationDocume
         );
     }
 
+    @Override
+    @Transactional
+    public void deleteDocument(String applicationCode, String documentId) {
+        LoanApplication application = loanApplicationRepository.findByLoanApplicationCode(applicationCode)
+                .orElseThrow(() -> new BusinessException(ErrorCode.LOAN_APPLICATION_NOT_FOUND));
+        ensureEditableApplication(application);
+
+        LoanApplicationDocument document = documentRepository.findById(parseDocumentId(documentId))
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Chứng từ không tồn tại."));
+
+        if (!document.getLoanApplication().getId().equals(application.getId())) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND, "Chứng từ không thuộc hồ sơ vay này.");
+        }
+
+        documentStorageService.delete(document.getFileUrl());
+        documentRepository.delete(document);
+    }
+
     private void validateFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "File chứng từ không được rỗng.");
@@ -155,6 +174,14 @@ public class LoanApplicationDocumentServiceImpl implements LoanApplicationDocume
         return documentTypeCode.trim().toUpperCase();
     }
 
+    private UUID parseDocumentId(String documentId) {
+        try {
+            return UUID.fromString(documentId);
+        } catch (IllegalArgumentException ex) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "documentId không hợp lệ.");
+        }
+    }
+
     private void ensureEditableApplication(LoanApplication application) {
         if (application.getCurrentState() == null || NON_EDITABLE_STATES.contains(application.getCurrentState().getCode())) {
             throw new BusinessException(
@@ -169,7 +196,7 @@ public class LoanApplicationDocumentServiceImpl implements LoanApplicationDocume
                 document.getId(),
                 document.getDocumentType().getCode(),
                 document.getDocumentType().getName(),
-                document.getFileUrl(),
+                resolveReadUrl(document.getFileUrl()),
                 document.getFileName(),
                 document.getUploadedAt()
         );
@@ -180,10 +207,15 @@ public class LoanApplicationDocumentServiceImpl implements LoanApplicationDocume
                 document.getId(),
                 document.getDocumentType().getCode(),
                 document.getDocumentType().getName(),
-                document.getFileUrl(),
+                resolveReadUrl(document.getFileUrl()),
                 document.getFileName(),
                 document.getUploadedAt(),
                 document.getUploadedBy()
         );
+    }
+
+    private String resolveReadUrl(String storedUrl) {
+        String readUrl = documentStorageService.createReadUrl(storedUrl);
+        return readUrl == null || readUrl.isBlank() ? storedUrl : readUrl;
     }
 }
